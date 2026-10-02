@@ -14,16 +14,331 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      candidates: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          district: string | null
+          id: string
+          mobile: string | null
+          name: string
+          needs_follow_up: boolean
+          notes: string | null
+          occupation_id: string | null
+          passport_expiry: string | null
+          passport_no: string | null
+          photo_url: string | null
+          registration_no: string | null
+          ttc_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          district?: string | null
+          id?: string
+          mobile?: string | null
+          name: string
+          needs_follow_up?: boolean
+          notes?: string | null
+          occupation_id?: string | null
+          passport_expiry?: string | null
+          passport_no?: string | null
+          photo_url?: string | null
+          registration_no?: string | null
+          ttc_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          district?: string | null
+          id?: string
+          mobile?: string | null
+          name?: string
+          needs_follow_up?: boolean
+          notes?: string | null
+          occupation_id?: string | null
+          passport_expiry?: string | null
+          passport_no?: string | null
+          photo_url?: string | null
+          registration_no?: string | null
+          ttc_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_occupation_id_fkey"
+            columns: ["occupation_id"]
+            isOneToOne: false
+            referencedRelation: "occupations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_ttc_id_fkey"
+            columns: ["ttc_id"]
+            isOneToOne: false
+            referencedRelation: "ttc_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          exam_date: string
+          exam_time: string | null
+          exam_type: string
+          id: string
+          occupation_id: string | null
+          remarks: string | null
+          result: Database["public"]["Enums"]["exam_result"]
+          result_date: string | null
+          score: number | null
+          ttc_id: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          exam_date: string
+          exam_time?: string | null
+          exam_type?: string
+          id?: string
+          occupation_id?: string | null
+          remarks?: string | null
+          result?: Database["public"]["Enums"]["exam_result"]
+          result_date?: string | null
+          score?: number | null
+          ttc_id?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          exam_date?: string
+          exam_time?: string | null
+          exam_type?: string
+          id?: string
+          occupation_id?: string | null
+          remarks?: string | null
+          result?: Database["public"]["Enums"]["exam_result"]
+          result_date?: string | null
+          score?: number | null
+          ttc_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_occupation_id_fkey"
+            columns: ["occupation_id"]
+            isOneToOne: false
+            referencedRelation: "occupations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exams_ttc_id_fkey"
+            columns: ["ttc_id"]
+            isOneToOne: false
+            referencedRelation: "ttc_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      occupations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      reminders: {
+        Row: {
+          candidate_id: string | null
+          created_at: string
+          done: boolean
+          due_date: string
+          id: string
+          title: string
+        }
+        Insert: {
+          candidate_id?: string | null
+          created_at?: string
+          done?: boolean
+          due_date: string
+          id?: string
+          title: string
+        }
+        Update: {
+          candidate_id?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      results: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          exam_id: string
+          id: string
+          result: Database["public"]["Enums"]["exam_result"]
+          result_date: string | null
+          score: number | null
+          source: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          exam_id: string
+          id?: string
+          result: Database["public"]["Enums"]["exam_result"]
+          result_date?: string | null
+          score?: number | null
+          source?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          exam_id?: string
+          id?: string
+          result?: Database["public"]["Enums"]["exam_result"]
+          result_date?: string | null
+          score?: number | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "results_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settings: {
+        Row: {
+          key: string
+          value: string | null
+        }
+        Insert: {
+          key: string
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
+      ttc_centers: {
+        Row: {
+          created_at: string
+          district: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          district?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          district?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "staff"
+      exam_result: "PENDING" | "PASS" | "FAIL" | "ABSENT" | "CANCELLED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +465,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "staff"],
+      exam_result: ["PENDING", "PASS", "FAIL", "ABSENT", "CANCELLED"],
+    },
   },
 } as const
