@@ -8,6 +8,13 @@
       "when": 1790967490803,
       "tag": "0000_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790970555953,
+      "tag": "0001_phone_only_auth_without_profiles",
+      "breakpoints": true
     }
   ]
 }
