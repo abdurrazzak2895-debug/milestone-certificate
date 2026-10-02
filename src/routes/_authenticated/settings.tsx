@@ -38,14 +38,17 @@ function SettingsPage() {
 }
 
 function MasterList({ table, withDistrict }: { table: "ttc_centers" | "occupations"; withDistrict?: boolean }) {
-  const { data = [] } = useQuery(table === "ttc_centers" ? ttcQ : occQ);
+  const { data: ttcRows = [] } = useQuery(ttcQ);
+  const { data: occRows = [] } = useQuery(occQ);
+  const data: { id: string; name: string; district?: string | null }[] = table === "ttc_centers" ? ttcRows : occRows;
   const refresh = useRefreshAll();
   const [name, setName] = useState("");
   const [district, setDistrict] = useState("");
   const add = async () => {
     if (!name.trim()) return;
-    const row = withDistrict ? { name: name.trim(), district: district || null } : { name: name.trim() };
-    const { error } = await supabase.from(table).insert(row);
+    const { error } = withDistrict
+      ? await supabase.from("ttc_centers").insert({ name: name.trim(), district: district || null })
+      : await supabase.from("occupations").insert({ name: name.trim() });
     if (error) return toast.error(error.code === "23505" ? "এই নাম আগেই আছে" : error.message);
     setName(""); setDistrict(""); refresh(); toast.success("যোগ হয়েছে");
   };
@@ -64,7 +67,7 @@ function MasterList({ table, withDistrict }: { table: "ttc_centers" | "occupatio
       <ul className="divide-y">
         {data.map((r) => (
           <li key={r.id} className="flex items-center justify-between py-2">
-            <span>{r.name} {"district" in r && r.district && <span className="text-sm text-muted-foreground">· {r.district as string}</span>}</span>
+            <span>{r.name} {r.district && <span className="text-sm text-muted-foreground">· {r.district}</span>}</span>
             <Button size="icon" variant="ghost" onClick={() => del(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
           </li>
         ))}
