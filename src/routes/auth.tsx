@@ -210,7 +210,7 @@ function AuthPage() {
 
               <div className="space-y-2 text-center text-sm">
                 {resendIn > 0 ? (
-                  <p className="text-muted-foreground">⏳ {bn(resendIn)} সেকেন্ড পর আবার পাঠাতে পারবেন</p>
+                  <p className="text-muted-foreground">{bn(resendIn)} সেকেন্ড পর আবার পাঠাতে পারবেন</p>
                 ) : (
                   <p className="text-muted-foreground">ওটিপি পাননি?</p>
                 )}
