@@ -1,14 +1,23 @@
-# Phone OTP চালু করার পরিকল্পনা
+# BulkSMSBD দিয়ে মোবাইল OTP লগইন
 
-## নিশ্চিত সমস্যা
-Auth লগে `phone_provider_disabled` / “Unsupported phone provider” পাওয়া গেছে। তাই অ্যাপের OTP পাঠানোর কোড নয়—Lovable Cloud-এ কোনো SMS provider সংযুক্ত না থাকাই ব্যর্থতার কারণ।
+## সমস্যা
+লগে `phone_provider_disabled` দেখা যাচ্ছে, কারণ Lovable Cloud-এর নিজস্ব phone login-এ BulkSMSBD সরাসরি সংযুক্ত করা যায় না। তাই অ্যাপ নিজেই BulkSMSBD দিয়ে OTP পাঠাবে ও যাচাই করবে।
 
-## করণীয়
-1. একটি supported SMS provider account তৈরি করা হবে (যেমন Twilio) এবং SMS পাঠানোর উপযোগী number/service নেওয়া হবে। এই third-party service সাধারণত paid এবং বাংলাদেশে SMS delivery অনুমোদন/verification চাইতে পারে।
-2. Provider থেকে প্রয়োজনীয় credentials সংগ্রহ করে **Cloud → Users → Auth Settings → Phone settings**-এ SMS provider চালু ও credentials সংযুক্ত করা হবে। গোপন credentials চ্যাট বা source code-এ রাখা হবে না।
-3. SMS template-এ OTP placeholder হিসেবে `{{ .Code }}` রাখা হবে।
-4. Login screen-এ provider-সংক্রান্ত ব্যর্থতার জন্য বর্তমান অস্পষ্ট বার্তার বদলে স্পষ্ট বাংলা error দেখানো হবে; security-sensitive তথ্য দেখানো হবে না।
-5. একটি বাস্তব বাংলাদেশি নম্বরে Send OTP, resend timer, OTP verification এবং সফল login—পুরো flow পরীক্ষা করা হবে।
+## যা করা হবে
+1. **API key নিরাপদে সেভ** — আপনার দেওয়া key (`BULKSMSBD_API_KEY`) এবং Sender ID (`BULKSMSBD_SENDER_ID`) নিরাপদ ফর্মে সেভ করা হবে; কোডে বা চ্যাটে রাখা হবে না। চ্যাটে key প্রকাশিত হয়েছে, তাই পরে BulkSMSBD থেকে নতুন key নেওয়া ভালো।
+2. **OTP পাঠানো** — "OTP পাঠান" চাপলে সার্ভার একটি ৬ সংখ্যার কোড তৈরি করে `880XXXXXXXXXX` নম্বরে BulkSMSBD দিয়ে বাংলা বার্তা পাঠাবে।
+3. **নিরাপদ সংরক্ষণ** — কোড hash করে ৫ মিনিটের মেয়াদসহ ডাটাবেসে রাখা হবে; সর্বোচ্চ ৫ বার ভুল চেষ্টা, প্রতি নম্বরে ৬০ সেকেন্ডে একবার পাঠানো যাবে।
+4. **যাচাই ও লগইন** — কোড সঠিক হলে ওই মোবাইল নম্বরের অ্যাকাউন্ট (না থাকলে নতুন) দিয়ে লগইন সেশন তৈরি হয়ে ড্যাশবোর্ডে যাবে। অতিরিক্ত প্রোফাইল তথ্য নেওয়া হবে না।
+5. **স্পষ্ট বার্তা** — SMS ব্যর্থ, ভুল কোড, মেয়াদ শেষ, বেশি চেষ্টা—প্রতিটির জন্য আলাদা বাংলা বার্তা।
+6. লগইন পেজের ডিজাইন ও স্লাইডশো অপরিবর্তিত থাকবে।
 
-## বর্তমান বাধা
-আপনার এখন কোনো SMS provider account নেই। Account ও credentials ছাড়া প্রকৃত SMS OTP পাঠানো সম্ভব নয়। Provider প্রস্তুত হলে বাকি configuration ও app-side error handling সম্পন্ন করা যাবে।
+## আপনার কাছ থেকে প্রয়োজন
+- BulkSMSBD-তে অনুমোদিত **Sender ID** (না থাকলে খালি রাখা যাবে, তবে কিছু অপারেটরে বার্তা না-ও যেতে পারে)।
+- অ্যাকাউন্টে যথেষ্ট SMS ব্যালান্স।
+
+## Technical details
+- Table `phone_otps` (phone, code_hash, expires_at, attempts, last_sent_at); RLS on, no client policies — only server access.
+- Server functions in `src/lib/phone-otp.functions.ts`: `sendPhoneOtp` (GET `http://bulksmsbd.net/api/smsapi` with key from `process.env`, checks response code 202) and `verifyPhoneOtp`.
+- On success: admin client finds/creates user with phone `880…` (phone_confirm), then `auth.admin.generateLink({ type: "magiclink" })` on a synthetic internal email; returns `hashed_token`; client calls `supabase.auth.verifyOtp({ token_hash, type: "magiclink" })` to establish the session.
+- `src/routes/auth.tsx` swaps `signInWithOtp`/`verifyOtp(sms)` for these server functions.
+- Update the AGENTS.md auth rule to note the custom BulkSMSBD OTP path.
