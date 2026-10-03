@@ -53,7 +53,7 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
 
       <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid ${manager ? "grid-cols-5" : "grid-cols-2"} border-t bg-card md:hidden">
+      <nav className={`fixed inset-x-0 bottom-0 z-40 grid ${manager ? "grid-cols-5" : "grid-cols-2"} border-t bg-card md:hidden`}>
         {items.filter((n) => !n.desktopOnly).map((n) => (
           <Link
             key={n.to}
