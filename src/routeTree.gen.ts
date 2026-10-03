@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResultCheckRouteImport } from './routes/result-check'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
+import { Route as AuthenticatedProviderRouteImport } from './routes/_authenticated/provider'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedResultsRouteImport } from './routes/_authenticated/results'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -62,6 +63,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedExamsRoute = AuthenticatedExamsRouteImport.update({
   id: '/exams',
   path: '/exams',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProviderRoute = AuthenticatedProviderRouteImport.update({
+  id: '/provider',
+  path: '/provider',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/result-check': typeof ResultCheckRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
+  '/provider': typeof AuthenticatedProviderRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/results': typeof AuthenticatedResultsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/result-check': typeof ResultCheckRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
+  '/provider': typeof AuthenticatedProviderRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/results': typeof AuthenticatedResultsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/result-check': typeof ResultCheckRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
+  '/_authenticated/provider': typeof AuthenticatedProviderRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/results': typeof AuthenticatedResultsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/result-check'
     | '/dashboard'
     | '/exams'
+    | '/provider'
     | '/reports'
     | '/results'
     | '/settings'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/result-check'
     | '/dashboard'
     | '/exams'
+    | '/provider'
     | '/reports'
     | '/results'
     | '/settings'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/result-check'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
+    | '/_authenticated/provider'
     | '/_authenticated/reports'
     | '/_authenticated/results'
     | '/_authenticated/settings'
@@ -272,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedExamsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/provider': {
+      id: '/_authenticated/provider'
+      path: '/provider'
+      fullPath: '/provider'
+      preLoaderRoute: typeof AuthenticatedProviderRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -327,6 +346,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
+  AuthenticatedProviderRoute: typeof AuthenticatedProviderRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedResultsRoute: typeof AuthenticatedResultsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -338,6 +358,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
+  AuthenticatedProviderRoute: AuthenticatedProviderRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedResultsRoute: AuthenticatedResultsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

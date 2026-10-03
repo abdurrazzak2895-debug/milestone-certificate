@@ -1,23 +1,36 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
+import { homeForRoles, isManager } from "@/lib/roles";
+
+const AGENT_PATHS = ["/submit-job"];
+const PROVIDER_PATHS = ["/provider"];
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
-    // Management pages are for admin/staff only.
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
-    if (!roles || roles.length === 0) {
-      await supabase.auth.signOut();
-      throw redirect({ to: "/admin/login" });
+    const { data: rows } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+    const roles = (rows ?? []).map((r) => r.role as string);
+    if (roles.length === 0) throw redirect({ to: "/portal" });
+    if (!isManager(roles)) {
+      const allowed = [
+        ...(roles.includes("agent") ? AGENT_PATHS : []),
+        ...(roles.includes("service_provider") ? PROVIDER_PATHS : []),
+      ];
+      if (!allowed.includes(location.pathname)) throw redirect({ to: homeForRoles(roles) });
     }
-    return { user: data.user };
+    return { user: data.user, roles };
   },
-  component: () => (
-    <AppShell>
+  component: Layout,
+});
+
+function Layout() {
+  const { roles } = Route.useRouteContext();
+  return (
+    <AppShell roles={roles}>
       <Outlet />
     </AppShell>
-  ),
-});
+  );
+}
