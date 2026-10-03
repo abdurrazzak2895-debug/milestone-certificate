@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResultCheckRouteImport } from './routes/result-check'
+import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
 import { Route as AuthenticatedProviderRouteImport } from './routes/_authenticated/provider'
@@ -54,6 +55,11 @@ const ResultCheckRoute = ResultCheckRouteImport.update({
   id: '/result-check',
   path: '/result-check',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/result-check': typeof ResultCheckRoute
+  '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
   '/provider': typeof AuthenticatedProviderRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/result-check': typeof ResultCheckRoute
+  '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
   '/provider': typeof AuthenticatedProviderRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/result-check': typeof ResultCheckRoute
+  '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
   '/_authenticated/provider': typeof AuthenticatedProviderRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/reset-password'
     | '/result-check'
+    | '/accounts'
     | '/dashboard'
     | '/exams'
     | '/provider'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/reset-password'
     | '/result-check'
+    | '/accounts'
     | '/dashboard'
     | '/exams'
     | '/provider'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/reset-password'
     | '/result-check'
+    | '/_authenticated/accounts'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
     | '/_authenticated/provider'
@@ -269,6 +281,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/result-check'
       preLoaderRoute: typeof ResultCheckRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/accounts': {
+      id: '/_authenticated/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AuthenticatedAccountsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -344,6 +363,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
   AuthenticatedProviderRoute: typeof AuthenticatedProviderRoute
@@ -356,6 +376,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
   AuthenticatedProviderRoute: AuthenticatedProviderRoute,
