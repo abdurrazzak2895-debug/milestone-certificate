@@ -43,6 +43,13 @@
       "when": 1791029903571,
       "tag": "0005_job_submissions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791030309069,
+      "tag": "0006_agent_provider_roles",
+      "breakpoints": true
     }
   ]
 }
