@@ -58,7 +58,7 @@ function Profile() {
   };
 
   const info: [string, string][] = [
-    ["পাসপোর্ট", c.passport_no ?? "—"], ["রেজিস্ট্রেশন", c.registration_no ?? "—"], ["মোবাইল", c.mobile ?? "—"],
+    ["পাসপোর্ট", c.passport_no ?? "—"], ["রেজাল্ট চেকের সময়", fmtDhaka(c.result_check_at)], ["মোবাইল", c.mobile ?? "—"],
     ["পেশা", occName(c.occupation_id)], ["টিটিসি", ttcName(c.ttc_id)], ["জেলা", c.district ?? "—"],
     ["পাসপোর্ট মেয়াদ", fmtDate(c.passport_expiry)], ["জন্ম তারিখ", fmtDate(c.date_of_birth)], ["যোগ করার তারিখ", fmtDate(c.created_at)],
   ];
