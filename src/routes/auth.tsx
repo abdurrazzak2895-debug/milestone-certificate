@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { sendPhoneOtp, verifyPhoneOtp } from "@/lib/phone-otp.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -31,6 +33,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const sendFn = useServerFn(sendPhoneOtp);
+  const verifyFn = useServerFn(verifyPhoneOtp);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
