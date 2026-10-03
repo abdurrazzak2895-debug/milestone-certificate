@@ -39,7 +39,7 @@ export const resultsQ = queryOptions({
 });
 export const ttcQ = queryOptions({
   queryKey: ["ttc"],
-  queryFn: () => all<Ttc>(supabase.from("ttc_centers").select("*").order("name")),
+  queryFn: () => all<Ttc>(supabase.from("ttc_centers").select("*").order("sort_order").order("name")),
 });
 export const occQ = queryOptions({
   queryKey: ["occ"],
@@ -69,6 +69,15 @@ export function lookup<T extends { id: string; name: string }>(rows: T[] | undef
 
 // ---------- dates ----------
 export const todayStr = () => toISO(new Date());
+// Bangladesh time (UTC+6, no DST) helpers for datetime-local inputs
+export const dhakaInputToISO = (v: string) => (v ? new Date(`${v}:00+06:00`).toISOString() : null);
+export const isoToDhakaInput = (iso: string | null | undefined) =>
+  iso ? new Date(new Date(iso).getTime() + 6 * 3600000).toISOString().slice(0, 16) : "";
+export function fmtDhaka(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const [d, t] = isoToDhakaInput(iso).split("T");
+  return `${fmtDate(d)}, ${fmtTime(t)}`;
+}
 export function toISO(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
