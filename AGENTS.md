@@ -14,5 +14,5 @@
 - Exam results live on the exam row; a DB trigger appends every non-pending result change to the results history table — history is never overwritten.
 - Official result lookup goes only through `src/lib/result-checker.ts` — a single seam to plug an authorized API later.
 - TS strictness flags noUncheckedIndexedAccess/exactOptionalPropertyTypes/noImplicitReturns/noPropertyAccessFromIndexSignature are off — they conflict with recharts/shadcn typings and add noise.
-- Authentication is phone-number OTP sent via BulkSMSBD from server functions in `src/lib/phone-otp.functions.ts` (hashed codes in `phone_otps`, session via admin magic-link token); no extra profile fields — built-in phone provider is unavailable.
+- Customer login is mobile number + password on /auth, signing in with a synthetic email `88<mobile>@phone.login.local`; no OTP in the login flow — phone provider unavailable, so phone maps to email credentials.
 - Management pages (_authenticated) require a user_roles row (admin/staff); admins sign in at /admin/login with email/password — keeps phone-OTP customers out of the dashboard.
