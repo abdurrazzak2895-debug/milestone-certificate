@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, ResultBadge, Empty, Field } from "@/components/app/ui-bits";
 import { ResultDialog } from "@/components/app/forms";
-import { candidatesQ, examsQ, occQ, ttcQ, settingsQ, lookup, fmtDate, todayStr, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
+import { candidatesQ, examsQ, occQ, ttcQ, lookup, fmtDate, todayStr, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
 import { useServerFn } from "@tanstack/react-start";
 import { checkSvpResult, listSvpOccupations } from "@/lib/svp.functions";
 
@@ -22,7 +22,6 @@ function ResultsPage() {
   const { data: exams = [] } = useQuery(examsQ);
   const { data: occ } = useQuery(occQ);
   const { data: ttc } = useQuery(ttcQ);
-  const { data: settings } = useQuery(settingsQ);
   const refresh = useRefreshAll();
   const occName = lookup(occ);
   const ttcName = lookup(ttc);
