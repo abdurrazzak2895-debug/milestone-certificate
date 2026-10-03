@@ -91,7 +91,6 @@ function PortalPage() {
             <section className="rounded-2xl border bg-card p-5 shadow-sm">
               <p className="text-xl font-bold">{c.name}</p>
               <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                <Info k="রেজিস্ট্রেশন নং" v={c.registration_no} />
                 <Info k="পাসপোর্ট নং" v={c.passport_no} />
                 <Info k="ট্রেড" v={c.occupation_id ? data.occ[c.occupation_id] : null} />
                 <Info k="টিটিসি" v={c.ttc_id ? data.ttc[c.ttc_id] : null} />
@@ -100,10 +99,12 @@ function PortalPage() {
 
             <section className="space-y-3">
               <h2 className="font-semibold">পরীক্ষার ফলাফল</h2>
-              {data.exams.length === 0 && (
+              {!(c.result_check_at && new Date(c.result_check_at) <= new Date()) ? (
+                <p className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">আপনার রেজাল্ট এখনো প্রকাশ হয়নি। নির্ধারিত সময়ে পুনরায় চেক করুন।</p>
+              ) : data.exams.length === 0 && (
                 <p className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">এখনো কোনো পরীক্ষা নেই।</p>
               )}
-              {data.exams.map((e) => (
+              {c.result_check_at && new Date(c.result_check_at) <= new Date() && data.exams.map((e) => (
                 <div key={e.id} className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4">
                   <div>
                     <p className="font-medium">{e.occupation_id ? data.occ[e.occupation_id] : e.exam_type}</p>

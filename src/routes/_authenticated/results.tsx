@@ -43,7 +43,7 @@ function ResultsPage() {
   const matchExam = match ? exams.find((e) => e.candidate_id === match.id && e.result === "PENDING") : undefined;
   const autoKey = (occId: string | null | undefined) => {
     const n = occName(occId)?.toLowerCase().trim();
-    return n ? svpOcc.find((o) => o.name.toLowerCase() === n || o.key === n)?.key ?? "" : "";
+    return n ? svpOcc.find((o) => o.name.toLowerCase().trim() === n || o.key === n)?.key ?? "" : "";
   };
   const filteredOcc = occFilter ? svpOcc.filter((o) => (o.name + o.key + o.arabic).toLowerCase().includes(occFilter.toLowerCase())) : svpOcc;
 

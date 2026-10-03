@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ResultCheckRouteImport } from './routes/result-check'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
@@ -45,6 +46,11 @@ const PortalRoute = PortalRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultCheckRoute = ResultCheckRouteImport.update({
+  id: '/result-check',
+  path: '/result-check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/result-check': typeof ResultCheckRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/result-check': typeof ResultCheckRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/result-check': typeof ResultCheckRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/portal'
     | '/reset-password'
+    | '/result-check'
     | '/dashboard'
     | '/exams'
     | '/reports'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/portal'
     | '/reset-password'
+    | '/result-check'
     | '/dashboard'
     | '/exams'
     | '/reports'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/portal'
     | '/reset-password'
+    | '/result-check'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
     | '/_authenticated/reports'
@@ -186,6 +198,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PortalRoute: typeof PortalRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ResultCheckRoute: typeof ResultCheckRoute
   AdminLoginRoute: typeof AdminLoginRoute
 }
 
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/result-check': {
+      id: '/result-check'
+      path: '/result-check'
+      fullPath: '/result-check'
+      preLoaderRoute: typeof ResultCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PortalRoute: PortalRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ResultCheckRoute: ResultCheckRoute,
   AdminLoginRoute: AdminLoginRoute,
 }
 export const routeTree = rootRouteImport

@@ -29,7 +29,9 @@ export type Database = {
           passport_no: string | null
           photo_url: string | null
           registration_no: string | null
+          result_check_at: string | null
           ttc_id: string | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -45,7 +47,9 @@ export type Database = {
           passport_no?: string | null
           photo_url?: string | null
           registration_no?: string | null
+          result_check_at?: string | null
           ttc_id?: string | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -61,7 +65,9 @@ export type Database = {
           passport_no?: string | null
           photo_url?: string | null
           registration_no?: string | null
+          result_check_at?: string | null
           ttc_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -149,19 +155,25 @@ export type Database = {
       }
       occupations: {
         Row: {
+          active: boolean
           created_at: string
           id: string
           name: string
+          svp_key: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           id?: string
           name: string
+          svp_key?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           id?: string
           name?: string
+          svp_key?: string | null
         }
         Relationships: []
       }
@@ -310,22 +322,28 @@ export type Database = {
       }
       ttc_centers: {
         Row: {
+          active: boolean
           created_at: string
           district: string | null
           id: string
           name: string
+          sort_order: number
         }
         Insert: {
+          active?: boolean
           created_at?: string
           district?: string | null
           id?: string
           name: string
+          sort_order?: number
         }
         Update: {
+          active?: boolean
           created_at?: string
           district?: string | null
           id?: string
           name?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -352,6 +370,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_applicant_result: {
+        Args: { _occupation_id: string; _passport: string }
+        Returns: Json
+      }
       current_customer_mobile: { Args: never; Returns: string }
       has_role: {
         Args: {

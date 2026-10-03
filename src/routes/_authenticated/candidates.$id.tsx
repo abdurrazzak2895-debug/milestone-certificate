@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PageHeader, ResultBadge, StatCard, Empty } from "@/components/app/ui-bits";
 import { CandidateDialog, ExamDialog, ResultDialog } from "@/components/app/forms";
-import { candidatesQ, examsQ, occQ, ttcQ, resultsQ, lookup, bn, fmtDate, fmtTime, todayStr, dayLabel, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
+import { candidatesQ, examsQ, occQ, ttcQ, resultsQ, lookup, bn, fmtDate, fmtTime, fmtDhaka, todayStr, dayLabel, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   head: () => ({ meta: [{ title: "পরীক্ষার্থীর প্রোফাইল" }, { name: "description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:title", content: "পরীক্ষার্থীর প্রোফাইল" }, { property: "og:description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }] }),
@@ -58,7 +58,7 @@ function Profile() {
   };
 
   const info: [string, string][] = [
-    ["পাসপোর্ট", c.passport_no ?? "—"], ["রেজিস্ট্রেশন", c.registration_no ?? "—"], ["মোবাইল", c.mobile ?? "—"],
+    ["পাসপোর্ট", c.passport_no ?? "—"], ["রেজাল্ট চেকের সময়", fmtDhaka(c.result_check_at)], ["মোবাইল", c.mobile ?? "—"],
     ["পেশা", occName(c.occupation_id)], ["টিটিসি", ttcName(c.ttc_id)], ["জেলা", c.district ?? "—"],
     ["পাসপোর্ট মেয়াদ", fmtDate(c.passport_expiry)], ["জন্ম তারিখ", fmtDate(c.date_of_birth)], ["যোগ করার তারিখ", fmtDate(c.created_at)],
   ];
