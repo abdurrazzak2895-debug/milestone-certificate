@@ -9,27 +9,15 @@ async function assertAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("শুধু অ্যাডমিন এই কাজ করতে পারবেন");
 }
 
-export type Account = { id: string; name: string; mobile: string; role: string; created_at: string };
+export type Account = { id: string; name: string; mobile: string; role: string; agent_code: string | null; active: boolean; created_at: string };
 
 export const listAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Account[]> => {
-    await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roles } = await supabaseAdmin.from("user_roles").select("user_id, role").in("role", ["agent", "service_provider"]);
-    if (!roles?.length) return [];
-    const ids = roles.map((r) => r.user_id);
-    const { data: profs } = await supabaseAdmin.from("profiles").select("id, full_name, email, created_at").in("id", ids);
-    return roles.map((r) => {
-      const p = profs?.find((x) => x.id === r.user_id);
-      return {
-        id: r.user_id,
-        role: r.role,
-        name: p?.full_name ?? "",
-        mobile: (p?.email ?? "").replace(/^88/, "").replace(/@.*/, ""),
-        created_at: p?.created_at ?? "",
-      };
-    });
+    const { data: staff } = await context.supabase.rpc("is_staff", { _user_id: context.userId });
+    if (!staff) throw new Error("অনুমতি নেই");
+    const { data } = await context.supabase.from("agent_accounts").select("*").order("created_at", { ascending: false });
+    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: a.role, agent_code: a.agent_code, active: a.active, created_at: a.created_at }));
   });
 
 const createSchema = z.object({
@@ -37,6 +25,7 @@ const createSchema = z.object({
   mobile: z.string().regex(/^01[3-9]\d{8}$/),
   password: z.string().min(6).max(72),
   role: z.enum(["agent", "service_provider"]),
+  agent_code: z.string().trim().max(30).regex(/^[A-Za-z0-9-]*$/).optional(),
 });
 
 export const createAccount = createServerFn({ method: "POST" })
@@ -45,12 +34,14 @@ export const createAccount = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const code = data.agent_code?.toUpperCase() || null;
+    if (code) {
+      const { data: dup } = await supabaseAdmin.from("agent_accounts").select("user_id").eq("agent_code", code).maybeSingle();
+      if (dup) return { ok: false as const, message: "এই ID আগেই ব্যবহার হয়েছে" };
+    }
     const email = emailFor(data.mobile);
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: { full_name: data.name },
+      email, password: data.password, email_confirm: true, user_metadata: { full_name: data.name },
     });
     if (error || !created.user) {
       return { ok: false as const, message: /already/i.test(error?.message ?? "") ? "এই মোবাইল নম্বরে আগেই অ্যাকাউন্ট আছে" : "অ্যাকাউন্ট তৈরি করা যায়নি" };
@@ -58,9 +49,15 @@ export const createAccount = createServerFn({ method: "POST" })
     const uid = created.user.id;
     await supabaseAdmin.from("profiles").upsert({ id: uid, full_name: data.name, email });
     const { error: rErr } = await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: data.role });
-    if (rErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
+    const { error: aErr } = await supabaseAdmin.from("agent_accounts").insert({ user_id: uid, full_name: data.name, mobile: data.mobile, role: data.role, agent_code: code });
+    if (rErr || aErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
     return { ok: true as const };
   });
+
+async function assertManagedAccount(supabaseAdmin: any, id: string) {
+  const { data } = await supabaseAdmin.from("agent_accounts").select("user_id").eq("user_id", id).maybeSingle();
+  return !!data;
+}
 
 export const resetAccountPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -68,8 +65,17 @@ export const resetAccountPassword = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: r } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", data.id);
-    if (!r?.some((x) => x.role === "agent" || x.role === "service_provider")) return { ok: false as const };
+    if (!(await assertManagedAccount(supabaseAdmin, data.id))) return { ok: false };
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.id, { password: data.password });
+    return { ok: !error };
+  });
+
+export const setAccountActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("agent_accounts").update({ active: data.active }).eq("user_id", data.id);
     return { ok: !error };
   });
