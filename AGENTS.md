@@ -17,3 +17,4 @@
 - Customer login is mobile number + password on /auth, signing in with a synthetic email `88<mobile>@phone.login.local`; no OTP in the login flow — phone provider unavailable, so phone maps to email credentials.
 - Customers (no user_roles row) land on /portal, which reads only their own candidate/exams via RLS matching the login mobile; staff-table policies use is_staff(). Management pages (_authenticated) require a user_roles row (admin/staff); admins sign in at /admin/login with email/password — keeps phone-OTP customers out of the dashboard.
 - SVP (Saudi Skill Verification) result lookup runs server-side in `src/lib/svp.functions.ts` (staff-only), nationality fixed to Bangladesh (BGD); results update the exam row so history trigger logs it.
+- Applicant result visibility is gated by candidates.result_check_at and served publicly only via the SECURITY DEFINER RPC check_applicant_result (passport + occupation) — exposes one matching record, never the table.
