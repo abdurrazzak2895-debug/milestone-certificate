@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { UserPlus, KeyRound } from "lucide-react";
-import { listAccounts, createAccount, resetAccountPassword } from "@/lib/accounts.functions";
+import { listAccounts, createAccount, resetAccountPassword, setAccountActive } from "@/lib/accounts.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ const ROLE_LABEL: Record<string, string> = { agent: "এজেন্ট", servic
 function Accounts() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() });
-  const [f, setF] = useState({ name: "", mobile: "", password: "", role: "agent" as "agent" | "service_provider" });
+  const [f, setF] = useState({ name: "", mobile: "", password: "", agent_code: "", role: "agent" as "agent" | "service_provider" });
   const [busy, setBusy] = useState(false);
 
   const create = async (e: React.FormEvent) => {
@@ -40,7 +40,7 @@ function Accounts() {
       const r = await createAccount({ data: f });
       if (!r.ok) return toast.error(r.message);
       toast.success("অ্যাকাউন্ট তৈরি হয়েছে");
-      setF({ name: "", mobile: "", password: "", role: f.role });
+      setF({ name: "", mobile: "", password: "", agent_code: "", role: f.role });
       qc.invalidateQueries({ queryKey: ["accounts"] });
     } catch {
       toast.error("অ্যাকাউন্ট তৈরি করা যায়নি");
@@ -71,9 +71,10 @@ function Accounts() {
             </button>
           ))}
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div><Label>নাম</Label><Input value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
           <div><Label>মোবাইল নম্বর</Label><Input inputMode="numeric" placeholder="01XXXXXXXXX" value={f.mobile} onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "").slice(0, 11) })} /></div>
+          <div><Label>{f.role === "agent" ? "Agent ID" : "Provider ID"}</Label><Input value={f.agent_code} maxLength={30} placeholder="যেমন: AG-001" onChange={(e) => setF({ ...f, agent_code: e.target.value.replace(/[^A-Za-z0-9-]/g, "") })} /></div>
           <div><Label>পাসওয়ার্ড</Label><Input value={f.password} maxLength={72} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
         </div>
         <Button type="submit" disabled={busy}>{busy ? "তৈরি হচ্ছে..." : "অ্যাকাউন্ট তৈরি করুন"}</Button>
@@ -89,9 +90,9 @@ function Accounts() {
                 <li key={a.id} className="flex items-center justify-between gap-3 p-4">
                   <div>
                     <div className="font-medium">{a.name || "—"}</div>
-                    <div className="text-sm text-muted-foreground">{a.mobile} · {ROLE_LABEL[a.role] ?? a.role}</div>
+                    <div className="text-sm text-muted-foreground">{a.agent_code ? `${a.agent_code} · ` : ""}{a.mobile} · {ROLE_LABEL[a.role] ?? a.role} · <span className={a.active ? "text-primary" : "text-destructive"}>{a.active ? "Active" : "Inactive"}</span></div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => reset(a.id)}><KeyRound className="mr-1 h-4 w-4" /> পাসওয়ার্ড</Button>
+                  <div className="flex gap-2"><Button variant="outline" size="sm" onClick={async () => { const r = await setAccountActive({ data: { id: a.id, active: !a.active } }).catch(() => ({ ok: false })); r.ok ? qc.invalidateQueries({ queryKey: ["accounts"] }) : toast.error("পরিবর্তন করা যায়নি"); }}>{a.active ? "Inactive করুন" : "Active করুন"}</Button><Button variant="outline" size="sm" onClick={() => reset(a.id)}><KeyRound className="mr-1 h-4 w-4" /> পাসওয়ার্ড</Button></div>
                 </li>
               ))}
             </ul>

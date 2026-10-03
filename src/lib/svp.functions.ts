@@ -32,6 +32,24 @@ export const listSvpOccupations = createServerFn({ method: "GET" })
 
 const MAP: Record<string, "PASS" | "FAIL" | "PENDING"> = { passed: "PASS", failed: "FAIL", pending: "PENDING" };
 
+async function querySvp(passport: string, occupationKey: string): Promise<SvpCheck> {
+  const qs = new URLSearchParams({ passport_number: passport.toUpperCase(), occupation_key: occupationKey, nationality_id: BANGLADESH_CODE, locale: "en" });
+  try {
+    const r = await fetch(`${API}/labors?${qs}`, { headers: HEADERS });
+    const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    if (r.status === 404 || j.error) return { status: "not_found", message: "SVP-তে কোনো রেজাল্ট পাওয়া যায়নি" };
+    if (!r.ok) return { status: "error", message: "SVP সার্ভারে সমস্যা, পরে চেষ্টা করুন" };
+    const rec = ((j.labor ?? j.data ?? (Array.isArray(j.labors) ? j.labors[0] : null) ?? j) as Record<string, unknown>) || {};
+    const result = MAP[String(rec.exam_result ?? "").toLowerCase()];
+    if (!result) return { status: "not_found", message: "SVP-তে কোনো রেজাল্ট পাওয়া যায়নি" };
+    const nameOf = (v: unknown) => (v && typeof v === "object" ? String((v as Record<string, unknown>).english_name ?? (v as Record<string, unknown>).name ?? "") : v ? String(v) : null);
+    return { status: "found", result, examDate: rec.exam_date ? String(rec.exam_date).slice(0, 10) : null, applicantName: rec.applicant_name ? String(rec.applicant_name) : null, occupation: nameOf(rec.occupation) };
+  } catch (e) {
+    console.error("SVP check failed", e);
+    return { status: "error", message: "SVP সার্ভারে সংযোগ করা যায়নি" };
+  }
+}
+
 export const checkSvpResult = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -40,26 +58,22 @@ export const checkSvpResult = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<SvpCheck> => {
     const { data: staff } = await context.supabase.rpc("is_staff", { _user_id: context.userId });
     if (!staff) return { status: "error", message: "অনুমতি নেই" };
-    const qs = new URLSearchParams({ passport_number: data.passport.toUpperCase(), occupation_key: data.occupationKey, nationality_id: BANGLADESH_CODE, locale: "en" });
-    try {
-      const r = await fetch(`${API}/labors?${qs}`, { headers: HEADERS });
-      const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-      if (r.status === 404 || j.error) return { status: "not_found", message: "SVP-তে কোনো রেজাল্ট পাওয়া যায়নি" };
-      if (!r.ok) return { status: "error", message: "SVP সার্ভারে সমস্যা, পরে চেষ্টা করুন" };
-      const rec = ((j.labor ?? j.data ?? (Array.isArray(j.labors) ? j.labors[0] : null) ?? j) as Record<string, unknown>) || {};
-      const raw = String(rec.exam_result ?? "").toLowerCase();
-      const result = MAP[raw];
-      if (!result) return { status: "not_found", message: "SVP-তে কোনো রেজাল্ট পাওয়া যায়নি" };
-      const nameOf = (v: unknown) => (v && typeof v === "object" ? String((v as Record<string, unknown>).english_name ?? (v as Record<string, unknown>).name ?? "") : v ? String(v) : null);
-      return {
-        status: "found",
-        result,
-        examDate: rec.exam_date ? String(rec.exam_date).slice(0, 10) : null,
-        applicantName: rec.applicant_name ? String(rec.applicant_name) : null,
-        occupation: nameOf(rec.occupation),
-      };
-    } catch (e) {
-      console.error("SVP check failed", e);
-      return { status: "error", message: "SVP সার্ভারে সংযোগ করা যায়নি" };
-    }
+    return querySvp(data.passport, data.occupationKey);
+  });
+
+/** Check SVP for one submitted work. Admin/staff or a service provider (approved works only, enforced by RLS). */
+export const checkSubmissionSvp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<SvpCheck> => {
+    const { data: sub } = await context.supabase.from("job_submissions").select("id, passport_no, occupation_id").eq("id", data.id).maybeSingle();
+    if (!sub) return { status: "error", message: "অনুমতি নেই" };
+    if (!sub.occupation_id) return { status: "error", message: "পেশা নির্বাচন করা নেই" };
+    const { data: occ } = await context.supabase.from("occupations").select("svp_key").eq("id", sub.occupation_id).maybeSingle();
+    if (!occ?.svp_key) return { status: "error", message: "এই পেশার SVP কোড নেই" };
+    const res = await querySvp(sub.passport_no, occ.svp_key);
+    if (res.status === "error") return res;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("job_submissions").update({ svp_result: res.status === "found" ? res.result : "NOT_FOUND", svp_checked_at: new Date().toISOString() }).eq("id", sub.id);
+    return res;
   });
