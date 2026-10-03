@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { homeForRoles, isManager } from "@/lib/roles";
 
-const AGENT_PATHS = ["/submit-job"];
+const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works"];
 const PROVIDER_PATHS = ["/provider"];
 
 export const Route = createFileRoute("/_authenticated")({
@@ -15,6 +15,11 @@ export const Route = createFileRoute("/_authenticated")({
     const roles = (rows ?? []).map((r) => r.role as string);
     if (roles.length === 0) throw redirect({ to: "/portal" });
     if (!isManager(roles)) {
+      const { data: active } = await supabase.rpc("is_active_account", { _user_id: data.user.id });
+      if (active === false) {
+        await supabase.auth.signOut();
+        throw redirect({ to: "/auth" });
+      }
       const allowed = [
         ...(roles.includes("agent") ? AGENT_PATHS : []),
         ...(roles.includes("service_provider") ? PROVIDER_PATHS : []),

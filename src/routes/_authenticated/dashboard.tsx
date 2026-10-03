@@ -1,3 +1,5 @@
+import { AgentDashboard } from "@/components/app/AgentDashboard";
+import { isManager } from "@/lib/roles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -12,8 +14,13 @@ import { RANGE_LABEL, rangeBounds, inRange, stats, groupCount, monthly, byDate, 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "ড্যাশবোর্ড — পরীক্ষা ব্যবস্থাপনা" }, { name: "description", content: "পরিসংখ্যান, রিমাইন্ডার ও আসন্ন পরীক্ষা।" }, { property: "og:title", content: "ড্যাশবোর্ড" }, { property: "og:description", content: "পরিসংখ্যান, রিমাইন্ডার ও আসন্ন পরীক্ষা।" }] }),
-  component: Dashboard,
+  component: DashboardSwitch,
 });
+
+function DashboardSwitch() {
+  const { roles } = Route.useRouteContext();
+  return isManager(roles) ? <Dashboard /> : <AgentDashboard />;
+}
 
 function Dashboard() {
   const { data: cands = [] } = useQuery(candidatesQ);

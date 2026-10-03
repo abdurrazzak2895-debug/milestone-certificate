@@ -23,6 +23,7 @@ import { Route as AuthenticatedProviderRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedResultsRouteImport } from './routes/_authenticated/results'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSubmissionsRouteImport } from './routes/_authenticated/submissions'
 import { Route as AuthenticatedSubmitJobRouteImport } from './routes/_authenticated/submit-job'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
@@ -97,6 +98,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSubmissionsRoute =
+  AuthenticatedSubmissionsRouteImport.update({
+    id: '/submissions',
+    path: '/submissions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSubmitJobRoute = AuthenticatedSubmitJobRouteImport.update({
   id: '/submit-job',
   path: '/submit-job',
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/results': typeof AuthenticatedResultsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/results': typeof AuthenticatedResultsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -174,6 +183,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/results': typeof AuthenticatedResultsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/submissions': typeof AuthenticatedSubmissionsRoute
   '/_authenticated/submit-job': typeof AuthenticatedSubmitJobRoute
   '/admin/login': typeof AdminLoginRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/results'
     | '/settings'
+    | '/submissions'
     | '/submit-job'
     | '/admin/login'
     | '/candidates/$id'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/results'
     | '/settings'
+    | '/submissions'
     | '/submit-job'
     | '/admin/login'
     | '/candidates/$id'
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/results'
     | '/_authenticated/settings'
+    | '/_authenticated/submissions'
     | '/_authenticated/submit-job'
     | '/admin/login'
     | '/_authenticated/candidates/$id'
@@ -350,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/submissions': {
+      id: '/_authenticated/submissions'
+      path: '/submissions'
+      fullPath: '/submissions'
+      preLoaderRoute: typeof AuthenticatedSubmissionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/submit-job': {
       id: '/_authenticated/submit-job'
       path: '/submit-job'
@@ -390,6 +410,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedResultsRoute: typeof AuthenticatedResultsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSubmissionsRoute: typeof AuthenticatedSubmissionsRoute
   AuthenticatedSubmitJobRoute: typeof AuthenticatedSubmitJobRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesIndexRoute: typeof AuthenticatedCandidatesIndexRoute
@@ -404,6 +425,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedResultsRoute: AuthenticatedResultsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSubmissionsRoute: AuthenticatedSubmissionsRoute,
   AuthenticatedSubmitJobRoute: AuthenticatedSubmitJobRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesIndexRoute: AuthenticatedCandidatesIndexRoute,
