@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
+import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import space1 from "@/assets/space-1.jpg";
 import space2 from "@/assets/space-2.jpg";
@@ -66,7 +67,7 @@ function AuthPage() {
     }
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
     toast.success("সফলভাবে লগইন হয়েছে");
-    navigate({ to: roles && roles.length ? "/dashboard" : "/portal", replace: true });
+    navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
   };
 
   return (
