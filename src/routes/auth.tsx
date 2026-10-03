@@ -17,13 +17,16 @@ const slides = [campusImage, trainingImage, graduatesImage];
 const mobileSchema = z.string().regex(/^01[3-9]\d{8}$/);
 const otpSchema = z.string().regex(/^\d{6}$/);
 
+const bnDigits = "০১২৩৪৫৬৭৮৯";
+const bn = (value: number | string) => String(value).replace(/\d/g, (d) => bnDigits[Number(d)]!);
+
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "মোবাইল লগইন — পরীক্ষা ব্যবস্থাপনা" },
-      { name: "description", content: "মোবাইল নম্বর ও OTP দিয়ে পরীক্ষা ব্যবস্থাপনা পোর্টালে প্রবেশ করুন।" },
+      { name: "description", content: "মোবাইল নম্বর ও ওটিপি দিয়ে পরীক্ষা ব্যবস্থাপনা পোর্টালে প্রবেশ করুন।" },
       { property: "og:title", content: "মোবাইল লগইন — পরীক্ষা ব্যবস্থাপনা" },
-      { property: "og:description", content: "মোবাইল নম্বর ও OTP দিয়ে নিরাপদে প্রবেশ করুন।" },
+      { property: "og:description", content: "মোবাইল নম্বর ও ওটিপি দিয়ে নিরাপদে প্রবেশ করুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -53,11 +56,11 @@ function AuthPage() {
     return () => window.clearTimeout(timer);
   }, [resendIn]);
 
-  const formattedPhone = `+88${mobile}`;
+  const formattedPhone = `+৮৮${bn(mobile)}`;
 
   const sendOtp = async () => {
     if (!mobileSchema.safeParse(mobile).success) {
-      toast.error("সঠিক ১১ সংখ্যার বাংলাদেশি মোবাইল নম্বর দিন");
+      toast.error("সঠিক ১১ �সংখ্যার বাংলাদেশি মোবাইল নম্বর দিন");
       return;
     }
 
@@ -65,14 +68,14 @@ function AuthPage() {
     const res = await sendFn({ data: { mobile } }).catch(() => ({ ok: false as const, reason: "sms_failed" as const }));
     setBusy(false);
     if (!res.ok) {
-      toast.error(res.reason === "cooldown" ? "৬০ সেকেন্ড পর আবার চেষ্টা করুন" : "SMS পাঠানো যায়নি। নম্বর বা SMS ব্যালান্স যাচাই করে আবার চেষ্টা করুন।");
+      toast.error(res.reason === "cooldown" ? "এক মিনিট পর আবার চেষ্টা করুন" : "কোড পাঠানো যায়নি। নম্বর বা ব্যা�লান্স যাচাই করে আবার চেষ্টা করুন।");
       return;
     }
 
     setOtp("");
     setStep("otp");
-    setResendIn(60);
-    toast.success("আপনার মোবাইলে OTP পাঠানো হয়েছে");
+    setResendIn(30);
+    toast.success("আপনার মোবাইলে ওটিপি পাঠানো হয়েছে");
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -83,7 +86,7 @@ function AuthPage() {
     }
 
     if (!otpSchema.safeParse(otp).success) {
-      toast.error("৬ সংখ্যার OTP দিন");
+      toast.error("৬ �সংখ্যার ওটিপি লিখুন");
       return;
     }
 
@@ -91,7 +94,12 @@ function AuthPage() {
     const res = await verifyFn({ data: { mobile, code: otp } }).catch(() => ({ ok: false as const, reason: "server" as const }));
     if (!res.ok) {
       setBusy(false);
-      const msg = { invalid: "OTP সঠিক নয়", expired: "OTP-এর মেয়াদ শেষ, আবার পাঠান", too_many: "অনেকবার ভুল হয়েছে, নতুন OTP নিন", server: "লগইন করা যায়নি, আবার চেষ্টা করুন" }[res.reason];
+      const msg = {
+        invalid: "ভুল ওটিপি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+        expired: "ওটিপি-এর মেয়াদ শেষ, আবার �পাঠান",
+        too_many: "অনেকবা�র ভুল হয়েছে, নতুন ওটিপি নিন",
+        server: "লগইন করা যায়নি, আবার চেষ্টা করুন",
+      }[res.reason];
       toast.error(msg);
       return;
     }
@@ -132,22 +140,22 @@ function AuthPage() {
       <section className="w-full max-w-md">
         <div className="mb-5 text-center text-primary-foreground drop-shadow-sm">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary-foreground/25 bg-primary/90 font-display text-2xl font-bold shadow-lg">প</div>
-          <p className="font-display text-lg font-semibold">পরীক্ষার্থী ও পরীক্ষা ব্যবস্থাপনা</p>
+          <p className="font-display text-lg font-semibold">পরীক্ষার্থী ও �পরীক্ষা ব্যবস্থাপনা</p>
         </div>
 
-        <form onSubmit={submit} className="rounded-lg border border-primary-foreground/20 bg-card/95 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+        <form onSubmit={submit} className="rounded-2xl border border-primary-foreground/20 bg-card/95 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           {step === "phone" ? (
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
               <div>
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><Phone className="h-5 w-5" /></div>
                 <h1 className="text-2xl font-bold">মোবাইল দিয়ে লগইন</h1>
-                <p className="mt-1 text-sm text-muted-foreground">আপনার মোবাইল নম্বরে একটি OTP পাঠানো হবে</p>
+                <p className="mt-1 text-sm text-muted-foreground">আপনার মোবাইল নম্বরে একটি ওটিপি পাঠানো হবে</p>
               </div>
 
               <div className="space-y-2">
                 <label htmlFor="mobile" className="text-sm font-semibold">মোবাইল নম্বর</label>
                 <div className="flex overflow-hidden rounded-md border border-input bg-background shadow-sm focus-within:ring-2 focus-within:ring-ring">
-                  <div className="flex h-12 shrink-0 items-center border-r border-input bg-muted px-4 font-semibold text-foreground" aria-label="স্থির দেশ কোড">+88</div>
+                  <div className="flex h-12 shrink-0 items-center border-r border-input bg-muted px-4 font-semibold text-foreground" aria-label="স্থির দেশ কোড">+৮৮</div>
                   <Input
                     id="mobile"
                     type="tel"
@@ -155,31 +163,31 @@ function AuthPage() {
                     autoComplete="tel-national"
                     value={mobile}
                     onChange={(event) => setMobile(event.target.value.replace(/\D/g, "").slice(0, 11))}
-                    placeholder="01XXXXXXXXX"
+                    placeholder="০১XXXXXXXXX"
                     maxLength={11}
                     required
                     aria-describedby="mobile-help"
                     className="h-12 rounded-none border-0 bg-background text-base shadow-none focus-visible:ring-0"
                   />
                 </div>
-                <p id="mobile-help" className="text-xs text-muted-foreground">১১ সংখ্যার বাংলাদেশি মোবাইল নম্বর লিখুন</p>
+                <p id="mobile-help" className="text-xs text-muted-foreground">১১ �সংখ্যার বাংলাদেশি মোবাইল নম্বর লিখুন</p>
               </div>
 
               <Button type="submit" size="lg" className="h-12 w-full text-base" disabled={busy || mobile.length !== 11}>
                 {busy ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}
-                {busy ? "OTP পাঠানো হচ্ছে..." : "OTP পাঠান"}
+                {busy ? "কোড পাঠানো হচ্ছে..." : "ওটিপি পাঠান"}
               </Button>
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-right-3 space-y-6 duration-300">
               <div>
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><LockKeyhole className="h-5 w-5" /></div>
-                <h1 className="text-2xl font-bold">OTP যাচাই করুন</h1>
+                <h1 className="text-2xl font-bold">অনুগ্রহপূর্বক ওটিপি দিয়ে ভেরিফাই করুন</h1>
                 <p className="mt-1 text-sm text-muted-foreground"><span dir="ltr" className="font-medium text-foreground">{formattedPhone}</span> নম্বরে পাঠানো ৬ সংখ্যার কোডটি লিখুন</p>
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-semibold">OTP কোড</label>
+                <label className="text-sm font-semibold">ওটিপি লিখুন</label>
                 <InputOTP
                   maxLength={6}
                   value={otp}
@@ -187,7 +195,7 @@ function AuthPage() {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   containerClassName="w-full justify-between gap-2"
-                  aria-label="৬ সংখ্যার OTP"
+                  aria-label="৬ সংখ্যার ওটিপি"
                 >
                   <InputOTPGroup className="w-full justify-between gap-2">
                     {[0, 1, 2, 3, 4, 5].map((index) => <InputOTPSlot key={index} index={index} className="h-12 min-w-0 flex-1 rounded-md border bg-background text-lg font-semibold first:rounded-md first:border-l last:rounded-md" />)}
@@ -197,16 +205,23 @@ function AuthPage() {
 
               <Button type="submit" size="lg" className="h-12 w-full text-base" disabled={busy || otp.length !== 6}>
                 {busy ? <LoaderCircle className="animate-spin" /> : <CheckCircle2 />}
-                {busy ? "যাচাই হচ্ছে..." : "যাচাই করে লগইন"}
+                {busy ? "যা�চাই হচ্ছে..." : "ভেরিফাই করুন"}
               </Button>
 
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <Button type="button" variant="ghost" size="sm" onClick={changeNumber} className="px-2 text-muted-foreground">
-                  <ArrowLeft /> নম্বর পরিবর্তন
-                </Button>
-                <Button type="button" variant="link" size="sm" onClick={sendOtp} disabled={busy || resendIn > 0} className="px-2">
-                  {resendIn > 0 ? `আবার পাঠান (${resendIn})` : "OTP আবার পাঠান"}
-                </Button>
+              <div className="space-y-2 text-center text-sm">
+                {resendIn > 0 ? (
+                  <p className="text-muted-foreground">{bn(resendIn)} সেকেন্ড পর আবার পাঠাতে পারবেন</p>
+                ) : (
+                  <p className="text-muted-foreground">ওটিপি পাননি?</p>
+                )}
+                <div className="flex items-center justify-between gap-3">
+                  <Button type="button" variant="ghost" size="sm" onClick={changeNumber} className="px-2 text-muted-foreground">
+                    <ArrowLeft /> নম্বর পরিবর্তন
+                  </Button>
+                  <Button type="button" variant="link" size="sm" onClick={sendOtp} disabled={busy || resendIn > 0} className="px-2">
+                    আবার ওটিপি পাঠান
+                  </Button>
+                </div>
               </div>
             </div>
           )}
