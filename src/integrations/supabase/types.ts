@@ -153,6 +153,65 @@ export type Database = {
           },
         ]
       }
+      job_submissions: {
+        Row: {
+          candidate_name: string
+          created_at: string
+          education: string
+          exam_at: string
+          experience: string
+          id: string
+          mobile: string
+          passport_no: string
+          ref_no: number
+          status: string
+          submitted_by: string
+          terms_accepted: boolean
+          ticket_path: string
+          ttc_id: string | null
+        }
+        Insert: {
+          candidate_name: string
+          created_at?: string
+          education: string
+          exam_at: string
+          experience: string
+          id?: string
+          mobile: string
+          passport_no: string
+          ref_no?: never
+          status?: string
+          submitted_by?: string
+          terms_accepted: boolean
+          ticket_path: string
+          ttc_id?: string | null
+        }
+        Update: {
+          candidate_name?: string
+          created_at?: string
+          education?: string
+          exam_at?: string
+          experience?: string
+          id?: string
+          mobile?: string
+          passport_no?: string
+          ref_no?: never
+          status?: string
+          submitted_by?: string
+          terms_accepted?: boolean
+          ticket_path?: string
+          ttc_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_submissions_ttc_id_fkey"
+            columns: ["ttc_id"]
+            isOneToOne: false
+            referencedRelation: "ttc_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       occupations: {
         Row: {
           active: boolean

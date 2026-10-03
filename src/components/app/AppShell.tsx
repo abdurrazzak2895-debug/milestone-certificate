@@ -10,6 +10,7 @@ const nav = [
   { to: "/exams", label: "পরীক্ষা", icon: CalendarDays },
   { to: "/results", label: "রেজাল্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/reports", label: "রিপোর্ট", icon: BarChart3 },
+  { to: "/submit-job", label: "কাজ Submit", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ] as const;
 
