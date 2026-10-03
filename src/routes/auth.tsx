@@ -58,10 +58,10 @@ function AuthPage() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
+    const res = await sendFn({ data: { mobile } }).catch(() => ({ ok: false as const, reason: "sms_failed" as const }));
     setBusy(false);
-    if (error) {
-      toast.error("OTP পাঠানো যায়নি। কিছুক্ষণ পর আবার চেষ্টা করুন।");
+    if (!res.ok) {
+      toast.error(res.reason === "cooldown" ? "৬০ সেকেন্ড পর আবার চেষ্টা করুন" : "SMS পাঠানো যায়নি। নম্বর বা SMS ব্যালান্স যাচাই করে আবার চেষ্টা করুন।");
       return;
     }
 
@@ -84,10 +84,17 @@ function AuthPage() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token: otp, type: "sms" });
+    const res = await verifyFn({ data: { mobile, code: otp } }).catch(() => ({ ok: false as const, reason: "server" as const }));
+    if (!res.ok) {
+      setBusy(false);
+      const msg = { invalid: "OTP সঠিক নয়", expired: "OTP-এর মেয়াদ শেষ, আবার পাঠান", too_many: "অনেকবার ভুল হয়েছে, নতুন OTP নিন", server: "লগইন করা যায়নি, আবার চেষ্টা করুন" }[res.reason];
+      toast.error(msg);
+      return;
+    }
+    const { error } = await supabase.auth.verifyOtp({ token_hash: res.tokenHash, type: "magiclink" });
     setBusy(false);
     if (error) {
-      toast.error("OTP সঠিক নয় বা মেয়াদ শেষ হয়েছে");
+      toast.error("লগইন করা যায়নি, আবার চেষ্টা করুন");
       return;
     }
 
