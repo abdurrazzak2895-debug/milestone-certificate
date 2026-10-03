@@ -92,13 +92,13 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
           <Field label="পেশা *">
             <NativeSelect value={f.occupation_id} onChange={set("occupation_id")}>
               <option value="">— নির্বাচন করুন ({occ?.length ?? 0}) —</option>
-              {occ?.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {occ?.filter((o) => o.active).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
           <Field label="টিটিসি *">
             <NativeSelect value={f.ttc_id} onChange={set("ttc_id")}>
               <option value="">— নির্বাচন করুন —</option>
-              {ttc?.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {ttc?.filter((o) => o.active).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
           <Field label="ছবি"><Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></Field>
@@ -175,13 +175,13 @@ export function ExamDialog({ open, onOpenChange, exam, candidateId }: { open: bo
           <Field label="টিটিসি">
             <NativeSelect value={f.ttc_id} onChange={set("ttc_id")}>
               <option value="">—</option>
-              {ttc?.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {ttc?.filter((o) => o.active).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
           <Field label="পেশা">
             <NativeSelect value={f.occupation_id} onChange={set("occupation_id")}>
               <option value="">—</option>
-              {occ?.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {occ?.filter((o) => o.active).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
           <Field label="পরীক্ষার ধরন">
