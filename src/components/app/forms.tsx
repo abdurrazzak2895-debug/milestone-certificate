@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, NativeSelect } from "./ui-bits";
 import {
-  candidatesQ, occQ, ttcQ, RESULTS, RESULT_LABEL, todayStr, useRefreshAll,
+  candidatesQ, occQ, ttcQ, RESULTS, RESULT_LABEL, todayStr, useRefreshAll, dhakaInputToISO, isoToDhakaInput,
   type Candidate, type Exam, type ExamResult,
 } from "@/lib/data";
 
@@ -20,10 +20,12 @@ function errMsg(e: { code?: string; message: string }) {
 
 // ---------------- Candidate ----------------
 export function CandidateDialog({ open, onOpenChange, candidate }: { open: boolean; onOpenChange: (o: boolean) => void; candidate?: Candidate | null }) {
-  const { data: occ } = useQuery(occQ);
-  const { data: ttc } = useQuery(ttcQ);
+  const { data: occAll } = useQuery(occQ);
+  const { data: ttcAll } = useQuery(ttcQ);
+  const occ = occAll?.filter((o) => o.active);
+  const ttc = ttcAll?.filter((o) => o.active);
   const refresh = useRefreshAll();
-  const empty = { name: "", passport_no: "", registration_no: "", mobile: "", occupation_id: "", ttc_id: "", district: "", passport_expiry: "", date_of_birth: "", notes: "", needs_follow_up: false };
+  const empty = { name: "", passport_no: "", mobile: "", occupation_id: "", ttc_id: "", notes: "", result_check_at: "" };
   const [f, setF] = useState(empty);
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,10 +34,9 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
     if (!open) return;
     setPhoto(null);
     setF(candidate ? {
-      name: candidate.name, passport_no: candidate.passport_no ?? "", registration_no: candidate.registration_no ?? "",
-      mobile: candidate.mobile ?? "", occupation_id: candidate.occupation_id ?? "", ttc_id: candidate.ttc_id ?? "",
-      district: candidate.district ?? "", passport_expiry: candidate.passport_expiry ?? "", date_of_birth: candidate.date_of_birth ?? "",
-      notes: candidate.notes ?? "", needs_follow_up: candidate.needs_follow_up,
+      name: candidate.name, passport_no: candidate.passport_no ?? "", mobile: candidate.mobile ?? "",
+      occupation_id: candidate.occupation_id ?? "", ttc_id: candidate.ttc_id ?? "", notes: candidate.notes ?? "",
+      result_check_at: isoToDhakaInput(candidate.result_check_at),
     } : empty);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, candidate]);
@@ -44,6 +45,9 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
 
   const save = async () => {
     if (!f.name.trim()) return toast.error("নাম দিন");
+    if (!f.passport_no.trim()) return toast.error("পাসপোর্ট নম্বর দিন");
+    if (!f.occupation_id) return toast.error("পেশা নির্বাচন করুন");
+    if (!f.ttc_id) return toast.error("টিটিসি নির্বাচন করুন");
     setBusy(true);
     try {
       let photo_url = candidate?.photo_url ?? null;
@@ -54,17 +58,13 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
         photo_url = path;
       }
       const row = {
-        ...f,
         name: f.name.trim(),
-        passport_no: f.passport_no.trim() || null,
-        registration_no: f.registration_no.trim() || null,
+        passport_no: f.passport_no.trim().toUpperCase(),
         mobile: f.mobile || null,
-        occupation_id: f.occupation_id || null,
-        ttc_id: f.ttc_id || null,
-        district: f.district || null,
-        passport_expiry: f.passport_expiry || null,
-        date_of_birth: f.date_of_birth || null,
+        occupation_id: f.occupation_id,
+        ttc_id: f.ttc_id,
         notes: f.notes || null,
+        result_check_at: dhakaInputToISO(f.result_check_at),
         photo_url,
       };
       const { error } = candidate
@@ -87,30 +87,23 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
         <DialogHeader><DialogTitle>{candidate ? "পরীক্ষার্থী সম্পাদনা" : "নতুন পরীক্ষার্থী"}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="নাম *"><Input value={f.name} onChange={set("name")} /></Field>
-          <Field label="পাসপোর্ট নম্বর"><Input value={f.passport_no} onChange={set("passport_no")} /></Field>
-          <Field label="রেজিস্ট্রেশন/আবেদন নম্বর"><Input value={f.registration_no} onChange={set("registration_no")} /></Field>
+          <Field label="পাসপোর্ট নম্বর *"><Input value={f.passport_no} onChange={set("passport_no")} /></Field>
           <Field label="মোবাইল"><Input value={f.mobile} onChange={set("mobile")} inputMode="tel" /></Field>
-          <Field label="পেশা">
+          <Field label="পেশা *">
             <NativeSelect value={f.occupation_id} onChange={set("occupation_id")}>
-              <option value="">— নির্বাচন করুন —</option>
+              <option value="">— নির্বাচন করুন ({occ?.length ?? 0}) —</option>
               {occ?.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
-          <Field label="টিটিসি">
+          <Field label="টিটিসি *">
             <NativeSelect value={f.ttc_id} onChange={set("ttc_id")}>
               <option value="">— নির্বাচন করুন —</option>
               {ttc?.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
-          <Field label="জেলা"><Input value={f.district} onChange={set("district")} /></Field>
-          <Field label="পাসপোর্ট মেয়াদ"><Input type="date" value={f.passport_expiry} onChange={set("passport_expiry")} /></Field>
-          <Field label="জন্ম তারিখ"><Input type="date" value={f.date_of_birth} onChange={set("date_of_birth")} /></Field>
           <Field label="ছবি"><Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></Field>
+          <Field label="রেজাল্ট চেকের সময় (বাংলাদেশ সময়)"><Input type="datetime-local" value={f.result_check_at} onChange={set("result_check_at")} /></Field>
           <div className="sm:col-span-2"><Field label="নোট"><Textarea value={f.notes} onChange={set("notes")} rows={2} /></Field></div>
-          <label className="flex items-center gap-2 text-sm sm:col-span-2">
-            <input type="checkbox" checked={f.needs_follow_up} onChange={(e) => setF({ ...f, needs_follow_up: e.target.checked })} className="h-4 w-4 accent-primary" />
-            ফলো-আপ প্রয়োজন
-          </label>
         </div>
         <DialogFooter><Button onClick={save} disabled={busy}>{busy ? "সংরক্ষণ হচ্ছে..." : "সংরক্ষণ করুন"}</Button></DialogFooter>
       </DialogContent>
