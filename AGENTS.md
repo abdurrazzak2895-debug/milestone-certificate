@@ -15,4 +15,4 @@
 - Official result lookup goes only through `src/lib/result-checker.ts` — a single seam to plug an authorized API later.
 - TS strictness flags noUncheckedIndexedAccess/exactOptionalPropertyTypes/noImplicitReturns/noPropertyAccessFromIndexSignature are off — they conflict with recharts/shadcn typings and add noise.
 - Customer login is mobile number + password on /auth, signing in with a synthetic email `88<mobile>@phone.login.local`; no OTP in the login flow — phone provider unavailable, so phone maps to email credentials.
-- Management pages (_authenticated) require a user_roles row (admin/staff); admins sign in at /admin/login with email/password — keeps phone-OTP customers out of the dashboard.
+- Customers (no user_roles row) land on /portal, which reads only their own candidate/exams via RLS matching the login mobile; staff-table policies use is_staff(). Management pages (_authenticated) require a user_roles row (admin/staff); admins sign in at /admin/login with email/password — keeps phone-OTP customers out of the dashboard.
