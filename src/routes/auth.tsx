@@ -55,17 +55,18 @@ function AuthPage() {
     }
     if (!password) return;
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: `88${mobile}@phone.login.local`,
       password,
     });
     setBusy(false);
-    if (error) {
+    if (error || !data.user) {
       toast.error("মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়");
       return;
     }
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
     toast.success("সফলভাবে লগইন হয়েছে");
-    navigate({ to: "/dashboard", replace: true });
+    navigate({ to: roles && roles.length ? "/dashboard" : "/portal", replace: true });
   };
 
   return (
