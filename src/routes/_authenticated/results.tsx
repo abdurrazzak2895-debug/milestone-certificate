@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, ResultBadge, Empty, Field } from "@/components/app/ui-bits";
 import { ResultDialog } from "@/components/app/forms";
-import { candidatesQ, examsQ, occQ, ttcQ, settingsQ, lookup, fmtDate, todayStr, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
-import { checkOfficialResult } from "@/lib/result-checker";
+import { candidatesQ, examsQ, occQ, ttcQ, lookup, fmtDate, todayStr, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
+import { useServerFn } from "@tanstack/react-start";
+import { checkSvpResult, listSvpOccupations } from "@/lib/svp.functions";
 
 export const Route = createFileRoute("/_authenticated/results")({
   head: () => ({ meta: [{ title: "রেজাল্ট ব্যবস্থাপনা" }, { name: "description", content: "রেজাল্ট চেক ও আপডেট করুন।" }, { property: "og:title", content: "রেজাল্ট ব্যবস্থাপনা" }, { property: "og:description", content: "রেজাল্ট চেক ও আপডেট করুন।" }] }),
@@ -21,36 +22,55 @@ function ResultsPage() {
   const { data: exams = [] } = useQuery(examsQ);
   const { data: occ } = useQuery(occQ);
   const { data: ttc } = useQuery(ttcQ);
-  const { data: settings } = useQuery(settingsQ);
   const refresh = useRefreshAll();
   const occName = lookup(occ);
   const ttcName = lookup(ttc);
   const candMap = useMemo(() => new Map(cands.map((c) => [c.id, c])), [cands]);
-  const [reg, setReg] = useState("");
+  const listOcc = useServerFn(listSvpOccupations);
+  const checkFn = useServerFn(checkSvpResult);
+  const { data: svpOcc = [] } = useQuery({ queryKey: ["svp-occupations"], queryFn: () => listOcc(), staleTime: 86400000 });
   const [pp, setPp] = useState("");
-  const [examNo, setExamNo] = useState("");
+  const [occKey, setOccKey] = useState("");
+  const [occFilter, setOccFilter] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [found, setFound] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resExam, setResExam] = useState<Exam | null>(null);
 
   const t = todayStr();
   const pending = exams.filter((e) => e.result === "PENDING" && e.exam_date <= t).sort((a, b) => a.exam_date.localeCompare(b.exam_date));
-  const match = cands.find((c) => (reg && c.registration_no === reg.trim()) || (pp && c.passport_no === pp.trim()));
+  const match = cands.find((c) => pp && c.passport_no?.toUpperCase() === pp.trim().toUpperCase());
   const matchExam = match ? exams.find((e) => e.candidate_id === match.id && e.result === "PENDING") : undefined;
+  const autoKey = (occId: string | null | undefined) => {
+    const n = occName(occId)?.toLowerCase().trim();
+    return n ? svpOcc.find((o) => o.name.toLowerCase() === n || o.key === n)?.key ?? "" : "";
+  };
+  const filteredOcc = occFilter ? svpOcc.filter((o) => (o.name + o.key + o.arabic).toLowerCase().includes(occFilter.toLowerCase())) : svpOcc;
 
-  const check = async () => {
-    if (!reg.trim()) return toast.error("রেজিস্ট্রেশন নম্বর দিন");
-    setBusy(true);
-    setMsg(null);
-    const res = await checkOfficialResult({ registrationNo: reg.trim(), passportNo: pp.trim(), examNo: examNo.trim() }, settings?.result_api_url);
+  const runCheck = async (passport: string, key: string, exam?: Exam) => {
+    if (!passport.trim()) return toast.error("পাসপোর্ট নম্বর দিন");
+    if (!key) return toast.error("পেশা (Occupation) নির্বাচন করুন");
+    setBusy(true); setMsg(null); setFound(null);
+    const res = await checkFn({ data: { passport: passport.trim(), occupationKey: key } }).catch(() => ({ status: "error" as const, message: "চেক করা যায়নি" }));
     setBusy(false);
     if (res.status !== "found") return setMsg(res.message);
-    if (!match || !matchExam) return setMsg("রেজাল্ট পাওয়া গেছে কিন্তু মিল থাকা অপেক্ষমান পরীক্ষা নেই");
-    if (matchExam.result === res.result) return toast.info("এই রেজাল্ট আগেই সংরক্ষিত আছে");
-    const { error } = await supabase.from("exams").update({ result: res.result, score: res.score ?? null, result_date: res.resultDate }).eq("id", matchExam.id);
+    setFound(`SVP রেজাল্ট: ${RESULT_LABEL[res.result]}${res.applicantName ? ` · ${res.applicantName}` : ""}${res.examDate ? ` · ${fmtDate(res.examDate)}` : ""}`);
+    const target = exam ?? matchExam;
+    if (res.result === "PENDING") return toast.info("SVP-তে রেজাল্ট এখনো অপেক্ষমান");
+    if (!target) return toast.info("রেজাল্ট পাওয়া গেছে, কিন্তু মিল থাকা অপেক্ষমান পরীক্ষা নেই");
+    const { error } = await supabase.from("exams").update({ result: res.result, result_date: res.examDate ?? todayStr(), remarks: "SVP অটো চেক" }).eq("id", target.id);
     if (error) return toast.error(error.message);
     toast.success(`রেজাল্ট সংরক্ষিত: ${RESULT_LABEL[res.result]}`);
     refresh();
+  };
+
+  const quickCheck = (e: Exam) => {
+    const c = candMap.get(e.candidate_id);
+    const key = autoKey(e.occupation_id ?? c?.occupation_id);
+    setPp(c?.passport_no ?? "");
+    setOccKey(key);
+    if (c?.passport_no && key) runCheck(c.passport_no, key, e);
+    else toast.info("পাসপোর্ট/পেশা মেলেনি — বাম পাশ থেকে পেশা নির্বাচন করে চেক করুন");
   };
 
   return (
@@ -58,11 +78,18 @@ function ResultsPage() {
       <PageHeader title="রেজাল্ট" subtitle="অটোমেটিক রেজাল্ট চেক ও ম্যানুয়াল এন্ট্রি" />
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="card-surface space-y-3 p-4 lg:col-span-2">
-          <h3 className="text-base font-semibold">অটোমেটিক রেজাল্ট চেক</h3>
-          <Field label="রেজিস্ট্রেশন নম্বর *"><Input value={reg} onChange={(e) => setReg(e.target.value)} placeholder="REG-2026-001" /></Field>
-          <Field label="পাসপোর্ট নম্বর (প্রয়োজনে)"><Input value={pp} onChange={(e) => setPp(e.target.value)} /></Field>
-          <Field label="পরীক্ষা/আবেদন নম্বর"><Input value={examNo} onChange={(e) => setExamNo(e.target.value)} /></Field>
-          <Button className="w-full" onClick={check} disabled={busy}><Search className="h-4 w-4" /> {busy ? "চেক হচ্ছে..." : "রেজাল্ট চেক করুন"}</Button>
+          <h3 className="text-base font-semibold">SVP অটোমেটিক রেজাল্ট চেক</h3>
+          <Field label="জাতীয়তা"><Input value="Bangladesh" disabled /></Field>
+          <Field label="পাসপোর্ট নম্বর *"><Input value={pp} onChange={(e) => { setPp(e.target.value); const c = cands.find((x) => x.passport_no?.toUpperCase() === e.target.value.trim().toUpperCase()); if (c) { const k = autoKey(c.occupation_id); if (k) setOccKey(k); } }} /></Field>
+          <Field label="পেশা (Occupation) *">
+            <Input value={occFilter} onChange={(e) => setOccFilter(e.target.value)} placeholder="পেশা খুঁজুন..." className="mb-2" />
+            <select value={occKey} onChange={(e) => setOccKey(e.target.value)} className="h-10 w-full rounded-md border bg-background px-2 text-sm">
+              <option value="">— নির্বাচন করুন ({svpOcc.length}) —</option>
+              {filteredOcc.map((o) => <option key={o.key} value={o.key}>{o.name} ({o.key})</option>)}
+            </select>
+          </Field>
+          <Button className="w-full" onClick={() => runCheck(pp, occKey)} disabled={busy}><Search className="h-4 w-4" /> {busy ? "চেক হচ্ছে..." : "SVP থেকে রেজাল্ট চেক করুন"}</Button>
+          {found && <div className="rounded-lg bg-primary/10 p-3 text-sm font-semibold text-primary">{found}</div>}
           {msg && (
             <div className="rounded-lg bg-warning-soft p-3 text-sm text-warning">
               <div className="flex items-center gap-2 font-semibold"><AlertCircle className="h-4 w-4" />{msg}</div>
@@ -93,7 +120,7 @@ function ResultsPage() {
                     <Link to="/candidates/$id" params={{ id: e.candidate_id }} className="font-medium hover:text-primary">{candMap.get(e.candidate_id)?.name}</Link>
                     <div className="text-xs text-muted-foreground">{fmtDate(e.exam_date)} · {occName(e.occupation_id)} · {ttcName(e.ttc_id)}</div>
                   </div>
-                  <div className="flex items-center gap-2"><ResultBadge result={e.result} /><Button size="sm" onClick={() => setResExam(e)}>রেজাল্ট দিন</Button></div>
+                  <div className="flex items-center gap-2"><ResultBadge result={e.result} /><Button size="sm" variant="outline" disabled={busy} onClick={() => quickCheck(e)}>SVP চেক</Button><Button size="sm" onClick={() => setResExam(e)}>রেজাল্ট দিন</Button></div>
                 </li>
               ))}
             </ul>
