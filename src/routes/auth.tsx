@@ -106,7 +106,7 @@ function AuthPage() {
     const { error } = await supabase.auth.verifyOtp({ token_hash: res.tokenHash, type: "magiclink" });
     setBusy(false);
     if (error) {
-      toast.errorলোগিন_guard();
+      toast.error("লগইন করা যায়নি, আবার চেষ্টা করুন");
       return;
     }
 
@@ -183,7 +183,7 @@ function AuthPage() {
               <div>
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><LockKeyhole className="h-5 w-5" /></div>
                 <h1 className="text-2xl font-bold">অনুগ্রহপূর্বক ওটিপি দিয়ে ভেরিফাই করুন</h1>
-                <p className="mt-1 text-sm text-muted-foreground"><span dir="ltr" className="font-medium text-foreground">{formattedPhone}</span নম্বরে পাঠানো ৬ সংখ্যার কোডটি লিখুন</p>
+                <p className="mt-1 text-sm text-muted-foreground"><span dir="ltr" className="font-medium text-foreground">{formattedPhone}</span> নম্বরে পাঠানো ৬ সংখ্যার কোডটি লিখুন</p>
               </div>
 
               <div className="space-y-3">
