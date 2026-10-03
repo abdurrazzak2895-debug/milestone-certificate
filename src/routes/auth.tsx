@@ -18,7 +18,7 @@ const mobileSchema = z.string().regex(/^01[3-9]\d{8}$/);
 const otpSchema = z.string().regex(/^\d{6}$/);
 
 const bnDigits = "০১২৩৪৫৬৭৮৯";
-const bn = (value: number) => String(value).replace(/\d/g, (d) => bnDigits[Number(d)]!);
+const bn = (value: number | string) => String(value).replace(/\d/g, (d) => bnDigits[Number(d)]!);
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
