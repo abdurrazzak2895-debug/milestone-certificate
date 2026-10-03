@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { PortalAssistant } from "@/components/app/PortalAssistant";
 import { RESULT_LABEL, bn, fmtDate, type Candidate, type Exam } from "@/lib/data";
 
 type PortalData = {
@@ -127,6 +128,17 @@ function PortalPage() {
                 </div>
               ))}
             </section>
+
+            <a
+              href="https://svp-international.pacc.sa/applicant-result"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl border bg-card p-4 text-center font-semibold text-primary hover:bg-muted"
+            >
+              অফিসিয়াল SVP রেজাল্ট যাচাই করুন ↗
+            </a>
+
+            <PortalAssistant />
           </>
         )}
       </main>
