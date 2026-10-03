@@ -29,6 +29,13 @@
       "when": 1791013817061,
       "tag": "0003_customer_portal_access",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791017702277,
+      "tag": "0004_applicant_result_schedule",
+      "breakpoints": true
     }
   ]
 }
