@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_accounts: {
+        Row: {
+          active: boolean
+          agent_code: string | null
+          created_at: string
+          full_name: string
+          mobile: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          agent_code?: string | null
+          created_at?: string
+          full_name: string
+          mobile: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          agent_code?: string | null
+          created_at?: string
+          full_name?: string
+          mobile?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       candidates: {
         Row: {
           created_at: string
@@ -162,10 +192,16 @@ export type Database = {
           experience: string
           id: string
           mobile: string
+          occupation_id: string | null
           passport_no: string
           ref_no: number
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string
           submitted_by: string
+          svp_checked_at: string | null
+          svp_result: string
           terms_accepted: boolean
           ticket_path: string
           ttc_id: string | null
@@ -178,10 +214,16 @@ export type Database = {
           experience: string
           id?: string
           mobile: string
+          occupation_id?: string | null
           passport_no: string
           ref_no?: never
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           submitted_by?: string
+          svp_checked_at?: string | null
+          svp_result?: string
           terms_accepted: boolean
           ticket_path: string
           ttc_id?: string | null
@@ -194,15 +236,28 @@ export type Database = {
           experience?: string
           id?: string
           mobile?: string
+          occupation_id?: string | null
           passport_no?: string
           ref_no?: never
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string
           submitted_by?: string
+          svp_checked_at?: string | null
+          svp_result?: string
           terms_accepted?: boolean
           ticket_path?: string
           ttc_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "job_submissions_occupation_id_fkey"
+            columns: ["occupation_id"]
+            isOneToOne: false
+            referencedRelation: "occupations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "job_submissions_ttc_id_fkey"
             columns: ["ttc_id"]
@@ -441,6 +496,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_role_text: {
+        Args: { _role: string; _user_id: string }
+        Returns: boolean
+      }
+      is_active_account: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
