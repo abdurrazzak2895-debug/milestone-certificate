@@ -15,6 +15,13 @@
       "when": 1790970555953,
       "tag": "0001_phone_only_auth_without_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790993458853,
+      "tag": "0002_phone_otps",
+      "breakpoints": true
     }
   ]
 }
