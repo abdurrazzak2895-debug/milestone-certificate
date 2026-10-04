@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Home, LogOut, Settings, Users } from "lucide-react";
+import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Home, LogOut, Settings, UserCheck, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { TechBackground } from "./TechBackground";
@@ -21,10 +21,11 @@ const agentNav = [
   { to: "/my-works", label: "আমার কাজ", icon: Briefcase },
 ] as const;
 const providerNav = [{ to: "/provider", label: "আমার কাজ", icon: Briefcase }] as const;
+const managementNav = [{ to: "/management", label: "রিসেপশন", icon: UserCheck }] as const;
 
 export function AppShell({ children, roles = [] }: { children: ReactNode; roles?: string[] }) {
   const manager = roles.includes("admin") || roles.includes("staff");
-  const items: readonly { to: string; label: string; icon: typeof Home; desktopOnly?: boolean }[] = manager ? nav : [...(roles.includes("agent") ? agentNav : []), ...(roles.includes("service_provider") ? providerNav : [])];
+  const items: readonly { to: string; label: string; icon: typeof Home; desktopOnly?: boolean }[] = manager ? nav : [...(roles.includes("agent") ? agentNav : []), ...(roles.includes("service_provider") ? providerNav : []), ...(roles.includes("management") ? managementNav : [])];
   const navigate = useNavigate();
   const qc = useQueryClient();
   const logout = async () => {
@@ -60,7 +61,7 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
 
       <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
 
-      <nav className={`fixed inset-x-0 bottom-0 z-40 grid ${manager ? "grid-cols-5" : "grid-cols-3"} border-t bg-card md:hidden`}>
+       <nav className={`fixed inset-x-0 bottom-0 z-40 grid ${manager ? "grid-cols-5" : items.length === 1 ? "grid-cols-1" : "grid-cols-3"} border-t bg-card md:hidden`}>
         {items.filter((n) => !n.desktopOnly).map((n) => (
           <Link
             key={n.to}

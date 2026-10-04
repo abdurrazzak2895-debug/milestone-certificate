@@ -24,7 +24,7 @@ const createSchema = z.object({
   name: z.string().trim().min(2).max(100),
   mobile: z.string().regex(/^01[3-9]\d{8}$/),
   password: z.string().min(6).max(72),
-  role: z.enum(["agent", "service_provider"]),
+  role: z.enum(["agent", "service_provider", "management"]),
   agent_code: z.string().trim().max(30).regex(/^[A-Za-z0-9-]*$/).optional(),
 });
 

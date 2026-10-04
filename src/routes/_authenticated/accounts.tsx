@@ -22,12 +22,12 @@ export const Route = createFileRoute("/_authenticated/accounts")({
   component: Accounts,
 });
 
-const ROLE_LABEL: Record<string, string> = { agent: "এজেন্ট", service_provider: "সার্ভিস প্রোভাইডার" };
+const ROLE_LABEL: Record<string, string> = { agent: "এজেন্ট", service_provider: "সার্ভিস প্রোভাইডার", management: "ম্যানেজমেন্ট" };
 
 function Accounts() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() });
-  const [f, setF] = useState({ name: "", mobile: "", password: "", agent_code: "", role: "agent" as "agent" | "service_provider" });
+  const [f, setF] = useState({ name: "", mobile: "", password: "", agent_code: "", role: "agent" as "agent" | "service_provider" | "management" });
   const [busy, setBusy] = useState(false);
 
   const create = async (e: React.FormEvent) => {
@@ -59,12 +59,12 @@ function Accounts() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="font-display text-2xl font-bold">এজেন্ট ও সার্ভিস প্রোভাইডার</h1>
+      <h1 className="font-display text-2xl font-bold">কর্মীদের অ্যাকাউন্ট</h1>
 
       <form onSubmit={create} className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
         <h2 className="flex items-center gap-2 font-semibold"><UserPlus className="h-5 w-5 text-primary" /> নতুন অ্যাকাউন্ট যোগ করুন</h2>
-        <div className="grid grid-cols-2 gap-2">
-          {(["agent", "service_provider"] as const).map((r) => (
+        <div className="grid grid-cols-3 gap-2">
+          {(["agent", "service_provider", "management"] as const).map((r) => (
             <button type="button" key={r} onClick={() => setF({ ...f, role: r })}
               className={`rounded-xl border px-3 py-2.5 text-sm ${f.role === r ? "border-primary bg-primary/10 font-semibold text-primary" : "hover:bg-muted"}`}>
               {ROLE_LABEL[r]}
@@ -74,7 +74,7 @@ function Accounts() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div><Label>নাম</Label><Input value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
           <div><Label>মোবাইল নম্বর</Label><Input inputMode="numeric" placeholder="01XXXXXXXXX" value={f.mobile} onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "").slice(0, 11) })} /></div>
-          <div><Label>{f.role === "agent" ? "Agent ID" : "Provider ID"}</Label><Input value={f.agent_code} maxLength={30} placeholder="যেমন: AG-001" onChange={(e) => setF({ ...f, agent_code: e.target.value.replace(/[^A-Za-z0-9-]/g, "") })} /></div>
+           <div><Label>{f.role === "agent" ? "Agent ID" : f.role === "service_provider" ? "Provider ID" : "Management ID"}</Label><Input value={f.agent_code} maxLength={30} placeholder="যেমন: MG-001" onChange={(e) => setF({ ...f, agent_code: e.target.value.replace(/[^A-Za-z0-9-]/g, "") })} /></div>
           <div><Label>পাসওয়ার্ড</Label><Input value={f.password} maxLength={72} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
         </div>
         <Button type="submit" disabled={busy}>{busy ? "তৈরি হচ্ছে..." : "অ্যাকাউন্ট তৈরি করুন"}</Button>

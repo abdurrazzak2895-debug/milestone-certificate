@@ -77,8 +77,10 @@ function MyWorks() {
                 <span>পেশা: {w.occupation_id ? occ(w.occupation_id) : "—"}</span>
                 <span>TTC: {w.ttc_id ? ttc(w.ttc_id) : "—"}</span>
                 <span>পরীক্ষা: {fmtDhakaDateTime(w.exam_at)}</span>
+                <span>রিসেপশন: {w.arrival_status === "received" ? "রিসিভ করা হয়েছে" : w.arrival_status === "absent" ? "অনুপস্থিত" : "এখনো আসেননি"}</span>
                 {w.svp_checked_at && <span>রেজাল্ট চেক: {fmtDhakaDateTime(w.svp_checked_at)}</span>}
               </div>
+              {w.skill_details && <p className="mt-2 rounded-lg bg-muted p-2 text-sm">দক্ষতা: {w.skill_details}</p>}
               {w.status === "rejected" && w.rejection_reason && (
                 <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">বাতিলের কারণ: {w.rejection_reason}</p>
               )}
