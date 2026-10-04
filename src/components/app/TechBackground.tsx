@@ -22,10 +22,10 @@ export function TechBackground() {
           src={src}
           alt=""
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-[2000ms] ease-in-out"
-          style={{ opacity: idx === i ? 0.6 : 0 }}
+          style={{ opacity: idx === i ? 0.85 : 0 }}
         />
       ))}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/45 via-background/60 to-background/75" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/25 via-background/40 to-background/60" />
     </div>
   );
 }
