@@ -154,8 +154,8 @@ function SubmitJob() {
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value)} maxLength={20} /><Err k="passport_no" /></div>
           <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value)} maxLength={100} /><Err k="candidate_name" /></div>
+          <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value)} maxLength={20} /><Err k="passport_no" /></div>
           <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><Err k="mobile" /></div>
           <div>
             <Label>TTC *</Label>
