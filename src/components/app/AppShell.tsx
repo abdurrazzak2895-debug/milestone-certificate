@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Home, LogOut, Settings, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { TechBackground } from "./TechBackground";
 
 const nav = [
   { to: "/dashboard", label: "হোম", icon: Home },
@@ -32,8 +33,9 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
     navigate({ to: "/auth" });
   };
   return (
-    <div className="min-h-screen md:flex">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar p-4 md:flex">
+    <div className="relative isolate min-h-screen md:flex">
+      <TechBackground />
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar/85 p-4 backdrop-blur-md md:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary font-display text-lg font-bold text-primary-foreground">প</div>
           <div className="font-display text-lg font-bold leading-tight">পরীক্ষা<br /><span className="text-sm font-medium text-muted-foreground">ম্যানেজমেন্ট</span></div>
