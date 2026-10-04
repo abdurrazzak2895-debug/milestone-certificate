@@ -8,7 +8,7 @@ import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
 
-type Tab = "all" | "pending_approval" | "approved" | "rejected" | "svp";
+type Tab = "active" | "today" | "tomorrow" | "day_after" | "done" | "rejected" | "all";
 
 export const Route = createFileRoute("/_authenticated/my-works")({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: (s.tab as Tab) || undefined }),
@@ -25,15 +25,32 @@ export const Route = createFileRoute("/_authenticated/my-works")({
   component: MyWorks,
 });
 
-const TABS: [Tab, string][] = [["all", "সব কাজ"], ["pending_approval", "অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["svp", "SVP রেজাল্ট"]];
+const TABS: [Tab, string][] = [["active", "চলমান কাজ"], ["today", "আজকে"], ["tomorrow", "আগামীকাল"], ["day_after", "পরশু"], ["done", "সম্পন্ন (পুরাতন)"], ["rejected", "বাতিল"], ["all", "সব কাজ"]];
+
+const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
+const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
 
 function MyWorks() {
   const search = Route.useSearch();
-  const [tab, setTab] = useState<Tab>(search.tab ?? "all");
+  const [tab, setTab] = useState<Tab>(search.tab ?? "active");
   const { data: works = [] } = useQuery(worksQ);
   const ttc = lookup(useQuery(ttcQ).data);
   const occ = lookup(useQuery(occQ).data);
-  const list = tab === "all" ? works : tab === "svp" ? works.filter((w) => w.status === "approved") : works.filter((w) => w.status === tab);
+  const isDone = (w: (typeof works)[number]) => w.status === "approved" && (w.svp_result === "PASS" || w.svp_result === "FAIL");
+  const isActive = (w: (typeof works)[number]) => w.status !== "rejected" && !isDone(w);
+  const onDay = (n: number) => (w: (typeof works)[number]) => isActive(w) && !!w.exam_at && dhakaDay(new Date(w.exam_at)) === dayOffset(n);
+  const filterFor = (k: Tab) => {
+    switch (k) {
+      case "active": return works.filter(isActive);
+      case "today": return works.filter(onDay(0));
+      case "tomorrow": return works.filter(onDay(1));
+      case "day_after": return works.filter(onDay(2));
+      case "done": return works.filter(isDone);
+      case "rejected": return works.filter((w) => w.status === "rejected");
+      default: return works;
+    }
+  };
+  const list = filterFor(tab);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -41,7 +58,7 @@ function MyWorks() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${tab === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
-            {l} ({bn(k === "all" ? works.length : k === "svp" ? works.filter((w) => w.status === "approved").length : works.filter((w) => w.status === k).length)})
+            {l} ({bn(filterFor(k).length)})
           </button>
         ))}
       </div>
