@@ -47,12 +47,6 @@ const notices = [
   "Submit করার আগে সকল তথ্য ভালোভাবে যাচাই করতে হবে।",
 ];
 
-const BATCHES = [
-  { batch: "MORNING", times: [{ value: "10:00", label: "10:00 AM" }, { value: "11:00", label: "11:00 AM" }] },
-  { batch: "AFTERNOON", times: [{ value: "13:00", label: "01:00 PM" }, { value: "14:00", label: "02:00 PM" }] },
-];
-const BATCH_VALUES = BATCHES.flatMap((b) => b.times.map((t) => t.value)) as [string, ...string[]];
-
 const empty = { passport_no: "", candidate_name: "", mobile: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "", experience: "" };
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
