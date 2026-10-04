@@ -79,3 +79,15 @@ export const setAccountActive = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("agent_accounts").update({ active: data.active }).eq("user_id", data.id);
     return { ok: !error };
   });
+
+export const changeMyAdminEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ email: z.string().trim().toLowerCase().email().max(255) }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { email: data.email, email_confirm: true });
+    if (error) return { ok: false as const, message: /already|exists/i.test(error.message) ? "এই ইমেইল আগেই ব্যবহৃত" : "ইমেইল পরিবর্তন করা যায়নি" };
+    await supabaseAdmin.from("profiles").update({ email: data.email }).eq("id", context.userId);
+    return { ok: true as const };
+  });

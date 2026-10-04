@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Empty, Field, NativeSelect } from "@/components/app/ui-bits";
+import { changeMyAdminEmail } from "@/lib/accounts.functions";
 import { occQ, ttcQ, settingsQ, remindersQ, candidatesQ, fmtDate, todayStr, useRefreshAll } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -26,12 +27,14 @@ function SettingsPage() {
           <TabsTrigger value="rem">রিমাইন্ডার</TabsTrigger>
           <TabsTrigger value="users">ব্যবহারকারী</TabsTrigger>
           <TabsTrigger value="gen">সাধারণ</TabsTrigger>
+          <TabsTrigger value="email">অ্যাডমিন ইমেইল</TabsTrigger>
         </TabsList>
         <TabsContent value="ttc"><MasterList table="ttc_centers" withDistrict /></TabsContent>
         <TabsContent value="occ"><MasterList table="occupations" /></TabsContent>
         <TabsContent value="rem"><Reminders /></TabsContent>
         <TabsContent value="users"><Users /></TabsContent>
         <TabsContent value="gen"><General /></TabsContent>
+        <TabsContent value="email"><AdminEmail /></TabsContent>
       </Tabs>
     </div>
   );
@@ -152,6 +155,26 @@ function General() {
       <Field label="অফিসিয়াল রেজাল্ট API ঠিকানা (ভবিষ্যতে সংযোগের জন্য)"><Input value={api} onChange={(e) => setApi(e.target.value)} placeholder="এখনো সংযুক্ত নয়" /></Field>
       <p className="text-xs text-muted-foreground">অনুমোদিত অফিসিয়াল API পাওয়া গেলে অটোমেটিক রেজাল্ট চেক চালু করা যাবে।</p>
       <Button onClick={save}>সংরক্ষণ করুন</Button>
+    </div>
+  );
+}
+
+function AdminEmail() {
+  const [email, setEmail] = useState("mdahsanulkabir4538@gmail.com");
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await changeMyAdminEmail({ data: { email } });
+      if (r.ok) toast.success("ইমেইল পরিবর্তন হয়েছে। পরবর্তীতে নতুন ইমেইল দিয়ে লগইন করুন।");
+      else toast.error(r.message);
+    } catch { toast.error("ইমেইল পরিবর্তন করা যায়নি"); }
+    setBusy(false);
+  };
+  return (
+    <div className="max-w-md space-y-3 rounded-2xl border bg-card p-4">
+      <Field label="নতুন অ্যাডমিন ইমেইল"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+      <Button onClick={save} disabled={busy}>{busy ? "অপেক্ষা করুন..." : "ইমেইল পরিবর্তন করুন"}</Button>
     </div>
   );
 }
