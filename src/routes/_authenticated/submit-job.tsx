@@ -160,13 +160,7 @@ function SubmitJob() {
           </div>
           <div className="sm:col-span-2">
             <Label>Profession / পেশা *</Label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Input placeholder="পেশা খুঁজুন..." value={occSearch} onChange={(e) => setOccSearch(e.target.value)} />
-              <select value={f.occupation_id} onChange={(e) => set("occupation_id", e.target.value)} className={selectCls}>
-                <option value="">নির্বাচন করুন</option>
-                {occList.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
-            </div>
+            <OccupationPicker items={occList} value={f.occupation_id} onChange={(id) => set("occupation_id", id)} />
             <Err k="occupation_id" />
           </div>
           <div><Label>Exam Date *</Label><Input type="date" value={f.exam_date} onChange={(e) => set("exam_date", e.target.value)} /><Err k="exam_date" /></div>
