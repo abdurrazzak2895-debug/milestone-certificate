@@ -18,6 +18,7 @@ import { Route as ResultCheckRouteImport } from './routes/result-check'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
+import { Route as AuthenticatedManagementRouteImport } from './routes/_authenticated/management'
 import { Route as AuthenticatedMyWorksRouteImport } from './routes/_authenticated/my-works'
 import { Route as AuthenticatedProviderRouteImport } from './routes/_authenticated/provider'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
@@ -28,6 +29,7 @@ import { Route as AuthenticatedSubmitJobRouteImport } from './routes/_authentica
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
+import { Route as ApiPublicCronSvpResultsRouteImport } from './routes/api/public/cron/svp-results'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -71,6 +73,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedExamsRoute = AuthenticatedExamsRouteImport.update({
   id: '/exams',
   path: '/exams',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedManagementRoute = AuthenticatedManagementRouteImport.update({
+  id: '/management',
+  path: '/management',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMyWorksRoute = AuthenticatedMyWorksRouteImport.update({
@@ -126,6 +133,11 @@ const AuthenticatedCandidatesIdRoute =
     path: '/candidates/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCronSvpResultsRoute = ApiPublicCronSvpResultsRouteImport.update({
+  id: '/api/public/cron/svp-results',
+  path: '/api/public/cron/svp-results',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
+  '/management': typeof AuthenticatedManagementRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/provider': typeof AuthenticatedProviderRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -146,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/': typeof AuthenticatedCandidatesIndexRoute
+  '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -156,6 +170,7 @@ export interface FileRoutesByTo {
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
+  '/management': typeof AuthenticatedManagementRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/provider': typeof AuthenticatedProviderRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -166,6 +181,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates': typeof AuthenticatedCandidatesIndexRoute
+  '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
+  '/_authenticated/management': typeof AuthenticatedManagementRoute
   '/_authenticated/my-works': typeof AuthenticatedMyWorksRoute
   '/_authenticated/provider': typeof AuthenticatedProviderRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
@@ -188,6 +205,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/': typeof AuthenticatedCandidatesIndexRoute
+  '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,6 +218,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/dashboard'
     | '/exams'
+    | '/management'
     | '/my-works'
     | '/provider'
     | '/reports'
@@ -210,6 +229,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates/'
+    | '/api/public/cron/svp-results'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,6 +240,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/dashboard'
     | '/exams'
+    | '/management'
     | '/my-works'
     | '/provider'
     | '/reports'
@@ -230,6 +251,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates'
+    | '/api/public/cron/svp-results'
   id:
     | '__root__'
     | '/'
@@ -241,6 +263,7 @@ export interface FileRouteTypes {
     | '/_authenticated/accounts'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
+    | '/_authenticated/management'
     | '/_authenticated/my-works'
     | '/_authenticated/provider'
     | '/_authenticated/reports'
@@ -251,6 +274,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/'
+    | '/api/public/cron/svp-results'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,6 +285,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResultCheckRoute: typeof ResultCheckRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  ApiPublicCronSvpResultsRoute: typeof ApiPublicCronSvpResultsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -326,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/exams'
       fullPath: '/exams'
       preLoaderRoute: typeof AuthenticatedExamsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/management': {
+      id: '/_authenticated/management'
+      path: '/management'
+      fullPath: '/management'
+      preLoaderRoute: typeof AuthenticatedManagementRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/my-works': {
@@ -398,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidatesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/cron/svp-results': {
+      id: '/api/public/cron/svp-results'
+      path: '/api/public/cron/svp-results'
+      fullPath: '/api/public/cron/svp-results'
+      preLoaderRoute: typeof ApiPublicCronSvpResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -405,6 +444,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
+  AuthenticatedManagementRoute: typeof AuthenticatedManagementRoute
   AuthenticatedMyWorksRoute: typeof AuthenticatedMyWorksRoute
   AuthenticatedProviderRoute: typeof AuthenticatedProviderRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
@@ -420,6 +460,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
+  AuthenticatedManagementRoute: AuthenticatedManagementRoute,
   AuthenticatedMyWorksRoute: AuthenticatedMyWorksRoute,
   AuthenticatedProviderRoute: AuthenticatedProviderRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
@@ -442,6 +483,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ResultCheckRoute: ResultCheckRoute,
   AdminLoginRoute: AdminLoginRoute,
+  ApiPublicCronSvpResultsRoute: ApiPublicCronSvpResultsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
