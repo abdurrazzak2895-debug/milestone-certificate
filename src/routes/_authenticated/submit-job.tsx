@@ -164,7 +164,38 @@ function SubmitJob() {
             <OccupationPicker items={occList} value={f.occupation_id} onChange={(id) => set("occupation_id", id)} />
             <Err k="occupation_id" />
           </div>
-          <div><Label>Exam Date *</Label><Input type="date" value={f.exam_date} onChange={(e) => set("exam_date", e.target.value)} /><Err k="exam_date" /></div>
+          <div>
+            <Label>Exam Date *</Label>
+            {(() => {
+              const now = new Date();
+              const [yy, mm, dd] = (f.exam_date || "").split("-");
+              const year = Number(yy) || now.getFullYear();
+              const month = Number(mm) || now.getMonth() + 1;
+              const day = Number(dd) || 0;
+              const days = new Date(year, month, 0).getDate();
+              const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+              const upd = (y: number, m: number, d: number) => {
+                const max = new Date(y, m, 0).getDate();
+                const dv = d > max ? max : d;
+                set("exam_date", dv ? `${y}-${String(m).padStart(2, "0")}-${String(dv).padStart(2, "0")}` : `${y}-${String(m).padStart(2, "0")}-`);
+              };
+              return (
+                <div className="grid grid-cols-[1fr_1.6fr_1.2fr] gap-2">
+                  <select value={day || ""} onChange={(e) => upd(year, month, Number(e.target.value))} className={selectCls}>
+                    <option value="">Date</option>
+                    {Array.from({ length: days }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select value={month} onChange={(e) => upd(year, Number(e.target.value), day)} className={selectCls}>
+                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  </select>
+                  <select value={year} onChange={(e) => upd(Number(e.target.value), month, day)} className={selectCls}>
+                    {[0, 1, 2].map((o) => now.getFullYear() + o).map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              );
+            })()}
+            <Err k="exam_date" />
+          </div>
           <div><Label>Exam Time *</Label><Input type="time" value={f.exam_time} onChange={(e) => set("exam_time", e.target.value)} /><Err k="exam_time" /></div>
         </div>
         <div><Label className="mb-2 block">শিক্ষাগত যোগ্যতা *</Label><Choice k="education" opts={[["educated", "শিক্ষিত"], ["uneducated", "অশিক্ষিত"]]} /><Err k="education" /></div>
