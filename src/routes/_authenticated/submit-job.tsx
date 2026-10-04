@@ -26,6 +26,12 @@ export const Route = createFileRoute("/_authenticated/submit-job")({
   component: SubmitJob,
 });
 
+const BATCHES = [
+  { batch: "MORNING", times: [{ value: "10:00", label: "10:00 AM" }, { value: "11:00", label: "11:00 AM" }] },
+  { batch: "AFTERNOON", times: [{ value: "13:00", label: "01:00 PM" }, { value: "14:00", label: "02:00 PM" }] },
+];
+const BATCH_VALUES = BATCHES.flatMap((b) => b.times.map((t) => t.value)) as [string, ...string[]];
+
 const schema = z.object({
   passport_no: z.string().trim().min(5, "সঠিক পাসপোর্ট নম্বর দিন").max(20).regex(/^[A-Za-z0-9]+$/, "সঠিক পাসপোর্ট নম্বর দিন"),
   candidate_name: z.string().trim().min(2, "প্রার্থীর নাম দিন").max(100),
@@ -33,7 +39,7 @@ const schema = z.object({
   occupation_id: z.string().uuid("পেশা নির্বাচন করুন"),
   ttc_id: z.string().uuid("TTC নির্বাচন করুন"),
   exam_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "পরীক্ষার তারিখ দিন"),
-  exam_time: z.string().min(1, "পরীক্ষার সময় দিন"),
+  exam_time: z.enum(BATCH_VALUES, { message: "পরীক্ষার সময় নির্বাচন করুন" }),
   education: z.enum(["educated", "uneducated"], { message: "শিক্ষাগত যোগ্যতা নির্বাচন করুন" }),
   experience: z.enum(["yes", "no"], { message: "কাজের অভিজ্ঞতা নির্বাচন করুন" }),
 });
@@ -196,7 +202,18 @@ function SubmitJob() {
             })()}
             <Err k="exam_date" />
           </div>
-          <div><Label>Exam Time *</Label><Input type="time" value={f.exam_time} onChange={(e) => set("exam_time", e.target.value)} /><Err k="exam_time" /></div>
+          <div>
+            <Label>Exam Time *</Label>
+            <select value={f.exam_time} onChange={(e) => set("exam_time", e.target.value)} className={selectCls}>
+              <option value="">সময় নির্বাচন করুন</option>
+              {BATCHES.map((b) => (
+                <optgroup key={b.batch} label={b.batch}>
+                  {b.times.map((t) => <option key={t.value} value={t.value}>{t.label} ({b.batch})</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <Err k="exam_time" />
+          </div>
         </div>
         <div><Label className="mb-2 block">শিক্ষাগত যোগ্যতা *</Label><Choice k="education" opts={[["educated", "শিক্ষিত"], ["uneducated", "অশিক্ষিত"]]} /><Err k="education" /></div>
         <div><Label className="mb-2 block">কাজের অভিজ্ঞতা *</Label><Choice k="experience" opts={[["yes", "অভিজ্ঞতা আছে"], ["no", "অভিজ্ঞতা নেই"]]} /><Err k="experience" /></div>
