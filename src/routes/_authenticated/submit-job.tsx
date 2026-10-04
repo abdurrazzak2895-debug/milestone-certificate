@@ -26,6 +26,12 @@ export const Route = createFileRoute("/_authenticated/submit-job")({
   component: SubmitJob,
 });
 
+const BATCHES = [
+  { batch: "MORNING", times: [{ value: "10:00", label: "10:00 AM" }, { value: "11:00", label: "11:00 AM" }] },
+  { batch: "AFTERNOON", times: [{ value: "13:00", label: "01:00 PM" }, { value: "14:00", label: "02:00 PM" }] },
+];
+const BATCH_VALUES = BATCHES.flatMap((b) => b.times.map((t) => t.value)) as [string, ...string[]];
+
 const schema = z.object({
   passport_no: z.string().trim().min(5, "সঠিক পাসপোর্ট নম্বর দিন").max(20).regex(/^[A-Za-z0-9]+$/, "সঠিক পাসপোর্ট নম্বর দিন"),
   candidate_name: z.string().trim().min(2, "প্রার্থীর নাম দিন").max(100),
