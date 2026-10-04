@@ -47,7 +47,7 @@ function Provider() {
         <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
-              <tr>{["নাম", "পাসপোর্ট", "পেশা", "TTC", "তারিখ ও সময়", "অনুমোদন", "SVP রেজাল্ট", ""].map((h) => <th key={h} className="px-3 py-2 font-semibold">{h}</th>)}</tr>
+               <tr>{["নাম", "পাসপোর্ট", "পেশা", "TTC", "তারিখ ও সময়", "রিসেপশন", "SVP রেজাল্ট", ""].map((h) => <th key={h} className="px-3 py-2 font-semibold">{h}</th>)}</tr>
             </thead>
             <tbody className="divide-y">
               {works.map((w) => (
@@ -57,7 +57,7 @@ function Provider() {
                   <td className="px-3 py-2">{occ(w.occupation_id)}</td>
                   <td className="px-3 py-2">{ttc(w.ttc_id)}</td>
                   <td className="px-3 py-2">{fmtDhakaDateTime(w.exam_at)}</td>
-                  <td className="px-3 py-2"><StatusPill status={w.status} /></td>
+                   <td className="px-3 py-2"><StatusPill status={w.arrival_status} /></td>
                   <td className="px-3 py-2"><SvpPill result={w.svp_result} /></td>
                   <td className="px-3 py-2"><Button size="sm" variant="outline" disabled={busy === w.id} onClick={() => check(w.id)}><RefreshCw className="h-4 w-4" /></Button></td>
                 </tr>

@@ -32,7 +32,7 @@ export const listSvpOccupations = createServerFn({ method: "GET" })
 
 const MAP: Record<string, "PASS" | "FAIL" | "PENDING"> = { passed: "PASS", failed: "FAIL", pending: "PENDING" };
 
-async function querySvp(passport: string, occupationKey: string): Promise<SvpCheck> {
+export async function querySvp(passport: string, occupationKey: string): Promise<SvpCheck> {
   const qs = new URLSearchParams({ passport_number: passport.toUpperCase(), occupation_key: occupationKey, nationality_id: BANGLADESH_CODE, locale: "en" });
   try {
     const r = await fetch(`${API}/labors?${qs}`, { headers: HEADERS });

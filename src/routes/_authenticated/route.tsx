@@ -5,6 +5,7 @@ import { homeForRoles, isManager } from "@/lib/roles";
 
 const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works"];
 const PROVIDER_PATHS = ["/provider"];
+const MANAGEMENT_PATHS = ["/management"];
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_authenticated")({
       const allowed = [
         ...(roles.includes("agent") ? AGENT_PATHS : []),
         ...(roles.includes("service_provider") ? PROVIDER_PATHS : []),
+        ...(roles.includes("management") ? MANAGEMENT_PATHS : []),
       ];
       if (!allowed.includes(location.pathname)) throw redirect({ to: homeForRoles(roles) });
     }

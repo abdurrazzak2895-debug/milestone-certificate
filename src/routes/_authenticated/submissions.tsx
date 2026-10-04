@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Check, FileText, RefreshCw, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { worksQ, openTicket, fmtDhakaDateTime, type Work } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
@@ -13,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { reviewSubmission } from "@/lib/workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/submissions")({
   head: () => ({
@@ -45,12 +45,9 @@ function Submissions() {
 
   const review = async (w: Work, status: "approved" | "rejected", why?: string) => {
     setBusyId(w.id);
-    const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("job_submissions").update({
-      status, rejection_reason: status === "rejected" ? why ?? null : null, reviewed_by: u.user?.id ?? null, reviewed_at: new Date().toISOString(),
-    }).eq("id", w.id);
+    const result = await reviewSubmission({ data: { id: w.id, status, reason: why } }).then(() => ({ error: null })).catch((error) => ({ error }));
     setBusyId(null);
-    if (error) return toast.error("আপডেট করা যায়নি");
+    if (result.error) return toast.error("আপডেট করা যায়নি");
     toast.success(status === "approved" ? "অনুমোদন করা হয়েছে" : "বাতিল করা হয়েছে");
     qc.invalidateQueries({ queryKey: ["works"] });
   };
@@ -86,6 +83,7 @@ function Submissions() {
                 <span>এজেন্ট: {agentName(w.submitted_by)}</span>
                 <span>পাসপোর্ট: {w.passport_no}</span>
                 <span>মোবাইল: {w.mobile}</span>
+                {w.secondary_mobile && <span>অতিরিক্ত মোবাইল: {w.secondary_mobile}</span>}
                 <span>পেশা: {occ(w.occupation_id)}</span>
                 <span>TTC: {ttc(w.ttc_id)}</span>
                 <span>পরীক্ষা: {fmtDhakaDateTime(w.exam_at)}</span>
@@ -94,7 +92,9 @@ function Submissions() {
                 <span>জমা: {fmtDhakaDateTime(w.created_at)}</span>
                 {w.reviewed_at && <span>রিভিউ: {fmtDhakaDateTime(w.reviewed_at)}</span>}
                 {w.svp_checked_at && <span>SVP চেক: {fmtDhakaDateTime(w.svp_checked_at)}</span>}
+                <span>রিসেপশন: {w.arrival_status === "received" ? "রিসিভ করা হয়েছে" : w.arrival_status === "absent" ? "অনুপস্থিত" : "এখনো আসেননি"}</span>
               </div>
+              {w.skill_details && <p className="mt-2 rounded-lg bg-muted p-2 text-sm">দক্ষতা: {w.skill_details}</p>}
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>

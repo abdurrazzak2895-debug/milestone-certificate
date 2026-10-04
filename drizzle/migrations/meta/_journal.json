@@ -64,6 +64,34 @@
       "when": 1791114905255,
       "tag": "0008_work_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791130446343,
+      "tag": "0009_link_workflow_and_management_reception",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791130558282,
+      "tag": "0010_sync_submission_results_and_agent_photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791130684970,
+      "tag": "0011_enable_svp_result_scheduler",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791130747404,
+      "tag": "0012_management_reception_update_policy",
+      "breakpoints": true
     }
   ]
 }

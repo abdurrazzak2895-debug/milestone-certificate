@@ -10,6 +10,7 @@ import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/submit-job")({
@@ -36,6 +37,8 @@ const schema = z.object({
   passport_no: z.string().trim().min(5, "সঠিক পাসপোর্ট নম্বর দিন").max(20).regex(/^[A-Za-z0-9]+$/, "সঠিক পাসপোর্ট নম্বর দিন"),
   candidate_name: z.string().trim().min(2, "প্রার্থীর নাম দিন").max(100),
   mobile: z.string().trim().regex(/^01[3-9]\d{8}$/, "১১ সংখ্যার সঠিক মোবাইল নম্বর দিন"),
+  secondary_mobile: z.union([z.literal(""), z.string().regex(/^01[3-9]\d{8}$/, "অতিরিক্ত মোবাইল নম্বরটি সঠিক নয়")]),
+  skill_details: z.string().trim().max(1000),
   occupation_id: z.string().uuid("পেশা নির্বাচন করুন"),
   ttc_id: z.string().uuid("TTC নির্বাচন করুন"),
   exam_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "পরীক্ষার তারিখ দিন"),
@@ -53,7 +56,7 @@ const notices = [
   "Submit করার আগে সকল তথ্য ভালোভাবে যাচাই করতে হবে।",
 ];
 
-const empty = { passport_no: "", candidate_name: "", mobile: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "", experience: "" };
+const empty = { passport_no: "", candidate_name: "", mobile: "", secondary_mobile: "", skill_details: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "", experience: "" };
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 function SubmitJob() {
@@ -64,6 +67,7 @@ function SubmitJob() {
   const [f, setF] = useState(empty);
   const [occSearch, setOccSearch] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [candidatePhoto, setCandidatePhoto] = useState<File | null>(null);
   const [agree, setAgree] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -99,20 +103,27 @@ function SubmitJob() {
     setBusy(true);
     try {
       const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("লগইন পাওয়া যায়নি");
       const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
-      const path = `takamul/${u.user!.id}/${crypto.randomUUID()}.${ext}`;
+      const path = `takamul/${u.user.id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("candidate-photos").upload(path, file, { contentType: file.type });
       if (up.error) throw up.error;
       const { exam_date, exam_time, ...rest } = d;
+      let candidate_photo_path: string | null = null;
+      if (candidatePhoto) {
+        candidate_photo_path = `candidate-drafts/${u.user.id}/${crypto.randomUUID()}.${candidatePhoto.type.split("/")[1] ?? "jpg"}`;
+        const photoUpload = await supabase.storage.from("candidate-photos").upload(candidate_photo_path, candidatePhoto, { contentType: candidatePhoto.type });
+        if (photoUpload.error) throw photoUpload.error;
+      }
       const { data, error } = await supabase
         .from("job_submissions")
-        .insert({ ...rest, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true })
+        .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: rest.skill_details || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true })
         .select("ref_no")
         .single();
       if (error) throw error;
       setConfirmOpen(false);
       setDoneRef(data.ref_no);
-      setF(empty); setFile(null);
+      setF(empty); setFile(null); setCandidatePhoto(null);
       qc.invalidateQueries({ queryKey: ["works"] });
     } catch {
       toast.error("কাজ Submit করা যায়নি। আবার চেষ্টা করুন।");
@@ -157,6 +168,7 @@ function SubmitJob() {
           <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value)} maxLength={100} /><Err k="candidate_name" /></div>
           <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value)} maxLength={20} /><Err k="passport_no" /></div>
           <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><Err k="mobile" /></div>
+          <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={f.secondary_mobile} onChange={(e) => set("secondary_mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /></div>
           <div>
             <Label>TTC *</Label>
             <select value={f.ttc_id} onChange={(e) => set("ttc_id", e.target.value)} className={selectCls}>
@@ -217,6 +229,8 @@ function SubmitJob() {
         </div>
         <div><Label className="mb-2 block">শিক্ষাগত যোগ্যতা *</Label><Choice k="education" opts={[["educated", "শিক্ষিত"], ["uneducated", "অশিক্ষিত"]]} /><Err k="education" /></div>
         <div><Label className="mb-2 block">কাজের অভিজ্ঞতা *</Label><Choice k="experience" opts={[["yes", "অভিজ্ঞতা আছে"], ["no", "অভিজ্ঞতা নেই"]]} /><Err k="experience" /></div>
+        <div><Label className="mb-2 block">দক্ষতা সম্পর্কে বিস্তারিত</Label><Textarea value={f.skill_details} onChange={(e) => set("skill_details", e.target.value)} maxLength={1000} rows={3} placeholder="প্রার্থী কোন কাজ কতটুকু পারেন লিখুন" /></div>
+        <div><Label className="mb-2 block">পরীক্ষার্থীর ছবি</Label><Input type="file" accept="image/*" onChange={(e) => setCandidatePhoto(e.target.files?.[0] ?? null)} /></div>
         <div>
           <Label className="mb-2 block">Takamul Appointment Ticket (PDF / Image) *</Label>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm hover:bg-muted">

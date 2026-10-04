@@ -46,6 +46,7 @@ export type Database = {
       }
       candidates: {
         Row: {
+          arrival_status: string
           created_at: string
           date_of_birth: string | null
           district: string | null
@@ -58,12 +59,17 @@ export type Database = {
           passport_expiry: string | null
           passport_no: string | null
           photo_url: string | null
+          received_at: string | null
+          received_by: string | null
           registration_no: string | null
           result_check_at: string | null
+          secondary_mobile: string | null
+          skill_details: string | null
           ttc_id: string | null
           updated_at: string
         }
         Insert: {
+          arrival_status?: string
           created_at?: string
           date_of_birth?: string | null
           district?: string | null
@@ -76,12 +82,17 @@ export type Database = {
           passport_expiry?: string | null
           passport_no?: string | null
           photo_url?: string | null
+          received_at?: string | null
+          received_by?: string | null
           registration_no?: string | null
           result_check_at?: string | null
+          secondary_mobile?: string | null
+          skill_details?: string | null
           ttc_id?: string | null
           updated_at?: string
         }
         Update: {
+          arrival_status?: string
           created_at?: string
           date_of_birth?: string | null
           district?: string | null
@@ -94,8 +105,12 @@ export type Database = {
           passport_expiry?: string | null
           passport_no?: string | null
           photo_url?: string | null
+          received_at?: string | null
+          received_by?: string | null
           registration_no?: string | null
           result_check_at?: string | null
+          secondary_mobile?: string | null
+          skill_details?: string | null
           ttc_id?: string | null
           updated_at?: string
         }
@@ -128,7 +143,9 @@ export type Database = {
           remarks: string | null
           result: Database["public"]["Enums"]["exam_result"]
           result_date: string | null
+          result_last_checked_at: string | null
           score: number | null
+          submission_id: string | null
           ttc_id: string | null
         }
         Insert: {
@@ -142,7 +159,9 @@ export type Database = {
           remarks?: string | null
           result?: Database["public"]["Enums"]["exam_result"]
           result_date?: string | null
+          result_last_checked_at?: string | null
           score?: number | null
+          submission_id?: string | null
           ttc_id?: string | null
         }
         Update: {
@@ -156,7 +175,9 @@ export type Database = {
           remarks?: string | null
           result?: Database["public"]["Enums"]["exam_result"]
           result_date?: string | null
+          result_last_checked_at?: string | null
           score?: number | null
+          submission_id?: string | null
           ttc_id?: string | null
         }
         Relationships: [
@@ -175,6 +196,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "exams_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "job_submissions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "exams_ttc_id_fkey"
             columns: ["ttc_id"]
             isOneToOne: false
@@ -185,19 +213,27 @@ export type Database = {
       }
       job_submissions: {
         Row: {
+          arrival_status: string
+          candidate_id: string | null
           candidate_name: string
+          candidate_photo_path: string | null
           created_at: string
           education: string
           exam_at: string
+          exam_id: string | null
           experience: string
           id: string
           mobile: string
           occupation_id: string | null
           passport_no: string
+          received_at: string | null
+          received_by: string | null
           ref_no: number
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          secondary_mobile: string | null
+          skill_details: string | null
           status: string
           submitted_by: string
           svp_checked_at: string | null
@@ -207,19 +243,27 @@ export type Database = {
           ttc_id: string | null
         }
         Insert: {
+          arrival_status?: string
+          candidate_id?: string | null
           candidate_name: string
+          candidate_photo_path?: string | null
           created_at?: string
           education: string
           exam_at: string
+          exam_id?: string | null
           experience: string
           id?: string
           mobile: string
           occupation_id?: string | null
           passport_no: string
+          received_at?: string | null
+          received_by?: string | null
           ref_no?: never
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          secondary_mobile?: string | null
+          skill_details?: string | null
           status?: string
           submitted_by?: string
           svp_checked_at?: string | null
@@ -229,19 +273,27 @@ export type Database = {
           ttc_id?: string | null
         }
         Update: {
+          arrival_status?: string
+          candidate_id?: string | null
           candidate_name?: string
+          candidate_photo_path?: string | null
           created_at?: string
           education?: string
           exam_at?: string
+          exam_id?: string | null
           experience?: string
           id?: string
           mobile?: string
           occupation_id?: string | null
           passport_no?: string
+          received_at?: string | null
+          received_by?: string | null
           ref_no?: never
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          secondary_mobile?: string | null
+          skill_details?: string | null
           status?: string
           submitted_by?: string
           svp_checked_at?: string | null
@@ -251,6 +303,20 @@ export type Database = {
           ttc_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "job_submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_submissions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "job_submissions_occupation_id_fkey"
             columns: ["occupation_id"]
@@ -536,10 +602,11 @@ export type Database = {
         Returns: boolean
       }
       is_active_account: { Args: { _user_id: string }; Returns: boolean }
+      is_management_user: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "staff" | "agent" | "service_provider"
+      app_role: "admin" | "staff" | "agent" | "service_provider" | "management"
       exam_result: "PENDING" | "PASS" | "FAIL" | "ABSENT" | "CANCELLED"
     }
     CompositeTypes: {
@@ -668,7 +735,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "agent", "service_provider"],
+      app_role: ["admin", "staff", "agent", "service_provider", "management"],
       exam_result: ["PENDING", "PASS", "FAIL", "ABSENT", "CANCELLED"],
     },
   },
