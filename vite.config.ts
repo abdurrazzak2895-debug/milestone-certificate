@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Pre-bundle up front so first use doesn't re-optimize mid-session (stale React copy → null hooks).
+    optimizeDeps: { include: ["cmdk", "@radix-ui/react-popover"] },
+  },
 });
