@@ -13,6 +13,7 @@ const nav = [
   { to: "/reports", label: "রিপোর্ট", icon: BarChart3 },
   { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck, desktopOnly: true },
   { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users, desktopOnly: true },
+  { to: "/management", label: "রিসেপশন", icon: UserCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ] as const;
 const agentNav = [

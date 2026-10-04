@@ -103,14 +103,15 @@ function SubmitJob() {
     setBusy(true);
     try {
       const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("লগইন পাওয়া যায়নি");
       const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
-      const path = `takamul/${u.user!.id}/${crypto.randomUUID()}.${ext}`;
+      const path = `takamul/${u.user.id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("candidate-photos").upload(path, file, { contentType: file.type });
       if (up.error) throw up.error;
       const { exam_date, exam_time, ...rest } = d;
       let candidate_photo_path: string | null = null;
       if (candidatePhoto) {
-        candidate_photo_path = `candidate-drafts/${u.user!.id}/${crypto.randomUUID()}.${candidatePhoto.type.split("/")[1] ?? "jpg"}`;
+        candidate_photo_path = `candidate-drafts/${u.user.id}/${crypto.randomUUID()}.${candidatePhoto.type.split("/")[1] ?? "jpg"}`;
         const photoUpload = await supabase.storage.from("candidate-photos").upload(candidate_photo_path, candidatePhoto, { contentType: candidatePhoto.type });
         if (photoUpload.error) throw photoUpload.error;
       }

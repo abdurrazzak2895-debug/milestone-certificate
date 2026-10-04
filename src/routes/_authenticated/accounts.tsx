@@ -11,10 +11,10 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/_authenticated/accounts")({
   head: () => ({
     meta: [
-      { title: "এজেন্ট ও সার্ভিস প্রোভাইডার — অ্যাকাউন্ট" },
-      { name: "description", content: "এজেন্ট ও সার্ভিস প্রোভাইডারদের অ্যাকাউন্ট তৈরি ও পরিচালনা।" },
-      { property: "og:title", content: "এজেন্ট ও সার্ভিস প্রোভাইডার — অ্যাকাউন্ট" },
-      { property: "og:description", content: "এজেন্ট ও সার্ভিস প্রোভাইডারদের অ্যাকাউন্ট তৈরি ও পরিচালনা।" },
+      { title: "কর্মীদের অ্যাকাউন্ট — অ্যাডমিন" },
+      { name: "description", content: "এজেন্ট, সার্ভিস প্রোভাইডার ও ম্যানেজমেন্ট কর্মীদের অ্যাকাউন্ট পরিচালনা।" },
+      { property: "og:title", content: "কর্মীদের অ্যাকাউন্ট — অ্যাডমিন" },
+      { property: "og:description", content: "এজেন্ট, সার্ভিস প্রোভাইডার ও ম্যানেজমেন্ট কর্মীদের অ্যাকাউন্ট পরিচালনা।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
