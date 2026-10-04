@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
           if (!occupation?.svp_key) continue;
           const result = await querySvp(work.passport_no, occupation.svp_key);
           await supabaseAdmin.from("job_submissions").update({
-            svp_result: result.status === "found" ? result.result : result.status === "not_found" ? "NOT_FOUND" : "PENDING",
+            svp_result: result.status === "found" ? result.result : "PENDING",
             svp_checked_at: new Date().toISOString(),
           }).eq("id", work.id);
           checked++;
