@@ -71,6 +71,13 @@
       "when": 1791130446343,
       "tag": "0009_link_workflow_and_management_reception",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791130558282,
+      "tag": "0010_sync_submission_results_and_agent_photos",
+      "breakpoints": true
     }
   ]
 }
