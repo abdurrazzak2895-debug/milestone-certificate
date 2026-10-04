@@ -10,10 +10,10 @@ export function AgentDashboard() {
   const count = (s: string) => works.filter((w) => w.status === s).length;
   const cards = [
     { label: "আমার সব কাজ", value: works.length, icon: ListChecks, tab: "all" },
-    { label: "অপেক্ষমান", value: count("pending_approval"), icon: Clock, tab: "pending_approval" },
-    { label: "অনুমোদিত", value: count("approved"), icon: CheckCircle2, tab: "approved" },
+    { label: "অপেক্ষমান", value: count("pending_approval"), icon: Clock, tab: "active" },
+    { label: "অনুমোদিত", value: count("approved"), icon: CheckCircle2, tab: "active" },
     { label: "বাতিল", value: count("rejected"), icon: XCircle, tab: "rejected" },
-    { label: "SVP PASS", value: works.filter((w) => w.svp_result === "PASS").length, icon: Award, tab: "svp" },
+    { label: "SVP PASS", value: works.filter((w) => w.svp_result === "PASS").length, icon: Award, tab: "done" },
   ] as const;
 
   return (
