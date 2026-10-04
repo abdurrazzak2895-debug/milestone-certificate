@@ -6,6 +6,7 @@ import { worksQ, openTicket, fmtDhakaDateTime } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn } from "@/lib/data";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
+import { WorkNotes } from "@/components/app/WorkNotes";
 
 type Tab = "all" | "pending_approval" | "approved" | "rejected" | "svp";
 
@@ -65,6 +66,7 @@ function MyWorks() {
                 <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">বাতিলের কারণ: {w.rejection_reason}</p>
               )}
               <Button variant="ghost" size="sm" className="mt-2" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Takamul Ticket</Button>
+              <WorkNotes submissionId={w.id} canAdd />
             </li>
           ))}
         </ul>
