@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Hind Siliguri", "Noto Sans Bengali", system-ui, sans-serif;
-  --font-display: "Baloo Da 2", "Hind Siliguri", sans-serif;
+  --font-sans: "SutonnyMJ Unicode", "Kalpurush", "Noto Serif Bengali", serif;
+  --font-display: "SutonnyMJ Unicode", "Kalpurush", "Noto Serif Bengali", serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -108,6 +108,13 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  input, textarea, select, button {
+    font-family: inherit;
   }
   h1, h2, h3 {
     font-family: var(--font-display);
