@@ -10,6 +10,7 @@ import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { listAccounts } from "@/lib/accounts.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
+import { WorkNotes } from "@/components/app/WorkNotes";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -101,6 +102,7 @@ function Submissions() {
                 {w.status !== "rejected" && <Button size="sm" variant="destructive" disabled={busyId === w.id} onClick={() => { setReason(""); setRejecting(w); }}><X className="mr-1 h-4 w-4" /> Reject</Button>}
                 {w.status === "approved" && <Button size="sm" variant="secondary" disabled={busyId === w.id} onClick={() => svp(w)}><RefreshCw className="mr-1 h-4 w-4" /> SVP চেক</Button>}
               </div>
+              <WorkNotes submissionId={w.id} canAdd={false} />
             </li>
           ))}
         </ul>

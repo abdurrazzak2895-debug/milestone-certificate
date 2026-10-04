@@ -57,6 +57,13 @@
       "when": 1791031045614,
       "tag": "0007_agent_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791114905255,
+      "tag": "0008_work_notes",
+      "breakpoints": true
     }
   ]
 }
