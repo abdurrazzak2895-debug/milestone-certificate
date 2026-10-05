@@ -62,18 +62,20 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
 
       <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
 
-       <nav className={`fixed inset-x-0 bottom-0 z-40 grid ${manager ? "grid-cols-5" : ["grid-cols-1","grid-cols-1","grid-cols-2","grid-cols-3","grid-cols-4"][Math.min(items.length,4)]} border-t bg-card md:hidden`}>
-        {items.filter((n) => !n.desktopOnly).map((n) => (
-          <Link
-            key={n.to}
-            to={n.to as "/dashboard"}
-            className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-muted-foreground"
-            activeProps={{ className: "text-primary font-semibold" }}
-          >
-            <n.icon className="h-5 w-5" />
-            {n.label}
-          </Link>
-        ))}
+       <nav className="fixed inset-x-0 bottom-0 z-40 overflow-x-auto border-t bg-card md:hidden">
+        <div className="flex min-w-max items-stretch">
+          {items.map((n) => (
+            <Link
+              key={n.to}
+              to={n.to as "/dashboard"}
+               className="flex min-w-[64px] flex-col items-center justify-center gap-0.5 px-3 py-2 text-[11px] text-muted-foreground"
+              activeProps={{ className: "text-primary font-semibold" }}
+            >
+              <n.icon className="h-5 w-5" />
+              {n.label}
+            </Link>
+          ))}
+        </div>
       </nav>
     </div>
   );
