@@ -126,7 +126,7 @@ export function exportCSV(name: string, rows: Record<string, unknown>[]) {
 export async function exportXLSX(name: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const XLSX = await import("xlsx");
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const ws = XLSX.utils.json_to_sheet(rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === "string" ? safeCell(v) : v]))));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
   XLSX.writeFile(wb, `${name}.xlsx`);
