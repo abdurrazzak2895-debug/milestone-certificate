@@ -17,14 +17,16 @@ export const listAccounts = createServerFn({ method: "GET" })
     const { data: staff } = await context.supabase.rpc("is_staff", { _user_id: context.userId });
     if (!staff) throw new Error("অনুমতি নেই");
     const { data } = await context.supabase.from("agent_accounts").select("*").order("created_at", { ascending: false });
-    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: a.role, agent_code: a.agent_code, active: a.active, created_at: a.created_at }));
+    const { data: rr } = await context.supabase.from("user_roles").select("user_id, role");
+    const dual = new Set((rr ?? []).filter((r) => r.role === "agent" && (rr ?? []).some((x) => x.user_id === r.user_id && x.role === "management")).map((r) => r.user_id));
+    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: dual.has(a.user_id) ? "reception_agent" : a.role, agent_code: a.agent_code, active: a.active, created_at: a.created_at }));
   });
 
 const createSchema = z.object({
   name: z.string().trim().min(2).max(100),
   mobile: z.string().regex(/^01[3-9]\d{8}$/),
   password: z.string().min(6).max(72),
-  role: z.enum(["agent", "service_provider", "management"]),
+  role: z.enum(["agent", "service_provider", "management", "reception_agent"]),
   agent_code: z.string().trim().max(30).regex(/^[A-Za-z0-9-]*$/).optional(),
 });
 
@@ -48,8 +50,9 @@ export const createAccount = createServerFn({ method: "POST" })
     }
     const uid = created.user.id;
     await supabaseAdmin.from("profiles").upsert({ id: uid, full_name: data.name, email });
-    const { error: rErr } = await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: data.role });
-    const { error: aErr } = await supabaseAdmin.from("agent_accounts").insert({ user_id: uid, full_name: data.name, mobile: data.mobile, role: data.role, agent_code: code });
+    const roleRows = data.role === "reception_agent" ? [{ user_id: uid, role: "management" as const }, { user_id: uid, role: "agent" as const }] : [{ user_id: uid, role: data.role }];
+    const { error: rErr } = await supabaseAdmin.from("user_roles").insert(roleRows);
+    const { error: aErr } = await supabaseAdmin.from("agent_accounts").insert({ user_id: uid, full_name: data.name, mobile: data.mobile, role: data.role === "reception_agent" ? "management" : data.role, agent_code: code });
     if (rErr || aErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
     return { ok: true as const };
   });
@@ -90,4 +93,18 @@ export const changeMyAdminEmail = createServerFn({ method: "POST" })
     if (error) return { ok: false as const, message: /already|exists/i.test(error.message) ? "এই ইমেইল আগেই ব্যবহৃত" : "ইমেইল পরিবর্তন করা যায়নি" };
     await supabaseAdmin.from("profiles").update({ email: data.email }).eq("id", context.userId);
     return { ok: true as const };
+  });
+
+export const deleteAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    if (data.id === context.userId) return { ok: false };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!(await assertManagedAccount(supabaseAdmin, data.id))) return { ok: false };
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
+    await supabaseAdmin.from("agent_accounts").delete().eq("user_id", data.id);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
+    return { ok: !error };
   });
