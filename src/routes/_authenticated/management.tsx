@@ -78,7 +78,14 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
     <div className="grid gap-3 sm:grid-cols-2">
       <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))} /></div>
       <div><Label>পরীক্ষার্থীর ছবি</Label><Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></div>
-      <div className="sm:col-span-2"><Label>দক্ষতা সম্পর্কে তথ্য</Label><Textarea value={skills} onChange={(e) => setSkills(e.target.value)} maxLength={1000} rows={2} /></div>
+      <div className="sm:col-span-2 space-y-2"><Label>দক্ষতা সম্পর্কে তথ্য</Label>
+        <div className="flex flex-wrap gap-2">
+          {["কম্পিউটার পারে", "কম্পিউটার জানে না", "শিক্ষিত না", "অভিজ্ঞতা নাই", "পূর্বে ১/২ বার ফেইল করা"].map((t) => {
+            const on = skills.split(/,\s*/).includes(t);
+            return <button key={t} type="button" onClick={() => !on && setSkills((s) => (s.trim() ? `${s.trim().replace(/,$/, "")}, ${t}` : t))} className={`rounded-full border px-3 py-1 text-xs transition ${on ? "border-primary bg-primary/20 text-primary" : "border-border hover:border-primary hover:text-primary"}`}>+ {t}</button>;
+          })}
+        </div>
+        <Textarea value={skills} onChange={(e) => setSkills(e.target.value)} maxLength={1000} rows={2} /></div>
     </div>
     <div className="flex flex-wrap gap-2">
       <Button disabled={busy} onClick={() => save("received")}><UserCheck className="h-4 w-4" /> রিসিভ করুন</Button>
