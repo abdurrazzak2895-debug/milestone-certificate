@@ -604,6 +604,10 @@ export type Database = {
       is_active_account: { Args: { _user_id: string }; Returns: boolean }
       is_management_user: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      verify_cron_token: {
+        Args: { _name: string; _token: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "staff" | "agent" | "service_provider" | "management"
