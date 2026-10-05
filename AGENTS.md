@@ -20,3 +20,4 @@
 - Applicant result visibility is gated by candidates.result_check_at and served publicly only via the SECURITY DEFINER RPC check_applicant_result (passport + occupation) — exposes one matching record, never the table.
 - Roles: admin/staff oversee all pages; agent → /dashboard + /submit-job + /my-works; service_provider → /provider; management → /management reception; no role = customer /portal. Managed-account details + active flags live in agent_accounts, and every role is server/RLS enforced.
 - Approved submissions are the workflow source: database triggers link them to candidate/exam records and synchronize SVP results to the exam history, while the management role only handles reception details — keeps every role on one authoritative record.
+- "Reception + Agent" accounts are stored as two user_roles rows (management + agent) with agent_accounts.role=management — reuses existing per-role RLS and routing instead of a new role.

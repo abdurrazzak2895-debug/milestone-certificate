@@ -15,7 +15,7 @@ import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 
 export const Route = createFileRoute("/_authenticated/management")({
   head: () => ({ meta: [
-    { title: "পরীক্ষার্থী রিসেপশন — ম্যানেজমেন্ট" },
+    { title: "পরীক্ষার্থী রিসেপশন" },
     { name: "description", content: "অনুমোদিত পরীক্ষার্থীর উপস্থিতি, যোগাযোগ, ছবি ও দক্ষতার তথ্য পরিচালনা।" },
     { property: "og:title", content: "পরীক্ষার্থী রিসেপশন" },
     { property: "og:description", content: "অনুমোদিত পরীক্ষার্থীর উপস্থিতি ও তথ্য পরিচালনা।" },
