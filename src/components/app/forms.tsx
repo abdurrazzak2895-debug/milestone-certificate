@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, NativeSelect } from "./ui-bits";
+import { PhotoInput } from "@/components/app/PhotoInput";
 import {
   candidatesQ, occQ, ttcQ, RESULTS, RESULT_LABEL, todayStr, useRefreshAll, dhakaInputToISO, isoToDhakaInput,
   type Candidate, type Exam, type ExamResult,

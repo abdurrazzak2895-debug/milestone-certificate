@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PhotoInput } from "@/components/app/PhotoInput";
 
 export const Route = createFileRoute("/_authenticated/submit-job")({
   head: () => ({
