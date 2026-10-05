@@ -49,7 +49,7 @@ export const receiveCandidate = createServerFn({ method: "POST" })
       secondary_mobile: data.secondaryMobile,
       skill_details: data.skillDetails,
       candidate_photo_path: data.photoPath,
-    }).eq("id", data.id).eq("status", "approved");
+    }).eq("id", data.id).neq("status", "rejected");
     if (error) throw error;
     return { ok: true as const };
   });
