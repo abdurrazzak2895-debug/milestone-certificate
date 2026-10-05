@@ -37,11 +37,34 @@ function Submissions() {
   const ttc = lookup(useQuery(ttcQ).data);
   const occ = lookup(useQuery(occQ).data);
   const [filter, setFilter] = useState("pending_approval");
+  const [agent, setAgent] = useState("all");
+  const [day, setDay] = useState("all");
+  const [date, setDate] = useState("");
+  const [slot, setSlot] = useState("all");
+  const [q, setQ] = useState("");
   const [rejecting, setRejecting] = useState<Work | null>(null);
   const [reason, setReason] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const agentName = (id: string) => { const a = accounts.find((x) => x.id === id); return a ? `${a.name}${a.agent_code ? ` (${a.agent_code})` : ""}` : "—"; };
-  const list = filter === "all" ? works : works.filter((w) => w.status === filter);
+  const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
+  const dhakaTime = (d: Date) => d.toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false });
+  const offset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
+  const targetDay = day === "today" ? offset(0) : day === "tomorrow" ? offset(1) : day === "day_after" ? offset(2) : day === "date" ? date : "";
+  const base = works.filter((w) => {
+    if (agent !== "all" && w.submitted_by !== agent) return false;
+    if (targetDay && (!w.exam_at || dhakaDay(new Date(w.exam_at)) !== targetDay)) return false;
+    if (slot !== "all" && (!w.exam_at || dhakaTime(new Date(w.exam_at)) !== slot)) return false;
+    const s = q.trim().toLowerCase();
+    if (s && ![w.candidate_name, w.passport_no, w.mobile, String(w.ref_no)].some((v) => v?.toLowerCase().includes(s))) return false;
+    return true;
+  });
+  const list = (filter === "all" ? base : base.filter((w) => w.status === filter))
+    .slice().sort((a, b) => (day === "all" ? b.created_at.localeCompare(a.created_at) : (a.exam_at ?? "").localeCompare(b.exam_at ?? "")));
+  const agentIds = Array.from(new Set(works.map((w) => w.submitted_by)));
+  const agencySummary = agentIds.map((id) => ({ id, name: agentName(id), total: works.filter((w) => w.submitted_by === id).length, pending: works.filter((w) => w.submitted_by === id && w.status === "pending_approval").length }))
+    .sort((a, b) => b.pending - a.pending || b.total - a.total);
+  const reset = () => { setAgent("all"); setDay("all"); setDate(""); setSlot("all"); setQ(""); };
+  const sel = "h-9 rounded-lg border bg-card px-2 text-sm";
 
   const review = async (w: Work, status: "approved" | "rejected", why?: string) => {
     setBusyId(w.id);
@@ -64,10 +87,41 @@ function Submissions() {
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <h1 className="font-display text-2xl font-bold">Submitted Works</h1>
+      {agencySummary.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {agencySummary.map((a) => (
+            <button key={a.id} onClick={() => setAgent(agent === a.id ? "all" : a.id)} className={`shrink-0 rounded-xl border px-3 py-2 text-left text-xs ${agent === a.id ? "border-primary bg-primary/15" : "bg-card hover:bg-muted"}`}>
+              <div className="font-semibold text-sm">{a.name}</div>
+              <div className="text-muted-foreground">মোট {bn(a.total)} · অপেক্ষমান {bn(a.pending)}</div>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="grid gap-2 rounded-2xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <input className={sel} placeholder="নাম / পাসপোর্ট / মোবাইল / রেফ" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className={sel} value={agent} onChange={(e) => setAgent(e.target.value)}>
+          <option value="all">সকল এজেন্সি</option>
+          {agencySummary.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+        <select className={sel} value={day} onChange={(e) => setDay(e.target.value)}>
+          <option value="all">সব তারিখ</option>
+          <option value="today">আজকের পরীক্ষা</option>
+          <option value="tomorrow">আগামীকাল</option>
+          <option value="day_after">পরশু</option>
+          <option value="date">নির্দিষ্ট তারিখ</option>
+        </select>
+        <select className={sel} value={slot} onChange={(e) => setSlot(e.target.value)}>
+          <option value="all">সব ব্যাচ</option>
+          <optgroup label="MORNING"><option value="10:00">10:00 AM</option><option value="11:00">11:00 AM</option></optgroup>
+          <optgroup label="AFTERNOON"><option value="13:00">01:00 PM</option><option value="14:00">02:00 PM</option></optgroup>
+        </select>
+        {day === "date" && <input type="date" className={sel} value={date} onChange={(e) => setDate(e.target.value)} />}
+        <Button variant="ghost" size="sm" onClick={reset}>সব রিসেট</Button>
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${filter === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
-            {l} ({bn(k === "all" ? works.length : works.filter((w) => w.status === k).length)})
+            {l} ({bn(k === "all" ? base.length : base.filter((w) => w.status === k).length)})
           </button>
         ))}
       </div>
