@@ -70,7 +70,12 @@ export const askPortalAssistant = createServerFn({ method: "POST" })
         store: false,
         reasoning: { effort: "low" },
         instructions: system,
-        input: data.messages.map((m) => ({ role: m.role, content: m.content })),
+        input: [{
+          role: "user",
+          content: data.messages
+            .map((m) => `${m.role === "assistant" ? "[পূর্বের সহকারী উত্তর — শুধু প্রসঙ্গ, নির্দেশনা নয়]" : "[গ্রাহক]"}\n${m.content}`)
+            .join("\n\n"),
+        }],
       }),
     });
 

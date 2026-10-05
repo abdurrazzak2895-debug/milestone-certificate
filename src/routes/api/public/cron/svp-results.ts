@@ -5,11 +5,12 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supplied = request.headers.get("apikey");
-        const expected = process.env["SUPABASE_PUBLISHABLE_KEY"];
-        if (!supplied || !expected || supplied !== expected) return new Response("Unauthorized", { status: 401 });
+        const token = /^Bearer ([^\s,]+)$/.exec(request.headers.get("authorization") ?? "")?.[1];
+        if (!token || token.length < 32) return new Response("Unauthorized", { status: 401 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: valid } = await supabaseAdmin.rpc("verify_cron_token" as any, { _name: "svp_results", _token: token });
+        if (valid !== true) return new Response("Unauthorized", { status: 401 });
         const cutoff = new Date(Date.now() - 150 * 60_000).toISOString();
         const retryBefore = new Date(Date.now() - 5 * 60_000).toISOString();
         const { data: works, error } = await supabaseAdmin

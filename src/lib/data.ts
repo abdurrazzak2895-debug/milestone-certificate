@@ -111,17 +111,22 @@ export function dayLabel(iso: string) {
 }
 
 // ---------- export ----------
+// Neutralize spreadsheet formulas in user-supplied text cells.
+function safeCell(v: unknown): string {
+  const s = String(v ?? "");
+  return typeof v === "string" && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+}
 export function exportCSV(name: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const keys = Object.keys(rows[0]);
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const esc = (v: unknown) => `"${safeCell(v).replace(/"/g, '""')}"`;
   const csv = "\uFEFF" + [keys.map(esc).join(","), ...rows.map((r) => keys.map((k) => esc(r[k])).join(","))].join("\n");
   download(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${name}.csv`);
 }
 export async function exportXLSX(name: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const XLSX = await import("xlsx");
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const ws = XLSX.utils.json_to_sheet(rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === "string" ? safeCell(v) : v]))));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
   XLSX.writeFile(wb, `${name}.xlsx`);
