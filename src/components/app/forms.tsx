@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, NativeSelect } from "./ui-bits";
+import { PhotoInput } from "@/components/app/PhotoInput";
 import {
   candidatesQ, occQ, ttcQ, RESULTS, RESULT_LABEL, todayStr, useRefreshAll, dhakaInputToISO, isoToDhakaInput,
   type Candidate, type Exam, type ExamResult,
@@ -101,7 +102,7 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
               {ttc?.filter((o) => o.active).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </NativeSelect>
           </Field>
-          <Field label="ছবি"><Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></Field>
+          <Field label="ছবি"><PhotoInput onFile={setPhoto} /></Field>
           <Field label="রেজাল্ট চেকের সময় (বাংলাদেশ সময়)"><Input type="datetime-local" value={f.result_check_at} onChange={set("result_check_at")} /></Field>
           <div className="sm:col-span-2"><Field label="নোট"><Textarea value={f.notes} onChange={set("notes")} rows={2} /></Field></div>
         </div>

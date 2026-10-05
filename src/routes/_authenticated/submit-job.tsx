@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PhotoInput } from "@/components/app/PhotoInput";
 
 export const Route = createFileRoute("/_authenticated/submit-job")({
   head: () => ({
@@ -230,7 +231,7 @@ function SubmitJob() {
         <div><Label className="mb-2 block">শিক্ষাগত যোগ্যতা *</Label><Choice k="education" opts={[["educated", "শিক্ষিত"], ["uneducated", "অশিক্ষিত"]]} /><Err k="education" /></div>
         <div><Label className="mb-2 block">কাজের অভিজ্ঞতা *</Label><Choice k="experience" opts={[["yes", "অভিজ্ঞতা আছে"], ["no", "অভিজ্ঞতা নেই"]]} /><Err k="experience" /></div>
         <div><Label className="mb-2 block">দক্ষতা সম্পর্কে বিস্তারিত</Label><Textarea value={f.skill_details} onChange={(e) => set("skill_details", e.target.value)} maxLength={1000} rows={3} placeholder="প্রার্থী কোন কাজ কতটুকু পারেন লিখুন" /></div>
-        <div><Label className="mb-2 block">পরীক্ষার্থীর ছবি</Label><Input type="file" accept="image/*" onChange={(e) => setCandidatePhoto(e.target.files?.[0] ?? null)} /></div>
+        <div><Label className="mb-2 block">পরীক্ষার্থীর ছবি</Label><PhotoInput onFile={setCandidatePhoto} /></div>
         <div>
           <Label className="mb-2 block">Takamul Appointment Ticket (PDF / Image) *</Label>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm hover:bg-muted">

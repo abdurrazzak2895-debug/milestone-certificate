@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
+import { PhotoInput } from "@/components/app/PhotoInput";
 
 export const Route = createFileRoute("/_authenticated/management")({
   head: () => ({ meta: [
@@ -77,7 +78,7 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
     <p className="text-sm text-muted-foreground">{occ(work.occupation_id)} · {ttc(work.ttc_id)} · {fmtDhakaDateTime(work.exam_at)}</p>
     <div className="grid gap-3 sm:grid-cols-2">
       <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))} /></div>
-      <div><Label>পরীক্ষার্থীর ছবি</Label><Input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></div>
+      <div><Label>পরীক্ষার্থীর ছবি</Label><PhotoInput onFile={setPhoto} /></div>
       <div className="sm:col-span-2 space-y-2"><Label>দক্ষতা সম্পর্কে তথ্য</Label>
         <div className="flex flex-wrap gap-2">
           {["কম্পিউটার পারে", "কম্পিউটার জানে না", "শিক্ষিত না", "অভিজ্ঞতা নাই", "পূর্বে ১/২ বার ফেইল করা"].map((t) => {
