@@ -29,6 +29,7 @@ function Accounts() {
   const q = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() });
   const [f, setF] = useState({ name: "", mobile: "", password: "", agent_code: "", role: "agent" as "agent" | "service_provider" | "management" | "reception_agent" });
   const [busy, setBusy] = useState(false);
+  const [sq, setSq] = useState("");
   type Role = "agent" | "service_provider" | "management" | "reception_agent";
   const [ed, setEd] = useState<null | { id: string; name: string; mobile: string; agent_code: string; role: Role }>(null);
   const saveEdit = async () => {
@@ -92,13 +93,14 @@ function Accounts() {
         <Button type="submit" disabled={busy}>{busy ? "তৈরি হচ্ছে..." : "অ্যাকাউন্ট তৈরি করুন"}</Button>
       </form>
 
+      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / মোবাইল / ID দিয়ে খুঁজুন" value={sq} onChange={(e) => setSq(e.target.value)} />
       <section className="rounded-2xl border bg-card shadow-sm">
         {q.isLoading ? <p className="p-5 text-sm text-muted-foreground">লোড হচ্ছে...</p>
           : q.error ? <p className="p-5 text-sm text-destructive">শুধু অ্যাডমিন এই তালিকা দেখতে পারবেন।</p>
           : !q.data?.length ? <p className="p-5 text-sm text-muted-foreground">এখনো কোনো অ্যাকাউন্ট নেই।</p>
           : (
             <ul className="divide-y">
-              {q.data.map((a) => (
+              {q.data.filter((a) => { const t = sq.trim().toLowerCase(); return !t || [a.name, a.mobile, a.agent_code].some((v) => v?.toLowerCase().includes(t)); }).map((a) => (
                 <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div>
                     <div className="font-medium">{a.name || "—"}</div>
