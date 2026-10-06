@@ -26,9 +26,11 @@ export const Route = createFileRoute("/_authenticated/provider")({
 function Provider() {
   const qc = useQueryClient();
   const { data = [] } = useQuery(worksQ);
-  const works = data.filter((w) => w.status === "approved");
   const ttc = lookup(useQuery(ttcQ).data);
   const occ = lookup(useQuery(occQ).data);
+  const [q, setQ] = useState("");
+  const s = q.trim().toLowerCase();
+  const works = data.filter((w) => w.status === "approved").filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
   const [busy, setBusy] = useState<string | null>(null);
 
   const check = async (id: string) => {
@@ -43,6 +45,7 @@ function Provider() {
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <h1 className="font-display text-2xl font-bold">অনুমোদিত কাজ ({bn(works.length)})</h1>
+      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
       {works.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">এখনো কোনো অনুমোদিত কাজ নেই।</p> : (
         <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
           <table className="w-full text-sm">
