@@ -131,6 +131,24 @@ export type Database = {
           },
         ]
       }
+      device_sessions: {
+        Row: {
+          session_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          session_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          session_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exams: {
         Row: {
           candidate_id: string
@@ -589,6 +607,7 @@ export type Database = {
         Args: { _occupation_id: string; _passport: string }
         Returns: Json
       }
+      claim_device_session: { Args: { _key: string }; Returns: undefined }
       current_customer_mobile: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -602,6 +621,7 @@ export type Database = {
         Returns: boolean
       }
       is_active_account: { Args: { _user_id: string }; Returns: boolean }
+      is_current_device_session: { Args: { _key: string }; Returns: boolean }
       is_management_user: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       verify_cron_token: {
