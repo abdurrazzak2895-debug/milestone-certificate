@@ -3,12 +3,14 @@ import { isManager } from "@/lib/roles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Bell, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, Clock, Plus, Search, Users, XCircle, UserX } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, Building2, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, Clock, Plus, Search, Users, XCircle, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatCard, PageHeader, ResultBadge, Empty } from "@/components/app/ui-bits";
 import { CandidateDialog, ExamDialog } from "@/components/app/forms";
 import { ChartCard, SimpleBar, SimpleLine, SimplePie } from "@/components/app/Charts";
+import { supabase } from "@/integrations/supabase/client";
+import type { Exam, Ttc } from "@/lib/data";
 import { candidatesQ, examsQ, occQ, ttcQ, remindersQ, lookup, bn, fmtDate, fmtTime, todayStr, addDays, dayLabel, RESULT_LABEL } from "@/lib/data";
 import { RANGE_LABEL, rangeBounds, inRange, stats, groupCount, monthly, byDate, type RangeKey } from "@/lib/analytics";
 
@@ -164,4 +166,62 @@ function Dashboard() {
 function QuickBtn({ icon, label, onClick, to }: { icon: React.ReactNode; label: string; onClick?: () => void; to?: "/results" | "/reports" | "/exams" }) {
   const cls = "card-surface flex flex-col items-center justify-center gap-1.5 p-3 text-center text-xs font-medium transition-colors hover:bg-primary-soft hover:text-primary [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-primary";
   return to ? <Link to={to} className={cls}>{icon}{label}</Link> : <button onClick={onClick} className={cls}>{icon}{label}</button>;
+}
+
+function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occName: (id: string | null | undefined) => string }) {
+  const { data: subs = [] } = useQuery({
+    queryKey: ["dash-sub-agents"],
+    queryFn: async () => (await supabase.from("job_submissions").select("id,submitted_by")).data ?? [],
+  });
+  const { data: agents = [] } = useQuery({
+    queryKey: ["dash-agents"],
+    queryFn: async () => (await supabase.from("agent_accounts").select("user_id,full_name,agent_code")).data ?? [],
+  });
+  const [open, setOpen] = useState<string | null>(null);
+  const bogura = ttc.find((t) => t.name.includes("বগুড়া") || /bogura/i.test(t.name));
+  const t = todayStr();
+  const rows = useMemo(() => {
+    const subAgent = new Map(subs.map((s) => [s.id, s.submitted_by]));
+    const agentName = new Map(agents.map((a) => [a.user_id, `${a.full_name}${a.agent_code ? ` (${a.agent_code})` : ""}`]));
+    const m = new Map<string, { name: string; total: number; agents: Map<string, number> }>();
+    for (const e of exams) {
+      if (!bogura || e.ttc_id !== bogura.id || e.exam_date < t || e.result !== "PENDING") continue;
+      const key = e.occupation_id ?? "none";
+      const g = m.get(key) ?? { name: occName(e.occupation_id), total: 0, agents: new Map<string, number>() };
+      g.total++;
+      const ag = agentName.get(subAgent.get(e.submission_id ?? "") ?? "") ?? "সরাসরি এন্ট্রি";
+      g.agents.set(ag, (g.agents.get(ag) ?? 0) + 1);
+      m.set(key, g);
+    }
+    return [...m.entries()].sort((a, b) => b[1].total - a[1].total);
+  }, [exams, bogura, subs, agents, t, occName]);
+  const total = rows.reduce((n, [, g]) => n + g.total, 0);
+
+  return (
+    <div className="card-surface mt-5 p-4">
+      <h3 className="mb-3 flex items-center justify-between gap-2 text-base font-semibold">
+        <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> বগুড়া সেন্টার — পেশাভিত্তিক আসন্ন পরীক্ষা</span>
+        <span className="rounded-full bg-primary/15 px-3 py-0.5 text-sm text-primary">মোট {bn(total)}</span>
+      </h3>
+      {rows.length === 0 ? <Empty>বগুড়া সেন্টারে কোনো আসন্ন পরীক্ষা নেই</Empty> : (
+        <ul className="max-h-96 space-y-2 overflow-y-auto">
+          {rows.map(([k, g]) => (
+            <li key={k} className="rounded-lg border bg-muted/40">
+              <button type="button" onClick={() => setOpen(open === k ? null : k)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium">
+                <span>{g.name}</span>
+                <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">{bn(g.total)}</span>
+              </button>
+              {open === k && (
+                <ul className="border-t px-3 py-2 text-sm">
+                  {[...g.agents.entries()].sort((a, b) => b[1] - a[1]).map(([a, n]) => (
+                    <li key={a} className="flex justify-between py-1 text-muted-foreground"><span>{a}</span><span className="font-semibold text-foreground">{bn(n)}</span></li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
