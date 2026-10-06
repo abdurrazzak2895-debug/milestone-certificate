@@ -1,3 +1,4 @@
+import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -55,7 +56,7 @@ function Provider() {
             <tbody className="divide-y">
               {works.map((w) => (
                 <tr key={w.id}>
-                  <td className="px-3 py-2 font-medium">{w.candidate_name}</td>
+                  <td className="px-3 py-2 font-medium"><div className="flex items-center gap-2"><CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={36} />{w.candidate_name}</div></td>
                   <td className="px-3 py-2">{w.passport_no}</td>
                   <td className="px-3 py-2">{occ(w.occupation_id)}</td>
                   <td className="px-3 py-2">{ttc(w.ttc_id)}</td>
