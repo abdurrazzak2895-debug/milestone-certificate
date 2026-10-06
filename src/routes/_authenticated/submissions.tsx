@@ -128,7 +128,7 @@ function Submissions() {
       {list.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">কোনো কাজ নেই।</p> : (
         <ul className="space-y-3">
           {list.map((w) => (
-            <li key={w.id} className="rounded-2xl border bg-card p-4 shadow-sm">
+            <li key={w.id} className={`rounded-2xl border border-l-4 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${w.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-semibold">{w.candidate_name} <span className="text-sm font-normal text-muted-foreground">#{bn(w.ref_no)}</span></div>
                 <div className="flex gap-2"><StatusPill status={w.status} />{w.status === "approved" && <SvpPill result={w.svp_result} />}</div>
