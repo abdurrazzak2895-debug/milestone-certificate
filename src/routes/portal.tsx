@@ -1,3 +1,4 @@
+import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -105,7 +106,7 @@ function PortalPage() {
         ) : (
           <>
             <section className="rounded-2xl border bg-card p-5 shadow-sm">
-              <p className="text-xl font-bold uppercase">{c.name}</p>
+              <div className="flex items-center gap-3"><CandidatePhoto path={c.photo_url} name={c.name} size={64} /><p className="text-xl font-bold uppercase">{c.name}</p></div>
               <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <Info k="পাসপোর্ট নং" v={c.passport_no} />
                 <Info k="ট্রেড" v={c.occupation_id ? data.occ[c.occupation_id] : null} />

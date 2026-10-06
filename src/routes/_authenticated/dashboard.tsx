@@ -1,3 +1,4 @@
+import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentDashboard } from "@/components/app/AgentDashboard";
 import { isManager } from "@/lib/roles";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -97,7 +98,7 @@ function Dashboard() {
       <BoguraSummary exams={exams} ttc={ttc ?? []} occName={occName} />
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <BoguraToday exams={exams} ttc={ttc ?? []} occName={occName} candName={(id) => candMap.get(id)?.name ?? "—"} />
+        <BoguraToday exams={exams} ttc={ttc ?? []} occName={occName} candName={(id) => candMap.get(id)?.name ?? "—"} candPhoto={(id) => candMap.get(id)?.photo_url ?? null} />
         <div className="card-surface p-4">
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold"><CalendarClock className="h-4 w-4 text-primary" /> আগামী ৭ দিনের পরীক্ষা</h3>
           {soon.length === 0 ? <Empty>কোনো আসন্ন পরীক্ষা নেই</Empty> : (
@@ -178,7 +179,7 @@ function bRange(r: BRange, t: string): [string, string] {
   return [t, "9999-12-31"];
 }
 
-function BoguraToday({ exams, ttc, occName, candName }: { exams: Exam[]; ttc: Ttc[]; occName: (id: string | null | undefined) => string; candName: (id: string) => string }) {
+function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam[]; ttc: Ttc[]; occName: (id: string | null | undefined) => string; candName: (id: string) => string; candPhoto: (id: string) => string | null }) {
   const { subs, agents } = useAgentOf();
   const bogura = ttc.find((x) => x.name.includes("বগুড়া") || /bogura/i.test(x.name));
   const t = todayStr();
@@ -197,10 +198,10 @@ function BoguraToday({ exams, ttc, occName, candName }: { exams: Exam[]; ttc: Tt
         <ul className="max-h-72 divide-y overflow-y-auto">
           {list.map((e) => (
             <li key={e.id} className="flex items-center justify-between gap-2 py-2">
-              <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2"><CandidatePhoto path={candPhoto(e.candidate_id)} name={candName(e.candidate_id)} size={36} /><div className="min-w-0">
                 <Link to="/candidates/$id" params={{ id: e.candidate_id }} className="font-semibold uppercase hover:text-primary">{candName(e.candidate_id)}</Link>
                 <div className="text-xs text-muted-foreground">{occName(e.occupation_id)} · {agentName.get(subAgent.get(e.submission_id ?? "") ?? "") ?? "সরাসরি এন্ট্রি"}</div>
-              </div>
+              </div></div>
               <span className="shrink-0 text-sm font-medium">{fmtTime(e.exam_time)}</span>
             </li>
           ))}

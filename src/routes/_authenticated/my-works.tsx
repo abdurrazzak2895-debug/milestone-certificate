@@ -1,3 +1,4 @@
+import { EditWorkDialog } from "@/components/app/EditWorkDialog";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -89,6 +90,7 @@ function MyWorks() {
                 <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">বাতিলের কারণ: {w.rejection_reason}</p>
               )}
               <Button variant="ghost" size="sm" className="mt-2" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Takamul Ticket</Button>
+              {w.status === "pending_approval" ? <EditWorkDialog w={w} /> : w.status === "approved" && <p className="mt-2 text-xs text-muted-foreground">অনুমোদিত — এডিট বন্ধ</p>}
               <WorkNotes submissionId={w.id} canAdd />
             </li>
           ))}
