@@ -1,3 +1,4 @@
+import { worksQ, openTicket, STATUS_LABEL } from "@/lib/works";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -24,6 +25,8 @@ function Profile() {
   const { data: allResults = [] } = useQuery(resultsQ);
   const { data: occ } = useQuery(occQ);
   const { data: ttc } = useQuery(ttcQ);
+  const { data: works = [] } = useQuery(worksQ);
+  const { data: agents = [] } = useQuery({ queryKey: ["agent-accounts"], queryFn: async () => (await supabase.from("agent_accounts").select("user_id, full_name, agent_code")).data ?? [] });
   const occName = lookup(occ);
   const ttcName = lookup(ttc);
   const [edit, setEdit] = useState(false);
@@ -57,11 +60,23 @@ function Profile() {
     navigate({ to: "/candidates" });
   };
 
-  const info: [string, string][] = [
-    ["পাসপোর্ট", c.passport_no ?? "—"], ["রেজাল্ট চেকের সময়", fmtDhaka(c.result_check_at)], ["মোবাইল", c.mobile ?? "—"],
-    ["পেশা", occName(c.occupation_id)], ["টিটিসি", ttcName(c.ttc_id)], ["জেলা", c.district ?? "—"],
-    ["পাসপোর্ট মেয়াদ", fmtDate(c.passport_expiry)], ["জন্ম তারিখ", fmtDate(c.date_of_birth)], ["যোগ করার তারিখ", fmtDate(c.created_at)],
-  ];
+  const work = works.filter((w) => w.candidate_id === id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  const agent = work ? agents.find((a) => a.user_id === work.submitted_by) : undefined;
+  const next = upcoming[0] ?? exams[0];
+  const info: [string, string][] = ([
+    ["পাসপোর্ট", c.passport_no ?? "—"],
+    ["মোবাইল", c.mobile ?? "—"],
+    ["বিকল্প মোবাইল", c.secondary_mobile ?? ""],
+    ["পেশা", occName(c.occupation_id)],
+    ["টিটিসি", ttcName(c.ttc_id)],
+    ["পরীক্ষা", next ? `${fmtDate(next.exam_date)} · ${fmtTime(next.exam_time)}` : ""],
+    ["রেজাল্ট", next?.result ?? ""],
+    ["উপস্থিতি", STATUS_LABEL[c.arrival_status] ?? c.arrival_status],
+    ["শিক্ষা", work?.education ?? ""],
+    ["অভিজ্ঞতা", work?.experience ?? ""],
+    ["এজেন্ট", agent ? `${agent.full_name}${agent.agent_code ? ` (${agent.agent_code})` : ""}` : ""],
+    ["রেফারেন্স", work?.ref_code ?? ""],
+  ] as [string, string][]).filter(([, v]) => v && v !== "—" || false);
 
   return (
     <div>
@@ -85,18 +100,12 @@ function Profile() {
           <dl className="space-y-1.5 text-sm">
             {info.map(([k, v]) => <div key={k} className="flex justify-between gap-2"><dt className="text-muted-foreground">{k}</dt><dd className="text-right font-medium">{v}</dd></div>)}
           </dl>
+          {c.skill_details && <p className="mt-3 rounded-lg bg-muted p-2 text-sm"><b>দক্ষতা:</b> {c.skill_details}</p>}
+          {work?.ticket_path && <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => openTicket(work.ticket_path)}>তাকামুল টিকিট দেখুন</Button>}
           {c.notes && <p className="mt-3 rounded-lg bg-muted p-2 text-sm">{c.notes}</p>}
         </div>
 
         <div className="space-y-4 lg:col-span-2">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatCard label="মোট পরীক্ষা" value={bn(exams.length)} icon={<ClipboardCheck className="h-5 w-5" />} />
-            <StatCard label="মোট পাস" value={bn(count("PASS"))} icon={<ClipboardCheck className="h-5 w-5" />} tone="success" />
-            <StatCard label="মোট ফেল" value={bn(count("FAIL"))} icon={<ClipboardCheck className="h-5 w-5" />} tone="danger" />
-            <StatCard label="মোট অনুপস্থিত" value={bn(count("ABSENT"))} icon={<ClipboardCheck className="h-5 w-5" />} tone="muted" />
-            <StatCard label="শেষ পরীক্ষা" value={<span className="text-base">{fmtDate(past[0]?.exam_date)}</span>} icon={<CalendarPlus className="h-5 w-5" />} tone="info" />
-            <StatCard label="পরবর্তী পরীক্ষা" value={<span className="text-base">{fmtDate(upcoming[0]?.exam_date)}</span>} icon={<CalendarPlus className="h-5 w-5" />} tone="warning" />
-          </div>
 
           {upcoming.length > 0 && (
             <div className="card-surface border-primary/40 p-4">
