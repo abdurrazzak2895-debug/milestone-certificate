@@ -92,6 +92,8 @@ function Dashboard() {
         <StatCard label="পাসের হার" value={`${bn(s.pass + s.fail ? Math.round((s.pass / (s.pass + s.fail)) * 100) : 0)}%`} icon={<BarChart3 className="h-5 w-5" />} tone="success" />
       </div>
 
+      <BoguraSummary exams={exams} ttc={ttc ?? []} occName={occName} />
+
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <div className="card-surface p-4">
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold"><Bell className="h-4 w-4 text-primary" /> রিমাইন্ডার</h3>
