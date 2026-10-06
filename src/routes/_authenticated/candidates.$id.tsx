@@ -7,9 +7,9 @@ import { ArrowLeft, CalendarPlus, ClipboardCheck, Pencil, Trash2, User } from "l
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { PageHeader, ResultBadge, StatCard, Empty } from "@/components/app/ui-bits";
+import { PageHeader, ResultBadge, Empty } from "@/components/app/ui-bits";
 import { CandidateDialog, ExamDialog, ResultDialog } from "@/components/app/forms";
-import { candidatesQ, examsQ, occQ, ttcQ, resultsQ, lookup, bn, fmtDate, fmtTime, fmtDhaka, todayStr, dayLabel, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
+import { candidatesQ, examsQ, occQ, ttcQ, resultsQ, lookup, bn, fmtDate, fmtTime, todayStr, dayLabel, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   head: () => ({ meta: [{ title: "পরীক্ষার্থীর প্রোফাইল" }, { name: "description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:title", content: "পরীক্ষার্থীর প্রোফাইল" }, { property: "og:description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }] }),
