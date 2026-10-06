@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { claimDeviceSession } from "@/lib/device-session";
 import space1 from "@/assets/space-1.jpg";
 import space2 from "@/assets/space-2.jpg";
 import space3 from "@/assets/space-3.jpg";
@@ -51,6 +52,7 @@ function AdminLogin() {
       toast.error("এই অ্যাকাউন্টের অ্যাডমিন অ্যাক্সেস নেই");
       return;
     }
+    await claimDeviceSession();
     navigate({ to: "/dashboard", replace: true });
   };
 

@@ -42,6 +42,12 @@ export const Route = createFileRoute("/portal")({
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/auth" });
+    const { checkDeviceSession, forceSignOut } = await import("@/lib/device-session");
+    const reason = await checkDeviceSession();
+    if (reason) {
+      await forceSignOut(reason);
+      throw redirect({ to: "/auth" });
+    }
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(portalQ),
   component: PortalPage,
