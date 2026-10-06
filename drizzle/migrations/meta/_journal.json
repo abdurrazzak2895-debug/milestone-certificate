@@ -141,6 +141,13 @@
       "when": 1791301040768,
       "tag": "0019_admin_two_devices",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791301263724,
+      "tag": "0020_customer_read_own_photo",
+      "breakpoints": true
     }
   ]
 }
