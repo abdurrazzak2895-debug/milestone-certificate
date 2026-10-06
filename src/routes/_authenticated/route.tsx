@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { homeForRoles, isManager } from "@/lib/roles";
+import { checkDeviceSession, forceSignOut } from "@/lib/device-session";
 
 const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works"];
 const PROVIDER_PATHS = ["/provider"];
@@ -12,6 +13,11 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+    const reason = await checkDeviceSession();
+    if (reason) {
+      await forceSignOut(reason);
+      throw redirect({ to: "/auth" });
+    }
     const { data: rows } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
     const roles = (rows ?? []).map((r) => r.role as string);
     if (roles.length === 0) throw redirect({ to: "/portal" });

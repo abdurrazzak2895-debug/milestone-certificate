@@ -128,6 +128,19 @@ function RootComponent() {
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  // Every 30s: sign out if the 12h window ended or another device took over this ID.
+  useEffect(() => {
+    const tick = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return;
+      const { checkDeviceSession, forceSignOut } = await import("@/lib/device-session");
+      const reason = await checkDeviceSession();
+      if (reason) await forceSignOut(reason);
+    };
+    const id = window.setInterval(tick, 30000);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
