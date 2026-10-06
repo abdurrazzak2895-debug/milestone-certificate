@@ -6,6 +6,7 @@ import { checkDeviceSession, forceSignOut } from "@/lib/device-session";
 
 const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works"];
 const PROVIDER_PATHS = ["/provider"];
+const ADMIN_ONLY_PATHS = ["/finance"];
 const MANAGEMENT_PATHS = ["/management"];
 
 export const Route = createFileRoute("/_authenticated")({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated")({
     const { data: rows } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
     const roles = (rows ?? []).map((r) => r.role as string);
     if (roles.length === 0) throw redirect({ to: "/portal" });
+    if (ADMIN_ONLY_PATHS.includes(location.pathname) && !roles.includes("admin")) throw redirect({ to: homeForRoles(roles) });
     if (!isManager(roles)) {
       const { data: active } = await supabase.rpc("is_active_account", { _user_id: data.user.id });
       if (active === false) {
