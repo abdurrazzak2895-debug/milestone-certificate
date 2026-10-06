@@ -72,11 +72,11 @@ export const updateMySubmission = createServerFn({ method: "POST" })
     if (row.status !== "pending_approval") throw new Error("অনুমোদিত/বাতিল কাজ আর এডিট করা যাবে না");
     if (data.photoPath && !data.photoPath.startsWith(`candidate-drafts/${context.userId}/`)) throw new Error("ছবি সঠিক নয়");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = {
+    const patch: { candidate_name: string; passport_no: string; mobile: string; secondary_mobile: string | null; skill_details: string | null; exam_at: string; candidate_photo_path?: string } = {
       candidate_name: data.candidate_name.toUpperCase(), passport_no: data.passport_no.toUpperCase(), mobile: data.mobile,
       secondary_mobile: data.secondary_mobile, skill_details: data.skill_details, exam_at: data.exam_at,
     };
-    if (data.photoPath) patch["candidate_photo_path"] = data.photoPath;
+    if (data.photoPath) patch.candidate_photo_path = data.photoPath;
     const { error } = await supabaseAdmin.from("job_submissions").update(patch).eq("id", data.id).eq("status", "pending_approval");
     if (error) throw error;
     return { ok: true as const };
