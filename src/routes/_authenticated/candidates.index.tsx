@@ -80,7 +80,7 @@ function CandidatesPage() {
             const last = ex[0];
             const next = ex.filter((e) => e.exam_date >= t && e.result === "PENDING").sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
             return (
-              <Link key={c.id} to="/candidates/$id" params={{ id: c.id }} className="card-surface block p-4 transition-shadow hover:shadow-md">
+              <Link key={c.id} to="/candidates/$id" params={{ id: c.id }} className={`card-surface block border-l-4 p-4 transition-all duration-300 hover:-translate-y-0.5 ${ex.some((e) => e.result === "PASS") ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate font-semibold">{c.name}</div>
