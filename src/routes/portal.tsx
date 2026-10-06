@@ -105,7 +105,7 @@ function PortalPage() {
         ) : (
           <>
             <section className="rounded-2xl border bg-card p-5 shadow-sm">
-              <p className="text-xl font-bold">{c.name}</p>
+              <p className="text-xl font-bold uppercase">{c.name}</p>
               <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                 <Info k="পাসপোর্ট নং" v={c.passport_no} />
                 <Info k="ট্রেড" v={c.occupation_id ? data.occ[c.occupation_id] : null} />
@@ -178,7 +178,7 @@ function PortalPage() {
               <p className="text-sm tracking-widest text-muted-foreground">সার্টিফিকেট</p>
               <h2 className="mt-2 text-2xl font-bold text-primary sm:text-3xl">দক্ষতা সনদপত্র</h2>
               <p className="mt-6 text-sm text-muted-foreground">এই মর্মে প্রত্যয়ন করা যাচ্ছে যে</p>
-              <p className="mt-2 text-2xl font-bold">{c.name}</p>
+              <p className="mt-2 text-2xl font-bold uppercase">{c.name}</p>
               <p className="mt-4 text-sm leading-relaxed">
                 {cert.occupation_id ? data.occ[cert.occupation_id] : cert.exam_type} ট্রেডে{" "}
                 {fmtDate(cert.exam_date)} তারিখে অনুষ্ঠিত পরীক্ষায় সফলভাবে উত্তীর্ণ হয়েছেন।

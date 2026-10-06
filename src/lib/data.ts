@@ -27,7 +27,12 @@ async function all<T>(p: PromiseLike<{ data: T[] | null; error: unknown }>): Pro
 
 export const candidatesQ = queryOptions({
   queryKey: ["candidates"],
-  queryFn: () => all<Candidate>(supabase.from("candidates").select("*").order("created_at", { ascending: false })),
+  queryFn: async () =>
+    (await all<Candidate>(supabase.from("candidates").select("*").order("created_at", { ascending: false }))).map((c) => ({
+      ...c,
+      name: (c.name ?? "").toUpperCase(),
+      passport_no: c.passport_no ? c.passport_no.toUpperCase() : c.passport_no,
+    })),
 });
 export const examsQ = queryOptions({
   queryKey: ["exams"],

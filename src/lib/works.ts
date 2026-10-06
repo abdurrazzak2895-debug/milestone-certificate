@@ -29,7 +29,7 @@ export const worksQ = queryOptions({
   queryFn: async () => {
     const { data, error } = await supabase.from("job_submissions").select("*").order("created_at", { ascending: false });
     if (error) throw error;
-    return data as Work[];
+    return (data ?? []).map((w) => ({ ...w, candidate_name: (w.candidate_name ?? "").toUpperCase(), passport_no: (w.passport_no ?? "").toUpperCase() })) as Work[];
   },
 });
 

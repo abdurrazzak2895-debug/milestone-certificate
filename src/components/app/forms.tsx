@@ -87,8 +87,8 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader><DialogTitle>{candidate ? "পরীক্ষার্থী সম্পাদনা" : "নতুন পরীক্ষার্থী"}</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="নাম *"><Input value={f.name} onChange={set("name")} /></Field>
-          <Field label="পাসপোর্ট নম্বর *"><Input value={f.passport_no} onChange={set("passport_no")} /></Field>
+          <Field label="নাম *"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value.toUpperCase() })} /></Field>
+          <Field label="পাসপোর্ট নম্বর *"><Input value={f.passport_no} onChange={(e) => setF({ ...f, passport_no: e.target.value.toUpperCase() })} /></Field>
           <Field label="মোবাইল"><Input value={f.mobile} onChange={set("mobile")} inputMode="tel" /></Field>
           <Field label="পেশা *">
             <NativeSelect value={f.occupation_id} onChange={set("occupation_id")}>
