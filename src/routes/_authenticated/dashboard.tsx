@@ -97,20 +97,7 @@ function Dashboard() {
       <BoguraSummary exams={exams} ttc={ttc ?? []} occName={occName} />
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <div className="card-surface p-4">
-          <h3 className="mb-3 flex items-center gap-2 text-base font-semibold"><Bell className="h-4 w-4 text-primary" /> রিমাইন্ডার</h3>
-          {alerts.length === 0 ? <Empty>কোনো রিমাইন্ডার নেই</Empty> : (
-            <ul className="max-h-72 space-y-2 overflow-y-auto">
-              {alerts.map((a, i) => (
-                <li key={i}>
-                  <Link to="/candidates/$id" params={{ id: a.id }} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${toneCls[a.tone]}`}>
-                    <AlertTriangle className="h-4 w-4 shrink-0" /> {a.text}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <BoguraToday exams={exams} ttc={ttc ?? []} occName={occName} candName={(id) => candMap.get(id)?.name ?? "—"} />
         <div className="card-surface p-4">
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold"><CalendarClock className="h-4 w-4 text-primary" /> আগামী ৭ দিনের পরীক্ষা</h3>
           {soon.length === 0 ? <Empty>কোনো আসন্ন পরীক্ষা নেই</Empty> : (
