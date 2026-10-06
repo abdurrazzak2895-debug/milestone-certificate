@@ -249,6 +249,7 @@ export type Database = {
           passport_no: string
           received_at: string | null
           received_by: string | null
+          ref_code: string
           ref_no: number
           rejection_reason: string | null
           reviewed_at: string | null
@@ -279,6 +280,7 @@ export type Database = {
           passport_no: string
           received_at?: string | null
           received_by?: string | null
+          ref_code?: string
           ref_no?: never
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -309,6 +311,7 @@ export type Database = {
           passport_no?: string
           received_at?: string | null
           received_by?: string | null
+          ref_code?: string
           ref_no?: never
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -662,6 +665,7 @@ export type Database = {
       }
       claim_device_session: { Args: { _key: string }; Returns: undefined }
       current_customer_mobile: { Args: never; Returns: string }
+      gen_ref_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
