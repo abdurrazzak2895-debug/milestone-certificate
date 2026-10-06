@@ -18,6 +18,7 @@ const nav = [
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ] as const;
+const adminNav = [{ to: "/finance", label: "গোপন হিসাব", icon: BarChart3, desktopOnly: true }] as const;
 const agentNav = [
   { to: "/dashboard", label: "ড্যাশবোর্ড", icon: Home },
   { to: "/submit-job", label: "Submit Work", icon: ClipboardCheck },
@@ -28,7 +29,7 @@ const managementNav = [{ to: "/management", label: "রিসেপশন", icon
 
 export function AppShell({ children, roles = [] }: { children: ReactNode; roles?: string[] }) {
   const manager = roles.includes("admin") || roles.includes("staff");
-  const items: readonly { to: string; label: string; icon: typeof Home; desktopOnly?: boolean }[] = manager ? nav : [...(roles.includes("agent") ? agentNav : []), ...(roles.includes("service_provider") ? providerNav : []), ...(roles.includes("management") ? managementNav : [])];
+  const items: readonly { to: string; label: string; icon: typeof Home; desktopOnly?: boolean }[] = manager ? [...nav, ...(roles.includes("admin") ? adminNav : [])] : [...(roles.includes("agent") ? agentNav : []), ...(roles.includes("service_provider") ? providerNav : []), ...(roles.includes("management") ? managementNav : [])];
   const navigate = useNavigate();
   const qc = useQueryClient();
   const logout = async () => {
