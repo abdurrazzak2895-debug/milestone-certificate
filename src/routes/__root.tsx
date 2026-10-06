@@ -128,6 +128,46 @@ function RootComponent() {
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  // Deterrent only on the published site: block right-click, devtools shortcuts, view-source and console output.
+  // Real data protection is enforced server-side by RLS; this just makes casual inspection harder.
+  useEffect(() => {
+    if (!import.meta.env.PROD) return;
+    const noop = () => {};
+    console.log = noop;
+    console.info = noop;
+    console.debug = noop;
+    console.table = noop;
+    const onContext = (e: MouseEvent) => e.preventDefault();
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toUpperCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (
+        k === "F12" ||
+        (ctrl && e.shiftKey && ["I", "J", "C", "K"].includes(k)) ||
+        (ctrl && e.altKey && ["I", "J", "C"].includes(k)) ||
+        (ctrl && ["U", "S"].includes(k))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", onContext);
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("dragstart", onContext as unknown as EventListener);
+    return () => {
+      document.removeEventListener("contextmenu", onContext);
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("dragstart", onContext as unknown as EventListener);
+    };
+  }, []);
+
   // Every 30s: sign out if the 12h window ended or another device took over this ID.
   useEffect(() => {
     const tick = async () => {
