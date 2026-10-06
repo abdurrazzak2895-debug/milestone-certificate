@@ -1,3 +1,4 @@
+import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -72,7 +73,7 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
   };
   return <section className={`card-surface space-y-4 border-l-4 p-4 transition-all duration-300 hover:-translate-y-0.5 ${work.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><h2 className="font-semibold">{work.candidate_name} <span className="text-sm text-muted-foreground">#{work.ref_code}</span></h2><p className="text-sm text-muted-foreground">{work.passport_no} · {work.mobile}</p></div>
+      <div className="flex items-center gap-3"><CandidatePhoto path={work.candidate_photo_path} name={work.candidate_name} size={52} /><div><h2 className="font-semibold">{work.candidate_name} <span className="text-sm text-muted-foreground">#{work.ref_code}</span></h2><p className="text-sm text-muted-foreground">{work.passport_no} · {work.mobile}</p></div></div>
       <div className="flex gap-2"><StatusPill status={work.status} /><StatusPill status={work.arrival_status} />{work.status === "approved" && <SvpPill result={work.svp_result} />}</div>
     </div>
     <p className="text-sm text-muted-foreground">{occ(work.occupation_id)} · {ttc(work.ttc_id)} · {fmtDhakaDateTime(work.exam_at)}</p>
