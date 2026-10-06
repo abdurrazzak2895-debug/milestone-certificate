@@ -50,8 +50,8 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
             <Link
               key={n.to}
               to={n.to as "/dashboard"}
-              className="group relative flex items-center gap-3 overflow-hidden rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-300 hover:translate-x-1 hover:border-primary/40 hover:bg-gradient-to-r hover:from-primary/20 hover:to-transparent hover:shadow-[0_0_18px_-4px_hsl(var(--primary)/0.7)]"
-              activeProps={{ className: "border-primary/50 bg-gradient-to-r from-primary/25 to-transparent text-sidebar-accent-foreground shadow-[0_0_16px_-5px_hsl(var(--primary)/0.8)]" }}
+              className="group relative flex items-center gap-3 overflow-hidden rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-300 hover:translate-x-1 hover:border-primary/40 hover:bg-gradient-to-r hover:from-primary/20 hover:to-transparent hover:shadow-[0_0_18px_-4px_color-mix(in_oklab,var(--primary)_70%,transparent)]"
+              activeProps={{ className: "border-primary/50 bg-gradient-to-r from-primary/25 to-transparent text-sidebar-accent-foreground shadow-[0_0_16px_-5px_color-mix(in_oklab,var(--primary)_80%,transparent)]" }}
             >
               <n.icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-125 group-hover:text-primary" />
               {n.label}
