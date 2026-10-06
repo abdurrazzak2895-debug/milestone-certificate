@@ -119,11 +119,11 @@ function SubmitJob() {
       const { data, error } = await supabase
         .from("job_submissions")
         .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: rest.skill_details || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true })
-        .select("ref_no")
+        .select("ref_code")
         .single();
       if (error) throw error;
       setConfirmOpen(false);
-      setDoneRef(data.ref_no);
+      setDoneRef(data.ref_code);
       setF(empty); setFile(null); setCandidatePhoto(null);
       qc.invalidateQueries({ queryKey: ["works"] });
     } catch {
@@ -138,7 +138,7 @@ function SubmitJob() {
       <div className="mx-auto max-w-lg rounded-2xl border bg-card p-8 text-center shadow-sm">
         <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
         <h1 className="mt-4 font-display text-2xl font-bold">কাজ সফলভাবে Submit হয়েছে</h1>
-        <p className="mt-2 text-muted-foreground">রেফারেন্স নম্বর: <span className="font-semibold text-foreground">#{bn(doneRef)}</span></p>
+        <p className="mt-2 text-muted-foreground">রেফারেন্স নম্বর: <span className="font-semibold text-foreground">#{doneRef}</span></p>
         <p className="mt-1 text-sm text-muted-foreground">অ্যাডমিন অনুমোদনের অপেক্ষায় রয়েছে।</p>
         <div className="mt-6 flex justify-center gap-2">
           <Button onClick={() => setDoneRef(null)}>নতুন কাজ Submit করুন</Button>

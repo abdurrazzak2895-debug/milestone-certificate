@@ -55,7 +55,7 @@ function Submissions() {
     if (targetDay && (!w.exam_at || dhakaDay(new Date(w.exam_at)) !== targetDay)) return false;
     if (slot !== "all" && (!w.exam_at || dhakaTime(new Date(w.exam_at)) !== slot)) return false;
     const s = q.trim().toLowerCase();
-    if (s && ![w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, String(w.ref_no), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))) return false;
+    if (s && ![w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))) return false;
     return true;
   });
   const list = (filter === "all" ? base : base.filter((w) => w.status === filter))
@@ -130,7 +130,7 @@ function Submissions() {
           {list.map((w) => (
             <li key={w.id} className={`rounded-2xl border border-l-4 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${w.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-semibold">{w.candidate_name} <span className="text-sm font-normal text-muted-foreground">#{bn(w.ref_no)}</span></div>
+                <div className="font-semibold">{w.candidate_name} <span className="text-sm font-normal text-muted-foreground">#{w.ref_code}</span></div>
                 <div className="flex gap-2"><StatusPill status={w.status} />{w.status === "approved" && <SvpPill result={w.svp_result} />}</div>
               </div>
               <div className="mt-2 grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
