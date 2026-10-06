@@ -47,7 +47,7 @@ function ExamsPage() {
   const list = exams
     .filter(tabFilter[tab])
     .filter((e) => (!fTtc || e.ttc_id === fTtc) && (!fOcc || e.occupation_id === fOcc) && (!fRes || e.result === fRes))
-    .filter((e) => { const c = candMap.get(e.candidate_id); const s = q.toLowerCase(); return !s || [c?.name, c?.passport_no, c?.registration_no, c?.mobile].some((v) => v?.toLowerCase().includes(s)); })
+    .filter((e) => { const c = candMap.get(e.candidate_id); const s = q.toLowerCase(); return !s || [c?.name, c?.passport_no, c?.registration_no, c?.mobile, occName(e.occupation_id)].some((v) => v?.toLowerCase().includes(s)); })
     .sort((a, b) => (asc ? 1 : -1) * (a.exam_date + (a.exam_time ?? "")).localeCompare(b.exam_date + (b.exam_time ?? "")));
 
   return (
@@ -61,7 +61,7 @@ function ExamsPage() {
         ))}
       </div>
       <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="নাম/পাসপোর্ট/মোবাইল..." className="col-span-2 md:col-span-1" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="নাম/পাসপোর্ট/মোবাইল/পেশা..." className="col-span-2 md:col-span-1" />
         <NativeSelect value={fTtc} onChange={(e) => setFTtc(e.target.value)}><option value="">সব টিটিসি</option>{ttc?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</NativeSelect>
         <NativeSelect value={fOcc} onChange={(e) => setFOcc(e.target.value)}><option value="">সব পেশা</option>{occ?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</NativeSelect>
         <NativeSelect value={fRes} onChange={(e) => setFRes(e.target.value)}><option value="">সব অবস্থা</option>{RESULTS.map((r) => <option key={r} value={r}>{RESULT_LABEL[r]}</option>)}</NativeSelect>

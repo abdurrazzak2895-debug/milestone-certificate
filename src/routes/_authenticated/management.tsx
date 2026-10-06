@@ -31,17 +31,17 @@ const ARRIVAL: Record<string, string> = { not_arrived: "এখনো আসে�
 function ManagementPage() {
   const qc = useQueryClient();
   const { data = [] } = useQuery(worksQ);
+  const occ = lookup(useQuery(occQ).data);
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase().replace(/^#/, "");
   const works = data
     .filter((work) => work.status !== "rejected")
-    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, String(w.ref_no)].some((v) => v?.toLowerCase().includes(s)))
+    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, String(w.ref_no), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
     .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
   const ttc = lookup(useQuery(ttcQ).data);
-  const occ = lookup(useQuery(occQ).data);
   return <div className="mx-auto max-w-4xl space-y-4">
     <h1 className="font-display text-2xl font-bold">পরীক্ষার্থী রিসেপশন ({bn(works.length)})</h1>
-    <Input placeholder="নাম / পাসপোর্ট / রেফারেন্স / মোবাইল দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+    <Input placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
     {works.length === 0 ? <p className="card-surface p-6 text-center text-muted-foreground">কোনো পরীক্ষার্থী পাওয়া যায়নি।</p> : works.map((work) => (
       <ReceptionCard key={work.id} work={work} ttc={ttc} occ={occ} done={() => qc.invalidateQueries({ queryKey: ["works"] })} />
     ))}

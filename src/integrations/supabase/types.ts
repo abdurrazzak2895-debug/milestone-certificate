@@ -50,6 +50,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           district: string | null
+          fee_amount: number
           id: string
           mobile: string | null
           name: string
@@ -73,6 +74,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           district?: string | null
+          fee_amount?: number
           id?: string
           mobile?: string | null
           name: string
@@ -96,6 +98,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           district?: string | null
+          fee_amount?: number
           id?: string
           mobile?: string | null
           name?: string
@@ -375,6 +378,56 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          candidate_id: string
+          created_at: string
+          created_by: string
+          id: string
+          method: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sender: string
+          status: string
+          trx_id: string
+        }
+        Insert: {
+          amount: number
+          candidate_id: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          method: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender: string
+          status?: string
+          trx_id: string
+        }
+        Update: {
+          amount?: number
+          candidate_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          method?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender?: string
+          status?: string
+          trx_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phone_otps: {
         Row: {
           attempts: number
@@ -624,6 +677,7 @@ export type Database = {
       is_current_device_session: { Args: { _key: string }; Returns: boolean }
       is_management_user: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      portal_agent_contact: { Args: never; Returns: Json }
       verify_cron_token: {
         Args: { _name: string; _token: string }
         Returns: boolean

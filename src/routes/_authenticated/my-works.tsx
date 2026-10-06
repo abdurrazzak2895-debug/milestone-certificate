@@ -52,12 +52,12 @@ function MyWorks() {
   };
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase().replace(/^#/, "");
-  const list = filterFor(tab).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, String(w.ref_no)].some((v) => v?.toLowerCase().includes(s)));
+  const list = filterFor(tab).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, String(w.ref_no), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="font-display text-2xl font-bold">আমার জমা দেওয়া কাজ</h1>
-      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / রেফারেন্স / মোবাইল দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${tab === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
