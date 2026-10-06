@@ -53,3 +53,31 @@ export const receiveCandidate = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true as const };
   });
+/** Agent edits own submission — only while pending approval. */
+export const updateMySubmission = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    id: z.string().uuid(),
+    candidate_name: z.string().trim().min(2).max(120),
+    passport_no: z.string().trim().min(5).max(20),
+    mobile: z.string().regex(/^01[3-9]\d{8}$/),
+    secondary_mobile: z.string().regex(/^01[3-9]\d{8}$/).nullable(),
+    skill_details: z.string().trim().max(1000).nullable(),
+    exam_at: z.string().datetime(),
+    photoPath: z.string().max(500).nullable(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { data: row } = await context.supabase.from("job_submissions").select("submitted_by,status").eq("id", data.id).maybeSingle();
+    if (!row || row.submitted_by !== context.userId) throw new Error("অনুমতি নেই");
+    if (row.status !== "pending_approval") throw new Error("অনুমোদিত/বাতিল কাজ আর এডিট করা যাবে না");
+    if (data.photoPath && !data.photoPath.startsWith(`candidate-drafts/${context.userId}/`)) throw new Error("ছবি সঠিক নয়");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: Record<string, unknown> = {
+      candidate_name: data.candidate_name.toUpperCase(), passport_no: data.passport_no.toUpperCase(), mobile: data.mobile,
+      secondary_mobile: data.secondary_mobile, skill_details: data.skill_details, exam_at: data.exam_at,
+    };
+    if (data.photoPath) patch["candidate_photo_path"] = data.photoPath;
+    const { error } = await supabaseAdmin.from("job_submissions").update(patch).eq("id", data.id).eq("status", "pending_approval");
+    if (error) throw error;
+    return { ok: true as const };
+  });
