@@ -4,6 +4,8 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
+import { checkDeviceSession, claimDeviceSession } from "@/lib/device-session";
 import space1 from "@/assets/space-1.jpg";
 import space2 from "@/assets/space-2.jpg";
 import space3 from "@/assets/space-3.jpg";
@@ -32,9 +34,9 @@ const btnCls =
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"phone" | "password">("phone");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slide, setSlide] = useState(0);
 
@@ -43,15 +45,26 @@ function AuthPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // Show why this device was signed out; auto-enter if still within the 12h device session.
+  useEffect(() => {
+    const reason = sessionStorage.getItem("logout_reason");
+    if (reason) {
+      sessionStorage.removeItem("logout_reason");
+      toast.error(reason);
+    }
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return;
+      if (await checkDeviceSession()) return;
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+      navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
+    })();
+  }, [navigate]);
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (step === "phone") {
-      if (!mobileSchema.safeParse(mobile).success) {
-        toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
-        return;
-      }
-      setPassword("");
-      setStep("password");
+    if (!mobileSchema.safeParse(mobile).success) {
+      toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
       return;
     }
     if (!password) return;
@@ -60,12 +73,14 @@ function AuthPage() {
       email: `88${mobile}@phone.login.local`,
       password,
     });
-    setBusy(false);
     if (error || !data.user) {
+      setBusy(false);
       toast.error("মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়");
       return;
     }
+    await claimDeviceSession();
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+    setBusy(false);
     toast.success("সফলভাবে লগইন হয়েছে");
     navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
   };
@@ -92,11 +107,10 @@ function AuthPage() {
           onSubmit={submit}
           className="rounded-3xl border border-white/10 bg-black/55 p-8 shadow-[0_0_80px_-20px_rgba(129,140,248,0.45)] backdrop-blur-2xl sm:p-10"
         >
-          {step === "phone" ? (
-            <div key="phone" className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-500">
-              <label htmlFor="mobile" className="block text-center text-xl font-semibold text-white">
-                মোবাইল নম্বর
-              </label>
+          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-500">
+            <h1 className="text-center text-xl font-semibold text-white">লগইন</h1>
+            <div className="space-y-2">
+              <label htmlFor="mobile" className="block text-sm text-white/70">মোবাইল নম্বর</label>
               <input
                 id="mobile"
                 type="tel"
@@ -106,48 +120,42 @@ function AuthPage() {
                 onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))}
                 maxLength={11}
                 required
-                className={`${inputCls} tracking-[0.3em]`}
+                className={`${inputCls} tracking-[0.2em]`}
               />
-              <button type="submit" disabled={mobile.length !== 11} className={btnCls}>
-                পরবর্তী
-              </button>
             </div>
-          ) : (
-            <div key="password" className="animate-in fade-in slide-in-from-right-3 space-y-6 duration-500">
-              <label htmlFor="password" className="block text-center text-xl font-semibold text-white">
-                পাসওয়ার্ড
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                autoFocus
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={inputCls}
-              />
-              <button type="submit" disabled={busy || !password} className={btnCls}>
-                {busy ? "অপেক্ষা করুন..." : "লগইন"}
-              </button>
-              <div className="flex items-center justify-between text-sm">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm text-white/70">পাসওয়ার্ড</label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={show ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className={`${inputCls} pr-12`}
+                />
                 <button
                   type="button"
-                  onClick={() => setStep("phone")}
-                  className="text-white/60 transition-colors hover:text-white"
+                  onClick={() => setShow((v) => !v)}
+                  aria-label={show ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
                 >
-                  নম্বর পরিবর্তন
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toast.info("পাসওয়ার্ড পুনরুদ্ধারের জন্য অ্যাডমিনের সঙ্গে যোগাযোগ করুন")}
-                  className="text-indigo-300 transition-colors hover:text-indigo-200"
-                >
-                  পাসওয়ার্ড ভুলে গেছেন?
+                  {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
-          )}
+            <button type="submit" disabled={busy || mobile.length !== 11 || !password} className={btnCls}>
+              {busy ? "অপেক্ষা করুন..." : "লগইন"}
+            </button>
+            <button
+              type="button"
+              onClick={() => toast.info("পাসওয়ার্ড পুনরুদ্ধারের জন্য অ্যাডমিনের সঙ্গে যোগাযোগ করুন")}
+              className="block w-full text-center text-sm text-indigo-300 transition-colors hover:text-indigo-200"
+            >
+              পাসওয়ার্ড ভুলে গেছেন?
+            </button>
+          </div>
         </form>
       </section>
     </main>
