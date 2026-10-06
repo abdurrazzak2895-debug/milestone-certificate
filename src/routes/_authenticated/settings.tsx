@@ -20,8 +20,9 @@ function SettingsPage() {
   return (
     <div>
       <PageHeader title="সেটিংস ও অ্যাডমিন প্যানেল" />
-      <Tabs defaultValue="ttc">
+      <Tabs defaultValue="notice">
         <TabsList className="mb-4 flex h-auto flex-wrap">
+          <TabsTrigger value="notice">এজেন্ট নোটিস</TabsTrigger>
           <TabsTrigger value="ttc">টিটিসি সেন্টার</TabsTrigger>
           <TabsTrigger value="occ">পেশা</TabsTrigger>
           <TabsTrigger value="rem">রিমাইন্ডার</TabsTrigger>
@@ -29,6 +30,7 @@ function SettingsPage() {
           <TabsTrigger value="gen">সাধারণ</TabsTrigger>
           <TabsTrigger value="email">অ্যাডমিন ইমেইল</TabsTrigger>
         </TabsList>
+        <TabsContent value="notice"><NoticeEditor /></TabsContent>
         <TabsContent value="ttc"><MasterList table="ttc_centers" withDistrict /></TabsContent>
         <TabsContent value="occ"><MasterList table="occupations" /></TabsContent>
         <TabsContent value="rem"><Reminders /></TabsContent>
@@ -175,6 +177,29 @@ function AdminEmail() {
     <div className="max-w-md space-y-3 rounded-2xl border bg-card p-4">
       <Field label="নতুন অ্যাডমিন ইমেইল"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
       <Button onClick={save} disabled={busy}>{busy ? "অপেক্ষা করুন..." : "ইমেইল পরিবর্তন করুন"}</Button>
+    </div>
+  );
+}
+
+function NoticeEditor() {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    supabase.from("settings").select("value").eq("key", "agent_notice").maybeSingle().then(({ data }) => setText(data?.value ?? ""));
+  }, []);
+  const save = async (v: string) => {
+    const { error } = await supabase.from("settings").upsert({ key: "agent_notice", value: v.slice(0, 1000) });
+    if (error) return toast.error("সংরক্ষণ করা যায়নি");
+    setText(v);
+    toast.success(v ? "নোটিস চালু হয়েছে" : "নোটিস বন্ধ করা হয়েছে");
+  };
+  return (
+    <div className="card-surface space-y-3 p-4">
+      <p className="text-sm text-muted-foreground">এখানে লেখা নোটিস সব এজেন্টের পেজের উপরে চলমান অবস্থায় দেখাবে।</p>
+      <textarea className="min-h-28 w-full rounded-lg border bg-card p-3 text-sm" maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="যেমন: আগামীকাল সকাল ১০টার মধ্যে সকল প্রার্থীকে অফিসে পাঠান।" />
+      <div className="flex gap-2">
+        <Button onClick={() => save(text.trim())}>সংরক্ষণ করুন</Button>
+        <Button variant="outline" onClick={() => save("")}>নোটিস বন্ধ করুন</Button>
+      </div>
     </div>
   );
 }

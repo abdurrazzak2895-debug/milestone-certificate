@@ -1,3 +1,4 @@
+import { AgentNotice } from "@/components/app/AgentNotice";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Home, LogOut, Settings, UserCheck, Users } from "lucide-react";
@@ -61,7 +62,7 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
         </button>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
+      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{roles.includes("agent") && <AgentNotice />}{children}</main>
 
        <nav className="fixed inset-x-0 bottom-0 z-40 overflow-x-auto border-t bg-card md:hidden">
         <div className="flex min-w-max items-stretch">
