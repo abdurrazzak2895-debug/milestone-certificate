@@ -18,6 +18,7 @@ import { Route as ResultCheckRouteImport } from './routes/result-check'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
+import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedManagementRouteImport } from './routes/_authenticated/management'
 import { Route as AuthenticatedMyWorksRouteImport } from './routes/_authenticated/my-works'
 import { Route as AuthenticatedPaymentsRouteImport } from './routes/_authenticated/payments'
@@ -74,6 +75,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedExamsRoute = AuthenticatedExamsRouteImport.update({
   id: '/exams',
   path: '/exams',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedManagementRoute = AuthenticatedManagementRouteImport.update({
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/management': typeof AuthenticatedManagementRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/management': typeof AuthenticatedManagementRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
   '/_authenticated/management': typeof AuthenticatedManagementRoute
   '/_authenticated/my-works': typeof AuthenticatedMyWorksRoute
   '/_authenticated/payments': typeof AuthenticatedPaymentsRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/dashboard'
     | '/exams'
+    | '/finance'
     | '/management'
     | '/my-works'
     | '/payments'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/dashboard'
     | '/exams'
+    | '/finance'
     | '/management'
     | '/my-works'
     | '/payments'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/_authenticated/accounts'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
+    | '/_authenticated/finance'
     | '/_authenticated/management'
     | '/_authenticated/my-works'
     | '/_authenticated/payments'
@@ -363,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/exams'
       fullPath: '/exams'
       preLoaderRoute: typeof AuthenticatedExamsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/finance': {
+      id: '/_authenticated/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AuthenticatedFinanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/management': {
@@ -463,6 +482,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
   AuthenticatedManagementRoute: typeof AuthenticatedManagementRoute
   AuthenticatedMyWorksRoute: typeof AuthenticatedMyWorksRoute
   AuthenticatedPaymentsRoute: typeof AuthenticatedPaymentsRoute
@@ -480,6 +500,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
   AuthenticatedManagementRoute: AuthenticatedManagementRoute,
   AuthenticatedMyWorksRoute: AuthenticatedMyWorksRoute,
   AuthenticatedPaymentsRoute: AuthenticatedPaymentsRoute,
