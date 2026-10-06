@@ -108,3 +108,41 @@ export const deleteAccount = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
     return { ok: !error };
   });
+
+const updateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(2).max(100),
+  mobile: z.string().regex(/^01[3-9]\d{8}$/),
+  role: z.enum(["agent", "service_provider", "management", "reception_agent"]),
+  agent_code: z.string().trim().max(30).regex(/^[A-Za-z0-9-]*$/).optional(),
+});
+
+export const updateAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => updateSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!(await assertManagedAccount(supabaseAdmin, data.id))) return { ok: false as const, message: "অ্যাকাউন্ট পাওয়া যায়নি" };
+    const code = data.agent_code?.toUpperCase() || null;
+    if (code) {
+      const { data: dup } = await supabaseAdmin.from("agent_accounts").select("user_id").eq("agent_code", code).neq("user_id", data.id).maybeSingle();
+      if (dup) return { ok: false as const, message: "এই ID আগেই ব্যবহার হয়েছে" };
+    }
+    const { data: cur } = await supabaseAdmin.from("agent_accounts").select("mobile").eq("user_id", data.id).maybeSingle();
+    const email = emailFor(data.mobile);
+    if (cur?.mobile !== data.mobile) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.id, { email, email_confirm: true, user_metadata: { full_name: data.name } });
+      if (error) return { ok: false as const, message: /already|exists/i.test(error.message) ? "এই মোবাইল নম্বরে আগেই অ্যাকাউন্ট আছে" : "মোবাইল পরিবর্তন করা যায়নি" };
+    } else {
+      await supabaseAdmin.auth.admin.updateUserById(data.id, { user_metadata: { full_name: data.name } });
+    }
+    await supabaseAdmin.from("profiles").upsert({ id: data.id, full_name: data.name, email });
+    const { error: aErr } = await supabaseAdmin.from("agent_accounts").update({ full_name: data.name, mobile: data.mobile, agent_code: code, role: data.role === "reception_agent" ? "management" : data.role }).eq("user_id", data.id);
+    if (aErr) return { ok: false as const, message: "তথ্য সংরক্ষণ করা যায়নি" };
+    const roles = data.role === "reception_agent" ? ["management", "agent"] : [data.role];
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id).in("role", ["agent", "service_provider", "management"]);
+    const { error: rErr } = await supabaseAdmin.from("user_roles").insert(roles.map((r) => ({ user_id: data.id, role: r as "agent" })));
+    if (rErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
+    return { ok: true as const };
+  });

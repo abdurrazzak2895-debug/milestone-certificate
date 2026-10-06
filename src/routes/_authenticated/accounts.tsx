@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Trash2 } from "lucide-react";
-import { listAccounts, createAccount, resetAccountPassword, setAccountActive, deleteAccount } from "@/lib/accounts.functions";
+import { UserPlus, KeyRound, Trash2, Pencil } from "lucide-react";
+import { listAccounts, createAccount, resetAccountPassword, setAccountActive, deleteAccount, updateAccount } from "@/lib/accounts.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,18 @@ function Accounts() {
   const q = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() });
   const [f, setF] = useState({ name: "", mobile: "", password: "", agent_code: "", role: "agent" as "agent" | "service_provider" | "management" | "reception_agent" });
   const [busy, setBusy] = useState(false);
+  type Role = "agent" | "service_provider" | "management" | "reception_agent";
+  const [ed, setEd] = useState<null | { id: string; name: string; mobile: string; agent_code: string; role: Role }>(null);
+  const saveEdit = async () => {
+    if (!ed) return;
+    if (ed.name.trim().length < 2) return toast.error("নাম দিন");
+    if (!/^01[3-9]\d{8}$/.test(ed.mobile)) return toast.error("১১ সংখ্যার সঠিক মোবাইল নম্বর দিন");
+    const r = await updateAccount({ data: ed }).catch(() => ({ ok: false as const, message: "সংরক্ষণ করা যায়নি" }));
+    if (!r.ok) return toast.error(r.message);
+    toast.success("তথ্য আপডেট হয়েছে");
+    setEd(null);
+    qc.invalidateQueries({ queryKey: ["accounts"] });
+  };
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +104,23 @@ function Accounts() {
                     <div className="font-medium">{a.name || "—"}</div>
                     <div className="text-sm text-muted-foreground">{a.agent_code ? `${a.agent_code} · ` : ""}{a.mobile} · {ROLE_LABEL[a.role] ?? a.role} · <span className={a.active ? "text-primary" : "text-destructive"}>{a.active ? "Active" : "Inactive"}</span></div>
                   </div>
-                  <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={async () => { const r = await setAccountActive({ data: { id: a.id, active: !a.active } }).catch(() => ({ ok: false })); r.ok ? qc.invalidateQueries({ queryKey: ["accounts"] }) : toast.error("পরিবর্তন করা যায়নি"); }}>{a.active ? "Inactive করুন" : "Active করুন"}</Button><Button variant="outline" size="sm" onClick={() => reset(a.id)}><KeyRound className="mr-1 h-4 w-4" /> পাসওয়ার্ড</Button><Button variant="destructive" size="sm" onClick={async () => { if (!window.confirm(`${a.name} অ্যাকাউন্টটি স্থায়ীভাবে ডিলিট করবেন?`)) return; const r = await deleteAccount({ data: { id: a.id } }).catch(() => ({ ok: false })); if (r.ok) { toast.success("অ্যাকাউন্ট ডিলিট হয়েছে"); qc.invalidateQueries({ queryKey: ["accounts"] }); } else toast.error("ডিলিট করা যায়নি"); }}><Trash2 className="mr-1 h-4 w-4" /> ডিলিট</Button></div>
+                  <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => setEd({ id: a.id, name: a.name, mobile: a.mobile, agent_code: a.agent_code ?? "", role: a.role as Role })}><Pencil className="mr-1 h-4 w-4" /> এডিট</Button><Button variant="outline" size="sm" onClick={async () => { const r = await setAccountActive({ data: { id: a.id, active: !a.active } }).catch(() => ({ ok: false })); r.ok ? qc.invalidateQueries({ queryKey: ["accounts"] }) : toast.error("পরিবর্তন করা যায়নি"); }}>{a.active ? "Inactive করুন" : "Active করুন"}</Button><Button variant="outline" size="sm" onClick={() => reset(a.id)}><KeyRound className="mr-1 h-4 w-4" /> পাসওয়ার্ড</Button><Button variant="destructive" size="sm" onClick={async () => { if (!window.confirm(`${a.name} অ্যাকাউন্টটি স্থায়ীভাবে ডিলিট করবেন?`)) return; const r = await deleteAccount({ data: { id: a.id } }).catch(() => ({ ok: false })); if (r.ok) { toast.success("অ্যাকাউন্ট ডিলিট হয়েছে"); qc.invalidateQueries({ queryKey: ["accounts"] }); } else toast.error("ডিলিট করা যায়নি"); }}><Trash2 className="mr-1 h-4 w-4" /> ডিলিট</Button></div>
+                  {ed?.id === a.id && (
+                    <div className="w-full space-y-3 rounded-xl border bg-muted/30 p-4">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {(["agent", "service_provider", "management", "reception_agent"] as const).map((r) => (
+                          <button type="button" key={r} onClick={() => setEd({ ...ed, role: r })}
+                            className={`rounded-xl border px-3 py-2 text-sm ${ed.role === r ? "border-primary bg-primary/10 font-semibold text-primary" : "hover:bg-muted"}`}>{ROLE_LABEL[r]}</button>
+                        ))}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div><Label>নাম</Label><Input value={ed.name} maxLength={100} onChange={(e) => setEd({ ...ed, name: e.target.value })} /></div>
+                        <div><Label>মোবাইল নম্বর</Label><Input inputMode="numeric" value={ed.mobile} onChange={(e) => setEd({ ...ed, mobile: e.target.value.replace(/\D/g, "").slice(0, 11) })} /></div>
+                        <div><Label>ID</Label><Input value={ed.agent_code} maxLength={30} onChange={(e) => setEd({ ...ed, agent_code: e.target.value.replace(/[^A-Za-z0-9-]/g, "") })} /></div>
+                      </div>
+                      <div className="flex gap-2"><Button size="sm" onClick={saveEdit}>সংরক্ষণ করুন</Button><Button size="sm" variant="outline" onClick={() => setEd(null)}>বাতিল</Button></div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
