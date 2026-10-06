@@ -136,16 +136,19 @@ export type Database = {
       }
       device_sessions: {
         Row: {
+          prev_session_key: string | null
           session_key: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          prev_session_key?: string | null
           session_key: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          prev_session_key?: string | null
           session_key?: string
           updated_at?: string
           user_id?: string
