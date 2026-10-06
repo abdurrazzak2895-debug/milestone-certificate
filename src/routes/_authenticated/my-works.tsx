@@ -52,7 +52,7 @@ function MyWorks() {
   };
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase().replace(/^#/, "");
-  const list = filterFor(tab).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
+  const list = filterFor(tab).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">

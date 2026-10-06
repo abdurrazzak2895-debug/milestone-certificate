@@ -73,7 +73,7 @@ function SubmitJob() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [doneRef, setDoneRef] = useState<number | null>(null);
+  const [doneRef, setDoneRef] = useState<string | null>(null);
   const set = (k: keyof typeof empty, v: string) => setF((p) => ({ ...p, [k]: v }));
   const occList = useMemo(() => {
     const q = occSearch.trim().toLowerCase();

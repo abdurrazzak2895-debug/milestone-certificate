@@ -55,7 +55,7 @@ function Submissions() {
     if (targetDay && (!w.exam_at || dhakaDay(new Date(w.exam_at)) !== targetDay)) return false;
     if (slot !== "all" && (!w.exam_at || dhakaTime(new Date(w.exam_at)) !== slot)) return false;
     const s = q.trim().toLowerCase();
-    if (s && ![w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))) return false;
+    if (s && ![w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))) return false;
     return true;
   });
   const list = (filter === "all" ? base : base.filter((w) => w.status === filter))

@@ -36,7 +36,7 @@ function ManagementPage() {
   const s = q.trim().toLowerCase().replace(/^#/, "");
   const works = data
     .filter((work) => work.status !== "rejected")
-    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
+    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
     .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
   const ttc = lookup(useQuery(ttcQ).data);
   return <div className="mx-auto max-w-4xl space-y-4">
