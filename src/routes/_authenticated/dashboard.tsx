@@ -159,7 +159,7 @@ function QuickBtn({ icon, label, onClick, to }: { icon: React.ReactNode; label: 
 function useAgentOf() {
   const { data: subs = [] } = useQuery({
     queryKey: ["dash-sub-agents-v2"],
-    queryFn: async () => (await supabase.from("job_submissions").select("id,submitted_by,passport_no,mobile,secondary_mobile,ref_code,reception_status")).data ?? [],
+    queryFn: async () => (await supabase.from("job_submissions").select("id,submitted_by,passport_no,mobile,secondary_mobile,ref_code")).data ?? [],
   });
   const { data: agents = [] } = useQuery({
     queryKey: ["dash-agents"],
