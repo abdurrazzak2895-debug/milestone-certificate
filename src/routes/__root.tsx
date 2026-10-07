@@ -137,7 +137,6 @@ function RootComponent() {
     console.info = noop;
     console.debug = noop;
     console.table = noop;
-    const onContext = (e: MouseEvent) => e.preventDefault();
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toUpperCase();
       const ctrl = e.ctrlKey || e.metaKey;
@@ -151,20 +150,10 @@ function RootComponent() {
         e.stopPropagation();
       }
     };
-    const onCopy = (e: ClipboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-      e.preventDefault();
-    };
-    document.addEventListener("contextmenu", onContext);
+    // Copy/select stays allowed — staff need to copy passport, mobile and names.
     document.addEventListener("keydown", onKey, true);
-    document.addEventListener("copy", onCopy);
-    document.addEventListener("dragstart", onContext as unknown as EventListener);
     return () => {
-      document.removeEventListener("contextmenu", onContext);
       document.removeEventListener("keydown", onKey, true);
-      document.removeEventListener("copy", onCopy);
-      document.removeEventListener("dragstart", onContext as unknown as EventListener);
     };
   }, []);
 
