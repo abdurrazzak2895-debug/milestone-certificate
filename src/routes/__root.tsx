@@ -137,7 +137,6 @@ function RootComponent() {
     console.info = noop;
     console.debug = noop;
     console.table = noop;
-    const onContext = (e: MouseEvent) => e.preventDefault();
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toUpperCase();
       const ctrl = e.ctrlKey || e.metaKey;

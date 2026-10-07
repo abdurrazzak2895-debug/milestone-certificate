@@ -158,8 +158,8 @@ function QuickBtn({ icon, label, onClick, to }: { icon: React.ReactNode; label: 
 
 function useAgentOf() {
   const { data: subs = [] } = useQuery({
-    queryKey: ["dash-sub-agents"],
-    queryFn: async () => (await supabase.from("job_submissions").select("id,submitted_by")).data ?? [],
+    queryKey: ["dash-sub-agents-v2"],
+    queryFn: async () => (await supabase.from("job_submissions").select("id,submitted_by,passport_no,mobile,secondary_mobile,ref_code,reception_status")).data ?? [],
   });
   const { data: agents = [] } = useQuery({
     queryKey: ["dash-agents"],
@@ -196,15 +196,21 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
       </h3>
       {list.length === 0 ? <Empty>আজ বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
         <ul className="max-h-72 divide-y overflow-y-auto">
-          {list.map((e) => (
-            <li key={e.id} className="flex items-center justify-between gap-2 py-2">
-              <div className="flex min-w-0 items-center gap-2"><CandidatePhoto path={candPhoto(e.candidate_id)} name={candName(e.candidate_id)} size={36} /><div className="min-w-0">
+          {list.map((e) => {
+            const sub = subs.find((s) => s.id === e.submission_id);
+            return (
+            <li key={e.id} className="flex items-start justify-between gap-2 py-2.5">
+              <div className="flex min-w-0 items-start gap-2"><CandidatePhoto path={candPhoto(e.candidate_id)} name={candName(e.candidate_id)} size={40} /><div className="min-w-0 select-text">
                 <Link to="/candidates/$id" params={{ id: e.candidate_id }} className="font-semibold uppercase hover:text-primary">{candName(e.candidate_id)}</Link>
+                {sub?.ref_code && <span className="ml-1 text-xs text-muted-foreground">#{sub.ref_code}</span>}
+                <div className="text-xs">পাসপোর্ট: <span className="font-medium">{sub?.passport_no ?? "—"}</span></div>
+                <div className="text-xs">মোবাইল: <span className="font-medium">{sub?.mobile ?? "—"}</span>{sub?.secondary_mobile ? `, ${sub.secondary_mobile}` : ""}</div>
                 <div className="text-xs text-muted-foreground">{occName(e.occupation_id)} · {agentName.get(subAgent.get(e.submission_id ?? "") ?? "") ?? "সরাসরি এন্ট্রি"}</div>
               </div></div>
               <span className="shrink-0 text-sm font-medium">{fmtTime(e.exam_time)}</span>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
