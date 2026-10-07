@@ -151,20 +151,10 @@ function RootComponent() {
         e.stopPropagation();
       }
     };
-    const onCopy = (e: ClipboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-      e.preventDefault();
-    };
-    document.addEventListener("contextmenu", onContext);
+    // Copy/select stays allowed — staff need to copy passport, mobile and names.
     document.addEventListener("keydown", onKey, true);
-    document.addEventListener("copy", onCopy);
-    document.addEventListener("dragstart", onContext as unknown as EventListener);
     return () => {
-      document.removeEventListener("contextmenu", onContext);
       document.removeEventListener("keydown", onKey, true);
-      document.removeEventListener("copy", onCopy);
-      document.removeEventListener("dragstart", onContext as unknown as EventListener);
     };
   }, []);
 

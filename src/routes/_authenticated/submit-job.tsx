@@ -237,7 +237,7 @@ function SubmitJob() {
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm hover:bg-muted">
             <FileUp className="h-5 w-5 text-primary" />
             <span className="truncate">{file ? file.name : "ফাইল নির্বাচন করুন"}</span>
-            <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; setFile(f ? await (await import("@/lib/compress-image")).compressImage(f) : null); }} />
           </label>
           <Err k="file" />
         </div>
