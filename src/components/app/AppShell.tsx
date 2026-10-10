@@ -27,7 +27,10 @@ const agentNav = [
   { to: "/office", label: "অফিস ঠিকানা", icon: Home },
 ] as const;
 const providerNav = [{ to: "/provider", label: "আমার কাজ", icon: Briefcase }] as const;
-const managementNav = [{ to: "/management", label: "রিসেপশন", icon: UserCheck }] as const;
+const managementNav = [
+  { to: "/management", label: "রিসেপশন", icon: UserCheck },
+  { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck },
+] as const;
 
 export function AppShell({ children, roles = [] }: { children: ReactNode; roles?: string[] }) {
   const manager = roles.includes("admin") || roles.includes("staff");

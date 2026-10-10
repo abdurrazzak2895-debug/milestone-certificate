@@ -32,6 +32,8 @@ export const Route = createFileRoute("/_authenticated/submissions")({
 const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
 
 function Submissions() {
+  const { roles } = Route.useRouteContext();
+  const canReview = roles.includes("admin") || roles.includes("staff");
   const qc = useQueryClient();
   const { data: works = [] } = useQuery(worksQ);
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts(), retry: false });
