@@ -260,7 +260,14 @@ function SubmitJob() {
         </div>
       </section>
 
-      <Button type="submit" size="lg" className="w-full">কাজ Submit করুন</Button>
+      <Button type="submit" size="lg" className="group relative h-14 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-base font-bold text-primary-foreground shadow-[0_10px_35px_-10px_var(--primary)] ring-1 ring-primary-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)] active:scale-[0.98]">
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />
+        <span className="relative flex items-center justify-center gap-2">
+          <Sparkles className="h-5 w-5" />
+          কাজ Submit করুন
+          <SendHorizontal className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1.5" />
+        </span>
+      </Button>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="border-destructive/40">
