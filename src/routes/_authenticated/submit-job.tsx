@@ -306,7 +306,26 @@ function SubmitJob() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> জরুরি নির্দেশনা</DialogTitle>
           </DialogHeader>
-          <ul className="space-y-2 text-sm">
+          <div className="rounded-xl border bg-muted/50 p-3 text-sm">
+            <p className="mb-2 font-semibold">তথ্য যাচাই করুন</p>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              {([
+                ["নাম", f.candidate_name],
+                ["পাসপোর্ট", f.passport_no.toUpperCase()],
+                ["মোবাইল", [f.mobile, f.secondary_mobile].filter(Boolean).join(", ")],
+                ["পেশা", occs.find((o) => o.id === f.occupation_id)?.name ?? ""],
+                ["TTC", ttcs.find((t) => t.id === f.ttc_id)?.name ?? ""],
+                ["তারিখ", f.exam_date],
+                ["সময়", BATCHES.flatMap((b) => b.times.map((t) => `${t.label} (${b.batch})`)).find((_, i) => BATCH_VALUES[i] === f.exam_time) ?? ""],
+                ["টিকেট", file?.name ?? ""],
+                ["ছবি", candidatePhoto ? "আছে" : "নেই"],
+                ...(f.skill_details ? [["নোট", f.skill_details]] : []),
+              ] as [string, string][]).map(([k, v]) => (
+                <div key={k} className="contents"><dt className="text-muted-foreground">{k}:</dt><dd className="break-words font-medium">{v || "—"}</dd></div>
+              ))}
+            </dl>
+          </div>
+          <ul className="max-h-40 space-y-2 overflow-y-auto text-sm">
             {notices.map((t) => <li key={t} className="flex gap-2"><span>•</span><span>{t}</span></li>)}
           </ul>
           <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-muted p-3 text-sm font-medium">
