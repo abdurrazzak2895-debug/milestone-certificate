@@ -32,6 +32,8 @@ export const Route = createFileRoute("/_authenticated/submissions")({
 const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
 
 function Submissions() {
+  const { roles } = Route.useRouteContext();
+  const canReview = roles.includes("admin") || roles.includes("staff");
   const qc = useQueryClient();
   const { data: works = [] } = useQuery(worksQ);
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts(), retry: false });
@@ -153,9 +155,9 @@ function Submissions() {
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>
-                {w.status !== "approved" && <Button size="sm" disabled={busyId === w.id} onClick={() => review(w, "approved")}><Check className="mr-1 h-4 w-4" /> Approve</Button>}
-                {w.status !== "rejected" && <Button size="sm" variant="destructive" disabled={busyId === w.id} onClick={() => { setReason(""); setRejecting(w); }}><X className="mr-1 h-4 w-4" /> Reject</Button>}
-                {w.status === "approved" && <Button size="sm" variant="secondary" disabled={busyId === w.id} onClick={() => svp(w)}><RefreshCw className="mr-1 h-4 w-4" /> SVP চেক</Button>}
+                {canReview && w.status !== "approved" && <Button size="sm" disabled={busyId === w.id} onClick={() => review(w, "approved")}><Check className="mr-1 h-4 w-4" /> Approve</Button>}
+                {canReview && w.status !== "rejected" && <Button size="sm" variant="destructive" disabled={busyId === w.id} onClick={() => { setReason(""); setRejecting(w); }}><X className="mr-1 h-4 w-4" /> Reject</Button>}
+                {canReview && w.status === "approved" && <Button size="sm" variant="secondary" disabled={busyId === w.id} onClick={() => svp(w)}><RefreshCw className="mr-1 h-4 w-4" /> SVP চেক</Button>}
               </div>
               <WorkNotes submissionId={w.id} canAdd={false} />
             </li>

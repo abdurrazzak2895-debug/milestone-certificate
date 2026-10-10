@@ -7,7 +7,7 @@ import { checkDeviceSession, forceSignOut } from "@/lib/device-session";
 const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works"];
 const PROVIDER_PATHS = ["/provider"];
 const ADMIN_ONLY_PATHS = ["/finance"];
-const MANAGEMENT_PATHS = ["/management"];
+const MANAGEMENT_PATHS = ["/management", "/submissions"];
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
