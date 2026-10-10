@@ -9,9 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, NativeSelect } from "./ui-bits";
 import { PhotoInput } from "@/components/app/PhotoInput";
 import {
-  candidatesQ, occQ, ttcQ, RESULTS, RESULT_LABEL, todayStr, useRefreshAll, dhakaInputToISO, isoToDhakaInput,
+  candidatesQ, examsQ, occQ, ttcQ, RESULTS, RESULT_LABEL, todayStr, useRefreshAll, dhakaInputToISO, isoToDhakaInput,
   type Candidate, type Exam, type ExamResult,
 } from "@/lib/data";
+import { worksQ } from "@/lib/works";
 
 function errMsg(e: { code?: string; message: string }) {
   if (e.code === "23505") return "এই তথ্য দিয়ে আগেই রেকর্ড আছে (ডুপ্লিকেট)";
@@ -26,7 +27,10 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
   const occ = occAll?.filter((o) => o.active);
   const ttc = ttcAll?.filter((o) => o.active);
   const refresh = useRefreshAll();
-  const empty = { name: "", passport_no: "", mobile: "", occupation_id: "", ttc_id: "", notes: "", result_check_at: "" };
+  const { data: allExams = [] } = useQuery(examsQ);
+  const { data: works = [] } = useQuery(worksQ);
+  const latestExam = candidate ? allExams.filter((e) => e.candidate_id === candidate.id).sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0] : undefined;
+  const empty = { name: "", passport_no: "", mobile: "", occupation_id: "", ttc_id: "", notes: "", result_check_at: "", exam_date: "", exam_time: "" };
   const [f, setF] = useState(empty);
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,6 +42,7 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
       name: candidate.name, passport_no: candidate.passport_no ?? "", mobile: candidate.mobile ?? "",
       occupation_id: candidate.occupation_id ?? "", ttc_id: candidate.ttc_id ?? "", notes: candidate.notes ?? "",
       result_check_at: isoToDhakaInput(candidate.result_check_at),
+      exam_date: latestExam?.exam_date ?? "", exam_time: latestExam?.exam_time?.slice(0, 5) ?? "",
     } : empty);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, candidate]);
@@ -72,6 +77,15 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
         ? await supabase.from("candidates").update(row).eq("id", candidate.id)
         : await supabase.from("candidates").insert(row);
       if (error) throw error;
+      if (candidate && f.exam_date) {
+        const ex = { exam_date: f.exam_date, exam_time: f.exam_time || null };
+        const r = latestExam
+          ? await supabase.from("exams").update(ex).eq("id", latestExam.id)
+          : await supabase.from("exams").insert({ ...ex, candidate_id: candidate.id, occupation_id: f.occupation_id, ttc_id: f.ttc_id });
+        if (r.error) throw r.error;
+        const w = works.find((x) => x.candidate_id === candidate.id && x.exam_id === latestExam?.id);
+        if (w && f.exam_time) await supabase.from("job_submissions").update({ exam_at: new Date(`${f.exam_date}T${f.exam_time}:00+06:00`).toISOString() }).eq("id", w.id);
+      }
       toast.success(candidate ? "আপডেট হয়েছে" : "নতুন পরীক্ষার্থী যোগ হয়েছে");
       refresh();
       onOpenChange(false);
@@ -103,7 +117,13 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
             </NativeSelect>
           </Field>
           <Field label="ছবি"><PhotoInput onFile={setPhoto} /></Field>
-          <Field label="রেজাল্ট চেকের সময় (বাংলাদেশ সময়)"><Input type="datetime-local" value={f.result_check_at} onChange={set("result_check_at")} /></Field>
+          <Field label="পরীক্ষার তারিখ"><Input type="date" value={f.exam_date} onChange={set("exam_date")} /></Field>
+          <Field label="ব্যাচ টাইম">
+            <NativeSelect value={f.exam_time} onChange={set("exam_time")}>
+              <option value="">— নির্বাচন করুন —</option>
+              {[["10:00", "10:00 AM (MORNING)"], ["11:00", "11:00 AM (MORNING)"], ["13:00", "01:00 PM (AFTERNOON)"], ["14:00", "02:00 PM (AFTERNOON)"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </NativeSelect>
+          </Field>
           <div className="sm:col-span-2"><Field label="নোট"><Textarea value={f.notes} onChange={set("notes")} rows={2} /></Field></div>
         </div>
         <DialogFooter><Button onClick={save} disabled={busy}>{busy ? "সংরক্ষণ হচ্ছে..." : "সংরক্ষণ করুন"}</Button></DialogFooter>
