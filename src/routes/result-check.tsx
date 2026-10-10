@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { RESULT_LABEL, fmtDate, type ExamResult } from "@/lib/data";
+import { homeForRoles } from "@/lib/roles";
 
 export const Route = createFileRoute("/result-check")({
   head: () => ({
@@ -31,6 +32,16 @@ function ResultCheck() {
     queryKey: ["public-occ"],
     queryFn: async () => (await supabase.from("occupations").select("id,name").eq("active", true).order("name")).data ?? [],
   });
+  const { data: home = "/auth" } = useQuery({
+    queryKey: ["result-check-home"],
+    queryFn: async () => {
+      const { data: s } = await supabase.auth.getSession();
+      const u = s.session?.user;
+      if (!u) return "/auth" as const;
+      const { data: rows } = await supabase.from("user_roles").select("role").eq("user_id", u.id);
+      return homeForRoles((rows ?? []).map((r) => r.role as string));
+    },
+  });
   const [pp, setPp] = useState("");
   const [oc, setOc] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,8 +65,17 @@ function ResultCheck() {
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto max-w-lg space-y-5">
+    <div className="min-h-screen bg-background px-4 py-6">
+      <div className="mx-auto max-w-lg space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
+            ← ফিরে যান
+          </Button>
+          <Link to={home}>
+            <Button variant="outline" size="sm">🏠 হোম</Button>
+          </Link>
+        </div>
+
         <h1 className="text-center text-2xl font-bold text-primary">রেজাল্ট চেক</h1>
         <form onSubmit={check} className="card-surface space-y-3 p-5">
           <Field label="পাসপোর্ট নম্বর *"><Input value={pp} onChange={(e) => setPp(e.target.value)} /></Field>
