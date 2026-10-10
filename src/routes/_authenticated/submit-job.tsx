@@ -65,6 +65,7 @@ function SubmitJob() {
   const { data: occs = [] } = useQuery(occQ);
   const active = ttcs.filter((t) => t.active);
   const [f, setF] = useState(empty);
+  const [walkKey, setWalkKey] = useState(0);
   const [occSearch, setOccSearch] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [candidatePhoto, setCandidatePhoto] = useState<File | null>(null);
