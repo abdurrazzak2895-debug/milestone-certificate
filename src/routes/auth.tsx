@@ -16,9 +16,9 @@ const mobileSchema = z.string().regex(/^01[3-9]\d{8}$/);
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "লগইন — পরীক্ষা ব্যবস্থাপনা" },
+      { title: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
       { name: "description", content: "মোবাইল নম্বর ও পাসওয়ার্ড দিয়ে পরীক্ষা ব্যবস্থাপনা পোর্টালে প্রবেশ করুন।" },
-      { property: "og:title", content: "লগইন — পরীক্ষা ব্যবস্থাপনা" },
+      { property: "og:title", content: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
       { property: "og:description", content: "মোবাইল নম্বর ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

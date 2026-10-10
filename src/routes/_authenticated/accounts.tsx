@@ -11,9 +11,9 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/_authenticated/accounts")({
   head: () => ({
     meta: [
-      { title: "কর্মীদের অ্যাকাউন্ট — অ্যাডমিন" },
+      { title: "কর্মীদের অ্যাকাউন্ট — অ্যাডমিন | Milestone Certificate" },
       { name: "description", content: "এজেন্ট, সার্ভিস প্রোভাইডার ও রিসেপশন কর্মীদের অ্যাকাউন্ট পরিচালনা।" },
-      { property: "og:title", content: "কর্মীদের অ্যাকাউন্ট — অ্যাডমিন" },
+      { property: "og:title", content: "কর্মীদের অ্যাকাউন্ট — অ্যাডমিন | Milestone Certificate" },
       { property: "og:description", content: "এজেন্ট, সার্ভিস প্রোভাইডার ও রিসেপশন কর্মীদের অ্যাকাউন্ট পরিচালনা।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

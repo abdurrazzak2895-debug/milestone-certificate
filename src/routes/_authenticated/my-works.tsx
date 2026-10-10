@@ -17,9 +17,9 @@ export const Route = createFileRoute("/_authenticated/my-works")({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: (s.tab as Tab) || undefined }),
   head: () => ({
     meta: [
-      { title: "আমার জমা দেওয়া কাজ — এজেন্ট" },
+      { title: "আমার জমা দেওয়া কাজ — এজেন্ট | Milestone Certificate" },
       { name: "description", content: "এজেন্টের জমা দেওয়া কাজ, অনুমোদন অবস্থা ও SVP রেজাল্ট।" },
-      { property: "og:title", content: "আমার জমা দেওয়া কাজ — এজেন্ট" },
+      { property: "og:title", content: "আমার জমা দেওয়া কাজ — এজেন্ট | Milestone Certificate" },
       { property: "og:description", content: "এজেন্টের জমা দেওয়া কাজ, অনুমোদন অবস্থা ও SVP রেজাল্ট।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

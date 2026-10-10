@@ -158,3 +158,11 @@
 .animate-trolley-walk { animation: trolley-walk 1.6s linear forwards; }
 .animate-trolley-bob { animation: trolley-bob 0.3s ease-in-out infinite; }
 
+
+/* Black-hole loader */
+.bh-disk { background: conic-gradient(from 0deg, transparent, color-mix(in oklab, var(--primary) 60%, transparent), transparent 40%, color-mix(in oklab, var(--accent) 50%, transparent), transparent 75%); filter: blur(6px); animation: bh-spin 1.4s linear infinite; mask: radial-gradient(circle, transparent 38%, #000 42%, transparent 70%); }
+.bh-ring { animation: bh-spin .9s linear infinite; }
+.bh-ring-rev { animation: bh-spin 1.2s linear infinite reverse; }
+.logo-wave { animation: logo-wave 1s ease-in-out infinite; transform-origin: 50% 85%; }
+@keyframes bh-spin { to { transform: rotate(360deg); } }
+@keyframes logo-wave { 0%,100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.05); } }

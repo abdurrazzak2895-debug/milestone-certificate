@@ -38,9 +38,9 @@ export const Route = createFileRoute("/portal")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "আমার ফলাফল ও সার্টিফিকেট" },
+      { title: "আমার ফলাফল ও সার্টিফিকেট | Milestone Certificate" },
       { name: "description", content: "আপনার পরীক্ষার ফলাফল দেখুন এবং সার্টিফিকেট প্রিন্ট করুন।" },
-      { property: "og:title", content: "আমার ফলাফল ও সার্টিফিকেট" },
+      { property: "og:title", content: "আমার ফলাফল ও সার্টিফিকেট | Milestone Certificate" },
       { property: "og:description", content: "পরীক্ষার্থীদের ব্যক্তিগত ফলাফল ও সার্টিফিকেট পোর্টাল।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
