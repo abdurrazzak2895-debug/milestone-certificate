@@ -157,3 +157,6 @@
 }
 .animate-trolley-walk { animation: trolley-walk 1.6s linear forwards; }
 .animate-trolley-bob { animation: trolley-bob 0.3s ease-in-out infinite; }
+
+@keyframes worker-tool { 0%,100% { transform: rotate(-18deg); } 50% { transform: rotate(22deg); } }
+@utility animate-worker-tool { animation: worker-tool 0.6s ease-in-out infinite; }

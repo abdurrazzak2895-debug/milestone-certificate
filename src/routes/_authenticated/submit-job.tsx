@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, CheckCircle2, FileUp, Loader2, SendHorizontal, Sparkles } from "lucide-react";
+import { WorkerLoader } from "@/components/app/WorkerLoader";
+import { AlertTriangle, Camera, CheckCircle2, FileUp, SendHorizontal, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
 import { Input } from "@/components/ui/input";
@@ -332,7 +333,7 @@ function SubmitJob() {
                 </>
               ) : busy ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-primary-foreground"><WorkerLoader size="sm" /></span>
                   Submit হচ্ছে...
                 </>
               ) : (
