@@ -81,3 +81,21 @@ export const updateMySubmission = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true as const };
   });
+
+/** Candidate mobile numbers can be changed at any time by the submitting agent or staff. */
+export const updateCandidateMobile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    id: z.string().uuid(),
+    mobile: z.string().regex(/^01[3-9]\d{8}$/),
+    secondary_mobile: z.string().regex(/^01[3-9]\d{8}$/).nullable(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { data: row } = await context.supabase.from("job_submissions").select("submitted_by").eq("id", data.id).maybeSingle();
+    const staff = await hasAnyRole(context.supabase, context.userId, ["admin", "staff", "management"]);
+    if (!row || (row.submitted_by !== context.userId && !staff)) throw new Error("অনুমতি নেই");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("job_submissions").update({ mobile: data.mobile, secondary_mobile: data.secondary_mobile }).eq("id", data.id);
+    if (error) throw error;
+    return { ok: true as const };
+  });

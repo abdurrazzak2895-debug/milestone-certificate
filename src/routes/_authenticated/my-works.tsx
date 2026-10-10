@@ -1,3 +1,4 @@
+import { EditMobileDialog } from "@/components/app/EditMobileDialog";
 import { EditWorkDialog } from "@/components/app/EditWorkDialog";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute } from "@tanstack/react-router";
@@ -10,7 +11,7 @@ import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
 
-type Tab = "active" | "today" | "tomorrow" | "day_after" | "done" | "rejected" | "all";
+type Tab = "active" | "today" | "tomorrow" | "day_after" | "done" | "rejected" | "archive" | "all";
 
 export const Route = createFileRoute("/_authenticated/my-works")({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: (s.tab as Tab) || undefined }),
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/my-works")({
   component: MyWorks,
 });
 
-const TABS: [Tab, string][] = [["active", "চলমান কাজ"], ["today", "আজকে"], ["tomorrow", "আগামীকাল"], ["day_after", "পরশু"], ["done", "সম্পন্ন (পুরাতন)"], ["rejected", "বাতিল"], ["all", "সব কাজ"]];
+const TABS: [Tab, string][] = [["active", "চলমান কাজ"], ["today", "আজকে"], ["tomorrow", "আগামীকাল"], ["day_after", "পরশু"], ["done", "সম্পন্ন"], ["archive", "আর্কাইভ (১ মাস+)"], ["rejected", "বাতিল"], ["all", "সব কাজ"]];
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
@@ -39,6 +40,7 @@ function MyWorks() {
   const ttc = lookup(useQuery(ttcQ).data);
   const occ = lookup(useQuery(occQ).data);
   const isDone = (w: (typeof works)[number]) => w.status === "approved" && (w.svp_result === "PASS" || w.svp_result === "FAIL");
+  const isArchived = (w: (typeof works)[number]) => isDone(w) && Date.now() - new Date(w.exam_at ?? w.created_at).getTime() > 30 * 86400000;
   const isActive = (w: (typeof works)[number]) => w.status !== "rejected" && !isDone(w);
   const onDay = (n: number) => (w: (typeof works)[number]) => isActive(w) && !!w.exam_at && dhakaDay(new Date(w.exam_at)) === dayOffset(n);
   const filterFor = (k: Tab) => {
@@ -47,14 +49,15 @@ function MyWorks() {
       case "today": return works.filter(onDay(0));
       case "tomorrow": return works.filter(onDay(1));
       case "day_after": return works.filter(onDay(2));
-      case "done": return works.filter(isDone);
+      case "done": return works.filter((w) => isDone(w) && !isArchived(w));
+      case "archive": return works.filter(isArchived);
       case "rejected": return works.filter((w) => w.status === "rejected");
-      default: return works;
+      default: return works.filter((w) => !isArchived(w));
     }
   };
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase().replace(/^#/, "");
-  const list = filterFor(tab).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
+  const list = (s ? works : filterFor(tab)).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -91,6 +94,7 @@ function MyWorks() {
               )}
               <Button variant="ghost" size="sm" className="mt-2" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Takamul Ticket</Button>
               {w.status === "pending_approval" ? <EditWorkDialog w={w} /> : w.status === "approved" && <p className="mt-2 text-xs text-muted-foreground">অনুমোদিত — এডিট বন্ধ</p>}
+              <EditMobileDialog w={w} />
               <WorkNotes submissionId={w.id} canAdd />
             </li>
           ))}
