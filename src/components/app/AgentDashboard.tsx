@@ -30,22 +30,77 @@ export function AgentDashboard() {
       .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
   const list = onDay(day);
 
+  const qc = useQueryClient();
+  const avatarPath = me ? `candidate-drafts/${me.user_id}/agent-profile.jpg` : null;
+  const camRef = useRef<HTMLInputElement>(null);
+  const uploadAvatar = async (f?: File) => {
+    if (!f || !avatarPath) return;
+    try {
+      const img = await compressImage(f);
+      const { error } = await supabase.storage.from("candidate-photos").upload(avatarPath, img, { contentType: "image/jpeg", upsert: true });
+      if (error) throw error;
+      toast.success("প্রোফাইল ছবি আপডেট হয়েছে");
+      qc.invalidateQueries({ queryKey: ["photo", avatarPath] });
+    } catch { toast.error("ছবি আপলোড করা যায়নি"); }
+  };
+  const { data: notice = "" } = useQuery(agentNoticeQ);
+  const [q, setQ] = useState("");
+  const s = q.trim().toLowerCase().replace(/^#/, "");
+  const hits = s ? works.filter((w) => [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))).slice(0, 20) : [];
+  const byOcc = Object.entries(list.reduce<Record<string, typeof list>>((a, w) => { const k = w.occupation_id ? occ(w.occupation_id) : "—"; (a[k] ||= []).push(w); return a; }, {})).sort((a, b) => b[1].length - a[1].length);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <h1 className="font-display text-2xl font-bold">এজেন্ট ড্যাশবোর্ড</h1>
-      <section className="flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-sm">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary"><User className="h-6 w-6" /></div>
-        <div>
-          <div className="font-semibold">{me?.full_name ?? "—"}</div>
-          <div className="text-sm text-muted-foreground">Agent ID: {me?.agent_code ?? "—"} · {me?.mobile ?? ""}</div>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <section className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-2 shadow-sm">
+        <button onClick={() => camRef.current?.click()} title="প্রোফাইল ছবি" className="relative">
+          <CandidatePhoto path={avatarPath} name={me?.full_name ?? "A"} size={40} />
+          <Camera className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-primary p-0.5 text-primary-foreground" />
+        </button>
+        <input ref={camRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="font-display font-bold">এজেন্ট ড্যাশবোর্ড</span>
+          <span className="font-semibold">· {me?.full_name ?? "—"}</span>
+          <span className="text-muted-foreground">· ID: {me?.agent_code ?? "—"} · {me?.mobile ?? ""}</span>
         </div>
       </section>
-      <Link to="/submit-job" className="flex items-center justify-center gap-2 rounded-2xl bg-primary p-4 font-semibold text-primary-foreground shadow-sm">
+
+      <section className="overflow-hidden rounded-2xl border border-primary/50 bg-primary/10 shadow-[0_0_18px_-6px_hsl(var(--primary))]">
+        <div className="flex items-center gap-2 border-b border-primary/30 px-4 py-2 font-semibold"><Megaphone className="h-5 w-5 text-primary" /> নোটিশ বোর্ড</div>
+        <div className="overflow-hidden px-4 py-4">
+          <p className="animate-marquee whitespace-nowrap text-base font-medium sm:text-lg">{notice || "এই মুহূর্তে কোনো নোটিশ নেই।"}</p>
+        </div>
+      </section>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input className="h-11 w-full rounded-xl border bg-card pl-9 pr-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / রেফারেন্স দিয়ে পরীক্ষার্থী খুঁজুন (পুরাতন কাজসহ)" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      {s && (
+        <section className="rounded-2xl border bg-card p-3 shadow-sm">
+          {hits.length === 0 ? <p className="py-2 text-center text-sm text-muted-foreground">কিছু পাওয়া যায়নি।</p> : (
+            <ul className="divide-y">
+              {hits.map((w) => (
+                <li key={w.id} className="flex items-center gap-3 py-2">
+                  <CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{w.candidate_name} <span className="text-xs text-muted-foreground">#{w.ref_code}</span></div>
+                    <div className="truncate text-xs text-muted-foreground">{w.passport_no} · {w.mobile} · {w.occupation_id ? occ(w.occupation_id) : "—"} · {w.svp_result ?? w.status}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link to="/my-works" search={{ tab: "all" }} className="mt-2 block text-center text-xs text-primary">সব কাজে দেখুন →</Link>
+        </section>
+      )}
+
+      <Link to="/submit-job" className="flex items-center justify-center gap-2 rounded-2xl bg-primary p-3 font-semibold text-primary-foreground shadow-sm">
         <FilePlus2 className="h-5 w-5" /> Submit Work
       </Link>
 
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> পরীক্ষার রিমাইন্ডার</h2>
+
         <div className="mb-3 flex gap-2 overflow-x-auto">
           {DAYS.map(([n, l]) => (
             <button key={n} onClick={() => setDay(n)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${day === n ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
