@@ -9,6 +9,7 @@ import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { agentNoticeQ } from "@/components/app/AgentNotice";
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compress-image";
+import { OfficeAddress } from "@/components/app/OfficeAddress";
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
@@ -98,9 +99,16 @@ export function AgentDashboard() {
         </section>
       )}
 
-      <Link to="/submit-job" className="flex items-center justify-center gap-2 rounded-2xl bg-primary p-3 font-semibold text-primary-foreground shadow-sm">
-        <FilePlus2 className="h-5 w-5" /> Submit Work
-      </Link>
+      <div className="grid grid-cols-2 gap-2">
+        <Link to="/submit-job" className="flex items-center justify-center gap-2 rounded-2xl bg-primary p-3 font-semibold text-primary-foreground shadow-sm">
+          <FilePlus2 className="h-5 w-5" /> Submit Work
+        </Link>
+        <Link to="/result-check" className="flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
+          <Search className="h-5 w-5" /> রেজাল্ট চেক
+        </Link>
+      </div>
+
+      <OfficeAddress />
 
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> পরীক্ষার রিমাইন্ডার</h2>
