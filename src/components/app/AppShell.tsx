@@ -24,6 +24,7 @@ const agentNav = [
   { to: "/submit-job", label: "Submit Work", icon: ClipboardCheck },
   { to: "/my-works", label: "আমার কাজ", icon: Briefcase },
   { to: "/result-check", label: "রেজাল্ট চেক", icon: ClipboardCheck },
+  { to: "/office", label: "অফিস ঠিকানা", icon: Home },
 ] as const;
 const providerNav = [{ to: "/provider", label: "আমার কাজ", icon: Briefcase }] as const;
 const managementNav = [{ to: "/management", label: "রিসেপশন", icon: UserCheck }] as const;
