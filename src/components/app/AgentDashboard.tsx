@@ -71,12 +71,12 @@ export function AgentDashboard() {
         )}
       </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {cards.map((c) => (
-          <Link key={c.label} to="/my-works" search={{ tab: c.tab }} className="rounded-2xl border bg-card p-4 shadow-sm hover:bg-muted">
-            <c.icon className="h-5 w-5 text-primary" />
-            <div className="mt-2 text-2xl font-bold">{bn(c.value)}</div>
-            <div className="text-sm text-muted-foreground">{c.label}</div>
+          <Link key={c.label} to="/my-works" search={{ tab: c.tab }} className="rounded-xl border bg-card p-2 text-center shadow-sm hover:bg-muted">
+            <c.icon className="mx-auto h-3.5 w-3.5 text-primary" />
+            <div className="mt-1 text-base font-bold leading-tight">{bn(c.value)}</div>
+            <div className="text-[11px] leading-tight text-muted-foreground">{c.label}</div>
           </Link>
         ))}
       </div>
