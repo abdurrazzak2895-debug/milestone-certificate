@@ -12,7 +12,7 @@ import { CandidateDialog, ExamDialog, ResultDialog } from "@/components/app/form
 import { candidatesQ, examsQ, occQ, ttcQ, resultsQ, lookup, bn, fmtDate, fmtTime, todayStr, dayLabel, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
-  head: () => ({ meta: [{ title: "পরীক্ষার্থীর প্রোফাইল" }, { name: "description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:title", content: "পরীক্ষার্থীর প্রোফাইল" }, { property: "og:description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }] }),
+  head: () => ({ meta: [{ title: "পরীক্ষার্থীর প্রোফাইল | Milestone Certificate" }, { name: "description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:title", content: "পরীক্ষার্থীর প্রোফাইল | Milestone Certificate" }, { property: "og:description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }] }),
   component: Profile,
 });
 

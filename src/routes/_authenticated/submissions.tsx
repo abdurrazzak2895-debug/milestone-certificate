@@ -19,9 +19,9 @@ import { reviewSubmission } from "@/lib/workflow.functions";
 export const Route = createFileRoute("/_authenticated/submissions")({
   head: () => ({
     meta: [
-      { title: "Submitted Works — অ্যাডমিন অনুমোদন" },
+      { title: "Submitted Works — অ্যাডমিন অনুমোদন | Milestone Certificate" },
       { name: "description", content: "এজেন্টদের জমা দেওয়া কাজ যাচাই, অনুমোদন বা বাতিল।" },
-      { property: "og:title", content: "Submitted Works — অ্যাডমিন অনুমোদন" },
+      { property: "og:title", content: "Submitted Works — অ্যাডমিন অনুমোদন | Milestone Certificate" },
       { property: "og:description", content: "এজেন্টদের জমা দেওয়া কাজ যাচাই, অনুমোদন বা বাতিল।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
