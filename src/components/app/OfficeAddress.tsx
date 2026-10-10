@@ -1,6 +1,7 @@
 import { Copy, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
 import office from "@/assets/office.jpg.asset.json";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const MAP = "https://maps.app.goo.gl/DTbfFjwWJdGFFQdY7";
 const PHONES = ["01787900267", "01540602292", "01827901646", "01707116176"];
@@ -24,8 +25,16 @@ export function OfficeAddress() {
     }
   };
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-      <div className="flex items-center gap-2 border-b px-4 py-2 font-semibold"><MapPin className="h-5 w-5 text-primary" /> অফিসের ঠিকানা</div>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="col-span-2 flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
+          <MapPin className="h-5 w-5" /> অফিস ঠিকানা
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg p-0">
+        <DialogTitle className="sr-only">অফিসের ঠিকানা</DialogTitle>
+    <section className="overflow-hidden rounded-2xl bg-card">
+      <div className="flex items-center gap-2 border-b px-4 py-3 font-semibold"><MapPin className="h-5 w-5 text-primary" /> অফিসের ঠিকানা</div>
       <div className="grid gap-3 p-3 sm:grid-cols-[140px_1fr]">
         <a href={office.url} target="_blank" rel="noreferrer">
           <img src={office.url} alt="অফিস ভবন — ভিশন শোরুম" loading="lazy" className="h-40 w-full rounded-xl object-cover sm:h-full" />
@@ -45,5 +54,7 @@ export function OfficeAddress() {
         </div>
       </div>
     </section>
+      </DialogContent>
+    </Dialog>
   );
 }
