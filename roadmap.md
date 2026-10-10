@@ -2,4 +2,4 @@
 - [x] Re-sync wrong FAIL/NOT_FOUND results from live SVP; recheck window 2.5h–8h+ after exam start
 - [x] Show candidate photo on cards in all IDs (candidates, my-works, submissions, management)
 - [x] Dynamic hover shadow on sidebar menu buttons
-- [ ] Agent dashboard: one-line header, notice board, search, archive (>1 month done), agent photo, occupation grouping; change candidate mobile anytime
+- [x] Agent dashboard: one-line header, notice board, search, archive (>1 month done), agent photo, occupation grouping; change candidate mobile anytime
