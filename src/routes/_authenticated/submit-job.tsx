@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { OccupationPicker } from "@/components/app/OccupationPicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, FileUp } from "lucide-react";
@@ -79,6 +79,13 @@ function SubmitJob() {
     const q = occSearch.trim().toLowerCase();
     return occs.filter((o) => o.active && (!q || o.name.toLowerCase().includes(q))).slice(0, 300);
   }, [occs, occSearch]);
+  const DEFAULT_OCC_NAME = "Load and Unload Worker";
+  useEffect(() => {
+    if (!f.occupation_id) {
+      const d = occs.find((o) => o.active && o.name.toLowerCase() === DEFAULT_OCC_NAME.toLowerCase());
+      if (d) setF((p) => (p.occupation_id ? p : { ...p, occupation_id: d.id }));
+    }
+  }, [occs, f.occupation_id]);
 
   const validate = () => {
     const r = schema.safeParse(f);
