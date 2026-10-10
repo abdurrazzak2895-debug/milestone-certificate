@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Bell, Camera, CheckCircle2, Clock, FilePlus2, ListChecks, Megaphone, Search, XCircle, Award } from "lucide-react";
-import { worksQ, myAccountQ } from "@/lib/works";
+import { worksQ, myAccountQ, STATUS_CLS, STATUS_LABEL } from "@/lib/works";
 import { bn, occQ, lookup } from "@/lib/data";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { agentNoticeQ } from "@/components/app/AgentNotice";
@@ -136,7 +136,12 @@ export function AgentDashboard() {
                         <div className="truncate font-medium">{w.candidate_name} <span className="text-xs font-normal text-muted-foreground">#{w.ref_code}</span></div>
                         <div className="truncate text-xs text-muted-foreground">{w.passport_no} · {w.mobile}</div>
                       </div>
-                      <div className="text-right text-sm font-semibold">{fmtT(w.exam_at)}</div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold">{fmtT(w.exam_at)}</div>
+                        <span className={`mt-1 inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CLS[w.arrival_status || "not_arrived"] ?? STATUS_CLS.not_arrived}`}>
+                          {w.arrival_status === "received" ? "✓ রিসিভ হয়েছে" : STATUS_LABEL[w.arrival_status || "not_arrived"] ?? "এখনো আসেননি"}
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>
