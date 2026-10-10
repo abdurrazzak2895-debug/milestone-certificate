@@ -260,7 +260,7 @@ function SubmitJob() {
         </div>
       </section>
 
-      <Button type="submit" size="lg" className="group relative h-14 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-base font-bold text-primary-foreground shadow-[0_10px_35px_-10px_var(--primary)] ring-1 ring-primary-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)] active:scale-[0.98]">
+      <Button type="submit" size="lg" className="group relative h-12 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-sm font-bold text-primary-foreground shadow-[0_10px_35px_-10px_var(--primary)] ring-1 ring-primary-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)] active:scale-[0.98]">
         <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />
         <span className="relative flex items-center justify-center gap-2">
           <Sparkles className="h-5 w-5" />
@@ -281,7 +281,7 @@ function SubmitJob() {
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-primary" />
             আমি উপরোক্ত সকল নির্দেশনা পড়েছি এবং সম্মত।
           </label>
-          <Button type="button" size="lg" disabled={!agree || busy} onClick={submit} className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary to-accent px-6 font-semibold text-primary-foreground shadow-[0_8px_30px_-8px_var(--primary)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-6px_var(--primary)] active:scale-95 disabled:translate-y-0 disabled:opacity-60">
+          <Button type="button" size="lg" disabled={!agree || busy} onClick={submit} className="group relative h-11 overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-[0_8px_30px_-8px_var(--primary)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-6px_var(--primary)] active:scale-95 disabled:translate-y-0 disabled:opacity-60">
             {!busy && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />}
             <span className="relative flex items-center gap-2">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
