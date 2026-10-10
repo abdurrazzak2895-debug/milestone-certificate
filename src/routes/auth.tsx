@@ -6,9 +6,9 @@ import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 import { checkDeviceSession, claimDeviceSession } from "@/lib/device-session";
-import space1 from "@/assets/space-1.jpg";
-import space2 from "@/assets/space-2.jpg";
-import space3 from "@/assets/space-3.jpg";
+import space1 from "@/assets/space-1.webp";
+import space2 from "@/assets/space-2.webp";
+import space3 from "@/assets/space-3.webp";
 
 const slides = [space1, space2, space3];
 const mobileSchema = z.string().regex(/^01[3-9]\d{8}$/);
