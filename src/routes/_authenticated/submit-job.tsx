@@ -138,8 +138,12 @@ function SubmitJob() {
         .select("ref_code")
         .single();
       if (error) throw error;
-      setConfirmOpen(false);
-      setDoneRef(data.ref_code);
+      setOk(true);
+      setTimeout(() => {
+        setConfirmOpen(false);
+        setOk(false);
+        setDoneRef(data.ref_code);
+      }, 900);
       setF(empty); setFile(null); setCandidatePhoto(null);
       qc.invalidateQueries({ queryKey: ["works"] });
     } catch {
