@@ -144,3 +144,16 @@
 .animate-marquee:hover { animation-play-state: paused; }
 @keyframes btn-shimmer { 0% { transform: translateX(-120%) skewX(-20deg); } 60%,100% { transform: translateX(260%) skewX(-20deg); } }
 .animate-btn-shimmer { animation: btn-shimmer 3s ease-in-out infinite; }
+
+@keyframes trolley-walk {
+  0% { left: -3rem; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: calc(100% + 0.5rem); opacity: 0; }
+}
+@keyframes trolley-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.animate-trolley-walk { animation: trolley-walk 1.6s linear forwards; }
+.animate-trolley-bob { animation: trolley-bob 0.3s ease-in-out infinite; }
