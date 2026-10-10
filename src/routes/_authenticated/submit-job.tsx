@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, FileUp } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,7 @@ const notices = [
   "Submit করার আগে সকল তথ্য ভালোভাবে যাচাই করতে হবে।",
 ];
 
-const empty = { passport_no: "", candidate_name: "", mobile: "", secondary_mobile: "", skill_details: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "", experience: "" };
+const empty = { passport_no: "", candidate_name: "", mobile: "", secondary_mobile: "", skill_details: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 function SubmitJob() {
@@ -86,6 +86,13 @@ function SubmitJob() {
       if (d) setF((p) => (p.occupation_id ? p : { ...p, occupation_id: d.id }));
     }
   }, [occs, f.occupation_id]);
+  useEffect(() => {
+    if (!f.ttc_id) {
+      const b = active.find((t) => t.name.includes("বগুড়া") || t.name.toLowerCase().includes("bogura"));
+      if (b) setF((p) => (p.ttc_id ? p : { ...p, ttc_id: b.id }));
+    }
+  }, [active, f.ttc_id]);
+  const photoUrl = useMemo(() => (candidatePhoto ? URL.createObjectURL(candidatePhoto) : null), [candidatePhoto]);
 
   const validate = () => {
     const r = schema.safeParse(f);
@@ -172,6 +179,13 @@ function SubmitJob() {
       <h1 className="font-display text-2xl font-bold">📋 Submit Work</h1>
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+        <div className="flex flex-col items-center gap-2">
+          <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-primary/60 bg-muted hover:border-primary">
+            {photoUrl ? <img src={photoUrl} alt="পরীক্ষার্থীর ছবি" className="h-full w-full object-cover" /> : <Camera className="h-8 w-8 text-muted-foreground" />}
+            <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const p = e.target.files?.[0]; setCandidatePhoto(p ? await (await import("@/lib/compress-image")).compressImage(p) : null); }} />
+          </label>
+          <span className="text-xs text-muted-foreground">পরীক্ষার্থীর ছবি (ঐচ্ছিক)</span>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value.toUpperCase())} maxLength={100} /><Err k="candidate_name" /></div>
           <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value.toUpperCase())} maxLength={20} /><Err k="passport_no" /></div>
@@ -235,10 +249,7 @@ function SubmitJob() {
             <Err k="exam_time" />
           </div>
         </div>
-        <div><Label className="mb-2 block">শিক্ষাগত যোগ্যতা *</Label><Choice k="education" opts={[["educated", "শিক্ষিত"], ["uneducated", "অশিক্ষিত"]]} /><Err k="education" /></div>
-        <div><Label className="mb-2 block">কাজের অভিজ্ঞতা *</Label><Choice k="experience" opts={[["yes", "অভিজ্ঞতা আছে"], ["no", "অভিজ্ঞতা নেই"]]} /><Err k="experience" /></div>
-        <div><Label className="mb-2 block">দক্ষতা সম্পর্কে বিস্তারিত</Label><Textarea value={f.skill_details} onChange={(e) => set("skill_details", e.target.value)} maxLength={1000} rows={3} placeholder="প্রার্থী কোন কাজ কতটুকু পারেন লিখুন" /></div>
-        <div><Label className="mb-2 block">পরীক্ষার্থীর ছবি</Label><PhotoInput onFile={setCandidatePhoto} /></div>
+        <div><Label className="mb-2 block">নোট</Label><Textarea value={f.skill_details} onChange={(e) => set("skill_details", e.target.value)} maxLength={1000} rows={3} placeholder="কাজের বিবরণ লিখুন..." /></div>
         <div>
           <Label className="mb-2 block">Takamul Appointment Ticket (PDF / Image) *</Label>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm hover:bg-muted">
