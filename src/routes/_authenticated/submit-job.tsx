@@ -267,7 +267,19 @@ function SubmitJob() {
         </div>
       </section>
 
-      <Button type="submit" size="lg" onClick={() => setWalkKey((k) => k + 1)} className="group relative h-12 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-sm font-bold text-primary-foreground shadow-[0_10px_35px_-10px_var(--primary)] ring-1 ring-primary-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)] active:scale-[0.98]">
+      <Button
+        type="submit"
+        size="lg"
+        onClick={() => setWalkKey((k) => k + 1)}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={() => setPressed(false)}
+        onPointerLeave={() => setPressed(false)}
+        className={`group relative h-14 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-base font-bold text-primary-foreground ring-1 ring-primary-foreground/10 transition-all duration-300 sm:h-12 sm:text-sm ${
+          pressed
+            ? "scale-[0.97] shadow-[0_4px_15px_-8px_var(--primary)] brightness-90"
+            : "shadow-[0_10px_35px_-10px_var(--primary)] hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)]"
+        }`}
+      >
         <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />
         {walkKey > 0 && (
           <span key={walkKey} aria-hidden className="pointer-events-none absolute bottom-0.5 animate-trolley-walk">
