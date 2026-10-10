@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { NavLoader } from "@/components/app/WorkerLoader";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -80,7 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "পরীক্ষার্থী ও পরীক্ষা ব্যবস্থাপনা" },
+      { title: "Milestone Certificate — পরীক্ষার্থী ও পরীক্ষা ব্যবস্থাপনা" },
       { name: "description", content: "পরীক্ষার্থী, পরীক্ষা, রেজাল্ট ও বিশ্লেষণ এক জায়গায়।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -174,6 +175,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <NavLoader />
       <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );
