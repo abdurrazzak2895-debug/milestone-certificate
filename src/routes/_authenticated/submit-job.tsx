@@ -260,8 +260,20 @@ function SubmitJob() {
         </div>
       </section>
 
-      <Button type="submit" size="lg" className="group relative h-12 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-sm font-bold text-primary-foreground shadow-[0_10px_35px_-10px_var(--primary)] ring-1 ring-primary-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)] active:scale-[0.98]">
+      <Button type="submit" size="lg" onClick={() => setWalkKey((k) => k + 1)} className="group relative h-12 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-primary to-accent text-sm font-bold text-primary-foreground shadow-[0_10px_35px_-10px_var(--primary)] ring-1 ring-primary-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)] active:scale-[0.98]">
         <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />
+        {walkKey > 0 && (
+          <span key={walkKey} aria-hidden className="pointer-events-none absolute bottom-0.5 animate-trolley-walk">
+            <svg viewBox="0 0 48 32" className="h-9 w-12 animate-trolley-bob" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="10" cy="5" r="3" fill="currentColor" />
+              <path d="M10 8 L12 18 M11 11 L20 13 M12 18 L8 27 M12 18 L16 27" />
+              <path d="M20 9 L22 26 L40 26" />
+              <rect x="25" y="13" width="12" height="12" rx="1" fill="currentColor" fillOpacity="0.35" />
+              <circle cx="24" cy="28.5" r="2.5" fill="currentColor" />
+              <circle cx="38" cy="28.5" r="2.5" fill="currentColor" />
+            </svg>
+          </span>
+        )}
         <span className="relative flex items-center justify-center gap-2">
           <Sparkles className="h-5 w-5" />
           কাজ Submit করুন
