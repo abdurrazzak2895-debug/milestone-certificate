@@ -1,10 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Bell, CheckCircle2, Clock, FilePlus2, ListChecks, XCircle, Award, User } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { Bell, Camera, CheckCircle2, Clock, FilePlus2, ListChecks, Megaphone, Search, XCircle, Award } from "lucide-react";
 import { worksQ, myAccountQ } from "@/lib/works";
 import { bn, occQ, lookup } from "@/lib/data";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
+import { agentNoticeQ } from "@/components/app/AgentNotice";
+import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/compress-image";
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
@@ -111,18 +115,27 @@ export function AgentDashboard() {
         {list.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">এই দিনে কোনো পরীক্ষা নেই।</p>
         ) : (
-          <ul className="divide-y">
-            {list.map((w) => (
-              <li key={w.id} className="flex items-center gap-3 py-2.5">
-                <CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={40} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{w.candidate_name} <span className="text-xs font-normal text-muted-foreground">#{w.ref_code}</span></div>
-                  <div className="truncate text-xs text-muted-foreground">{w.passport_no} · {w.mobile} · {w.occupation_id ? occ(w.occupation_id) : "—"}</div>
-                </div>
-                <div className="text-right text-sm font-semibold">{fmtT(w.exam_at)}</div>
-              </li>
+          <div className="space-y-2">
+            {byOcc.map(([name, items]) => (
+              <details key={name} open className="rounded-xl border bg-muted/30">
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-semibold">
+                  <span>{name}</span><span className="rounded-full bg-primary px-2 text-xs text-primary-foreground">{bn(items.length)}</span>
+                </summary>
+                <ul className="divide-y px-3">
+                  {items.map((w) => (
+                    <li key={w.id} className="flex items-center gap-3 py-2.5">
+                      <CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{w.candidate_name} <span className="text-xs font-normal text-muted-foreground">#{w.ref_code}</span></div>
+                        <div className="truncate text-xs text-muted-foreground">{w.passport_no} · {w.mobile}</div>
+                      </div>
+                      <div className="text-right text-sm font-semibold">{fmtT(w.exam_at)}</div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
