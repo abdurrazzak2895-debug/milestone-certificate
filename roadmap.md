@@ -9,3 +9,5 @@
 - [x] One-click PASS/FAIL/ABSENT on results page
 
 - [x] গ্লোবাল লোডিং লোগোতে ব্র্যান্ড লোগো বসানো (WorkerLoader.tsx)
+
+- [ ] Test Submit Work form end-to-end (photo, note, TTC, button states) — needs agent test account choice
