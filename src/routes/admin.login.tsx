@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimDeviceSession } from "@/lib/device-session";
-import space1 from "@/assets/space-1.jpg";
-import space2 from "@/assets/space-2.jpg";
-import space3 from "@/assets/space-3.jpg";
+import space1 from "@/assets/space-1.webp";
+import space2 from "@/assets/space-2.webp";
+import space3 from "@/assets/space-3.webp";
 
 const slides = [space1, space2, space3];
 
