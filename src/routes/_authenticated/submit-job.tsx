@@ -274,7 +274,14 @@ function SubmitJob() {
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-primary" />
             আমি উপরোক্ত সকল নির্দেশনা পড়েছি এবং সম্মত।
           </label>
-          <Button type="button" size="lg" disabled={!agree || busy} onClick={submit}>{busy ? "Submit হচ্ছে..." : "Confirm & Submit"}</Button>
+          <Button type="button" size="lg" disabled={!agree || busy} onClick={submit} className="group relative h-12 overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary to-accent px-6 font-semibold text-primary-foreground shadow-[0_8px_30px_-8px_var(--primary)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-6px_var(--primary)] active:scale-95 disabled:translate-y-0 disabled:opacity-60">
+            {!busy && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />}
+            <span className="relative flex items-center gap-2">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {busy ? "Submit হচ্ছে..." : "Confirm & Submit"}
+              {!busy && <SendHorizontal className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />}
+            </span>
+          </Button>
         </DialogContent>
       </Dialog>
     </form>
