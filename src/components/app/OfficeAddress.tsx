@@ -15,7 +15,7 @@ const TEXT = `আমাদের অফিসের ঠিকানা ও ল�
 প্রয়োজনে:
 ${PHONES.join("\n")}`;
 
-export function OfficeAddress() {
+export function OfficeAddressCard() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(TEXT);
@@ -25,14 +25,6 @@ export function OfficeAddress() {
     }
   };
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="col-span-2 flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
-          <MapPin className="h-5 w-5" /> অফিস ঠিকানা
-        </button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg p-0">
-        <DialogTitle className="sr-only">অফিসের ঠিকানা</DialogTitle>
     <section className="overflow-hidden rounded-2xl bg-card">
       <div className="flex items-center gap-2 border-b px-4 py-3 font-semibold"><MapPin className="h-5 w-5 text-primary" /> অফিসের ঠিকানা</div>
       <div className="grid gap-3 p-3 sm:grid-cols-[140px_1fr]">
@@ -54,6 +46,20 @@ export function OfficeAddress() {
         </div>
       </div>
     </section>
+  );
+}
+
+export function OfficeAddress() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="col-span-2 flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
+          <MapPin className="h-5 w-5" /> অফিস ঠিকানা
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg p-0">
+        <DialogTitle className="sr-only">অফিসের ঠিকানা</DialogTitle>
+        <OfficeAddressCard />
       </DialogContent>
     </Dialog>
   );
