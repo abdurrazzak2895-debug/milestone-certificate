@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, CheckCircle2, FileUp } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, FileUp, Loader2, SendHorizontal, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
 import { Input } from "@/components/ui/input";
