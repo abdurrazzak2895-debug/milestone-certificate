@@ -106,9 +106,8 @@ export function AgentDashboard() {
         <Link to="/result-check" className="flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
           <Search className="h-5 w-5" /> রেজাল্ট চেক
         </Link>
+        <OfficeAddress />
       </div>
-
-      <OfficeAddress />
 
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> পরীক্ষার রিমাইন্ডার</h2>
