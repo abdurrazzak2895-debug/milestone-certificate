@@ -34,15 +34,37 @@ function ManagementPage() {
   const { data = [] } = useQuery(worksQ);
   const occ = lookup(useQuery(occQ).data);
   const [q, setQ] = useState("");
+  const [day, setDay] = useState("all");
+  const [date, setDate] = useState("");
+  const [slot, setSlot] = useState("all");
+  const dDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
+  const dTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false });
+  const off = (n: number) => new Date(Date.now() + n * 86400000).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
+  const target = day === "today" ? off(0) : day === "tomorrow" ? off(1) : day === "day_after" ? off(2) : day === "date" ? date : "";
   const s = q.trim().toLowerCase().replace(/^#/, "");
   const works = data
     .filter((work) => work.status !== "rejected")
+    .filter((w) => !target || dDay(w.exam_at) === target)
+    .filter((w) => slot === "all" || dTime(w.exam_at) === slot)
     .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
     .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
   const ttc = lookup(useQuery(ttcQ).data);
+  const sel = "h-10 rounded-lg border bg-card px-2 text-sm";
   return <div className="mx-auto max-w-4xl space-y-4">
     <h1 className="font-display text-2xl font-bold">পরীক্ষার্থী রিসেপশন ({bn(works.length)})</h1>
-    <Input placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+    <div className="grid gap-2 rounded-2xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Input className="lg:col-span-2" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফ" value={q} onChange={(e) => setQ(e.target.value)} />
+      <select className={sel} value={day} onChange={(e) => setDay(e.target.value)}>
+        <option value="all">সব তারিখ</option><option value="today">আজ</option><option value="tomorrow">আগামীকাল</option><option value="day_after">পরশু</option><option value="date">নির্দিষ্ট তারিখ</option>
+      </select>
+      <select className={sel} value={slot} onChange={(e) => setSlot(e.target.value)}>
+        <option value="all">সব ব্যাচ</option>
+        <optgroup label="MORNING"><option value="10:00">10:00 AM</option><option value="11:00">11:00 AM</option></optgroup>
+        <optgroup label="AFTERNOON"><option value="13:00">01:00 PM</option><option value="14:00">02:00 PM</option></optgroup>
+      </select>
+      {day === "date" && <input type="date" className={sel} value={date} onChange={(e) => setDate(e.target.value)} />}
+      <Button variant="ghost" size="sm" onClick={() => { setQ(""); setDay("all"); setDate(""); setSlot("all"); }}>সব রিসেট</Button>
+    </div>
     {works.length === 0 ? <p className="card-surface p-6 text-center text-muted-foreground">কোনো পরীক্ষার্থী পাওয়া যায়নি।</p> : works.map((work) => (
       <ReceptionCard key={work.id} work={work} ttc={ttc} occ={occ} done={() => qc.invalidateQueries({ queryKey: ["works"] })} />
     ))}
