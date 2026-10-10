@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,11 @@ function ResultCheck() {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Res | null>(null);
   const [err, setErr] = useState("");
+  useEffect(() => {
+    if (oc || !occ.length) return;
+    const d = occ.find((o) => o.name.toLowerCase() === "load and unload worker");
+    if (d) setOc(d.id);
+  }, [occ, oc]);
 
   const check = async (e: React.FormEvent) => {
     e.preventDefault();
