@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { pinOcc } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
@@ -30,7 +31,7 @@ type Res =
 function ResultCheck() {
   const { data: occ = [] } = useQuery({
     queryKey: ["public-occ"],
-    queryFn: async () => (await supabase.from("occupations").select("id,name").eq("active", true).order("name")).data ?? [],
+    queryFn: async () => pinOcc((await supabase.from("occupations").select("id,name").eq("active", true).order("name")).data ?? []),
   });
   const { data: home = "/auth" } = useQuery({
     queryKey: ["result-check-home"],

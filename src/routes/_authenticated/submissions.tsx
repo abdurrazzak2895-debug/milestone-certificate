@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, FileText, RefreshCw, X } from "lucide-react";
+import { Check, Copy, FileText, RefreshCw, X } from "lucide-react";
+import { AdminEditWorkDialog } from "@/components/app/AdminEditWorkDialog";
 import { worksQ, openTicket, fmtDhakaDateTime, type Work } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
@@ -68,6 +69,17 @@ function Submissions() {
     .sort((a, b) => b.pending - a.pending || b.total - a.total);
   const reset = () => { setAgent("all"); setDay("all"); setDate(""); setSlot("all"); setQ(""); };
   const sel = "h-9 rounded-lg border bg-card px-2 text-sm";
+  const slotLabel = (t: string) => { const [h, m] = t.split(":").map(Number); const ap = h < 12 ? "AM" : "PM"; return `${String(((h + 11) % 12) + 1).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ap} (${h < 12 ? "MORNING" : "AFTERNOON"})`; };
+  const copyText = async () => {
+    const groups = new Map<string, Work[]>();
+    for (const w of list) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? dhakaTime(new Date(w.exam_at)) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
+    const text = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ws]) => {
+      const [o, t] = k.split("|");
+      return [o, t === "—" ? t : slotLabel(t), "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
+    }).join("\n").trim();
+    if (!text) return toast.error("কপি করার মতো কিছু নেই");
+    try { await navigator.clipboard.writeText(text); toast.success(`${bn(list.length)} জনের তালিকা কপি হয়েছে`); } catch { toast.error("কপি করা যায়নি"); }
+  };
 
   const review = async (w: Work, status: "approved" | "rejected", why?: string) => {
     setBusyId(w.id);
@@ -120,6 +132,7 @@ function Submissions() {
         </select>
         {day === "date" && <input type="date" className={sel} value={date} onChange={(e) => setDate(e.target.value)} />}
         <Button variant="ghost" size="sm" onClick={reset}>সব রিসেট</Button>
+        <Button variant="secondary" size="sm" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map(([k, l]) => (
@@ -155,6 +168,7 @@ function Submissions() {
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>
+                {roles.includes("admin") && <AdminEditWorkDialog w={w} />}
                 {canReview && w.status !== "approved" && <Button size="sm" disabled={busyId === w.id} onClick={() => review(w, "approved")}><Check className="mr-1 h-4 w-4" /> Approve</Button>}
                 {canReview && w.status !== "rejected" && <Button size="sm" variant="destructive" disabled={busyId === w.id} onClick={() => { setReason(""); setRejecting(w); }}><X className="mr-1 h-4 w-4" /> Reject</Button>}
                 {canReview && w.status === "approved" && <Button size="sm" variant="secondary" disabled={busyId === w.id} onClick={() => svp(w)}><RefreshCw className="mr-1 h-4 w-4" /> SVP চেক</Button>}

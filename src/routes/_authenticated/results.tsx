@@ -64,6 +64,15 @@ function ResultsPage() {
     refresh();
   };
 
+  const quickSet = async (e: Exam, result: "PASS" | "FAIL" | "ABSENT") => {
+    setBusy(true);
+    const { error } = await supabase.from("exams").update({ result, result_date: todayStr(), remarks: "অ্যাডমিন ভেরিফাইড" }).eq("id", e.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(`${candMap.get(e.candidate_id)?.name ?? ""}: ${RESULT_LABEL[result]}`);
+    refresh();
+  };
+
   const quickCheck = (e: Exam) => {
     const c = candMap.get(e.candidate_id);
     const key = autoKey(e.occupation_id ?? c?.occupation_id);
@@ -115,12 +124,12 @@ function ResultsPage() {
           {pending.length === 0 ? <Empty>সব রেজাল্ট আপডেট করা আছে</Empty> : (
             <ul className="divide-y">
               {pending.map((e) => (
-                <li key={e.id} className="flex items-center justify-between gap-2 py-2.5">
+                <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <div className="min-w-0">
                     <Link to="/candidates/$id" params={{ id: e.candidate_id }} className="font-medium hover:text-primary">{candMap.get(e.candidate_id)?.name}</Link>
                     <div className="text-xs text-muted-foreground">{fmtDate(e.exam_date)} · {occName(e.occupation_id)} · {ttcName(e.ttc_id)}</div>
                   </div>
-                  <div className="flex items-center gap-2"><ResultBadge result={e.result} /><Button size="sm" variant="outline" disabled={busy} onClick={() => quickCheck(e)}>SVP চেক</Button><Button size="sm" onClick={() => setResExam(e)}>রেজাল্ট দিন</Button></div>
+                  <div className="flex flex-wrap items-center gap-1.5"><ResultBadge result={e.result} /><Button size="sm" variant="outline" disabled={busy} onClick={() => quickCheck(e)}>SVP চেক</Button><Button size="sm" disabled={busy} className="bg-success text-primary-foreground hover:bg-success/90" onClick={() => quickSet(e, "PASS")}>PASS</Button><Button size="sm" variant="destructive" disabled={busy} onClick={() => quickSet(e, "FAIL")}>FAIL</Button><Button size="sm" variant="secondary" disabled={busy} onClick={() => quickSet(e, "ABSENT")}>ABSENT</Button><Button size="sm" variant="ghost" onClick={() => setResExam(e)}>বিস্তারিত</Button></div>
                 </li>
               ))}
             </ul>

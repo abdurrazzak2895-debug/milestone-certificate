@@ -48,7 +48,7 @@ export const ttcQ = queryOptions({
 });
 export const occQ = queryOptions({
   queryKey: ["occ"],
-  queryFn: () => all<Occupation>(supabase.from("occupations").select("*").order("name")),
+  queryFn: async () => pinOcc(await all<Occupation>(supabase.from("occupations").select("*").order("name"))),
 });
 export const remindersQ = queryOptions({
   queryKey: ["reminders"],
@@ -142,4 +142,11 @@ function download(blob: Blob, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+/** Always keep "Load and Unload Worker" pinned at the top of every occupation list. */
+export const PINNED_OCC = "load and unload worker";
+export function pinOcc<T extends { name: string }>(rows: T[]): T[] {
+  const isPin = (r: T) => r.name.trim().toLowerCase() === PINNED_OCC;
+  return [...rows.filter(isPin), ...rows.filter((r) => !isPin(r))];
 }
