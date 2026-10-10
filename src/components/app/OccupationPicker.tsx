@@ -17,7 +17,8 @@ export function OccupationPicker({ items, value, onChange }: { items: Occ[]; val
 
   const { top, rest } = useMemo(() => {
     const score = (o: Occ) => (usage[o.id] ?? 0) * 100 + (POPULAR.findIndex((p) => p.toLowerCase() === o.name.toLowerCase()) >= 0 ? 50 - POPULAR.findIndex((p) => p.toLowerCase() === o.name.toLowerCase()) : 0);
-    const ranked = items.filter((o) => score(o) > 0).sort((a, b) => score(b) - score(a)).slice(0, 12);
+    const pin = items.filter((o) => o.name.trim().toLowerCase() === "load and unload worker");
+    const ranked = [...pin, ...items.filter((o) => !pin.includes(o) && score(o) > 0).sort((a, b) => score(b) - score(a)).slice(0, 11)];
     const ids = new Set(ranked.map((o) => o.id));
     return { top: ranked, rest: items.filter((o) => !ids.has(o.id)) };
   }, [items, usage]);
