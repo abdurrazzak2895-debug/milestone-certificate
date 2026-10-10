@@ -7,3 +7,5 @@
 - [x] Submitted Works text copy (occupation, batch time, then name/passport)
 - [x] Admin full edit of submissions (name, passport, mobile, date, time, occupation, TTC...)
 - [x] One-click PASS/FAIL/ABSENT on results page
+
+- [ ] গ্লোবাল লোডিং লোগোতে ব্র্যান্ড লোগো বসানো (WorkerLoader.tsx) — ব্লকার: ইউজারের ব্র্যান্ড লোগো ফাইল দরকার
