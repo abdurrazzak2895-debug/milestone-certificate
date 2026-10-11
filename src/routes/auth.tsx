@@ -145,7 +145,7 @@ function AuthPage() {
         <div className="mb-6 flex flex-col items-center gap-3">
           <div className="relative">
             <span className="absolute inset-0 -z-10 rounded-full bg-cyan-400/30 blur-2xl" aria-hidden="true" />
-            <img src={brandLogo} alt="Milestone Certificate" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
+            <img src={brandLogo.url} alt="Milestone Certificate" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
           </div>
           <div className="text-center">
             <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate</p>
