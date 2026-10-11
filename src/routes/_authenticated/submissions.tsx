@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/submissions")({
   component: Submissions,
 });
 
-const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
+const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["pending_agent", "📁 সাব-এজেন্টের অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
 
 function Submissions() {
   const { roles } = Route.useRouteContext();

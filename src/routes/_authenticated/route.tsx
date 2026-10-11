@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { homeForRoles, isManager } from "@/lib/roles";
 import { checkDeviceSession, forceSignOut } from "@/lib/device-session";
 
-const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works"];
+const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works", "/sub-agents"];
 const PROVIDER_PATHS = ["/provider"];
 const ADMIN_ONLY_PATHS = ["/finance"];
 const MANAGEMENT_PATHS = ["/management", "/submissions"];

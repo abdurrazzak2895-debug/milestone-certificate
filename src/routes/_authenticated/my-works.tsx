@@ -118,7 +118,7 @@ function MyWorks() {
                 <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">বাতিলের কারণ: {w.rejection_reason}</p>
               )}
               <Button variant="ghost" size="sm" className="mt-2" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Takamul Ticket</Button>
-              {w.status === "pending_approval" ? <EditWorkDialog w={w} /> : w.status === "approved" && <p className="mt-2 text-xs text-muted-foreground">অনুমোদিত — এডিট বন্ধ</p>}
+              {w.status === "pending_approval" || w.status === "pending_agent" ? <EditWorkDialog w={w} /> : w.status === "approved" && <p className="mt-2 text-xs text-muted-foreground">অনুমোদিত — এডিট বন্ধ</p>}
               <EditMobileDialog w={w} />
               <div className="mt-3"><AgentPhoto id={w.submitted_by} /></div>
               <WorkNotes submissionId={w.id} canAdd />

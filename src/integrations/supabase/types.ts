@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           full_name: string
           mobile: string
+          parent_agent_id: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           full_name: string
           mobile: string
+          parent_agent_id?: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -39,6 +41,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           mobile?: string
+          parent_agent_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -755,6 +758,7 @@ export type Database = {
       is_current_device_session: { Args: { _key: string }; Returns: boolean }
       is_management_user: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      parent_agent_of: { Args: { _user_id: string }; Returns: string }
       portal_agent_contact: { Args: never; Returns: Json }
       verify_cron_token: {
         Args: { _name: string; _token: string }

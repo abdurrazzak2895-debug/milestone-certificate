@@ -72,7 +72,7 @@ export const updateMySubmission = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: row } = await context.supabase.from("job_submissions").select("submitted_by,status").eq("id", data.id).maybeSingle();
     if (!row || row.submitted_by !== context.userId) throw new Error("অনুমতি নেই");
-    if (row.status !== "pending_approval") throw new Error("অনুমোদিত/বাতিল কাজ আর এডিট করা যাবে না");
+    if (row.status !== "pending_approval" && row.status !== "pending_agent") throw new Error("অনুমোদিত/বাতিল কাজ আর এডিট করা যাবে না");
     if (data.photoPath && !data.photoPath.startsWith(`candidate-drafts/${context.userId}/`)) throw new Error("ছবি সঠিক নয়");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: { candidate_name: string; passport_no: string; mobile: string; secondary_mobile: string | null; skill_details: string | null; exam_at: string; candidate_photo_path?: string } = {
@@ -80,7 +80,7 @@ export const updateMySubmission = createServerFn({ method: "POST" })
       secondary_mobile: data.secondary_mobile, skill_details: data.skill_details, exam_at: data.exam_at,
     };
     if (data.photoPath) patch.candidate_photo_path = data.photoPath;
-    const { error } = await supabaseAdmin.from("job_submissions").update(patch).eq("id", data.id).eq("status", "pending_approval");
+    const { error } = await supabaseAdmin.from("job_submissions").update(patch).eq("id", data.id).in("status", ["pending_approval", "pending_agent"]);
     if (error) throw error;
     return { ok: true as const };
   });

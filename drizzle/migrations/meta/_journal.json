@@ -176,6 +176,13 @@
       "when": 1791720424188,
       "tag": "0024_receive_status_log",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791722186667,
+      "tag": "0025_sub_agents",
+      "breakpoints": true
     }
   ]
 }
