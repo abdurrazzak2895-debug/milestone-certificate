@@ -1,3 +1,4 @@
+import { useWorksRealtime } from "@/components/app/ReceiveStatus";
 import { AgentNotice } from "@/components/app/AgentNotice";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -35,6 +36,7 @@ const managementNav = [
 ] as const;
 
 export function AppShell({ children, roles = [] }: { children: ReactNode; roles?: string[] }) {
+  useWorksRealtime();
   const manager = roles.includes("admin") || roles.includes("staff");
   const items: readonly { to: string; label: string; icon: typeof Home; desktopOnly?: boolean }[] = manager ? [...nav, ...(roles.includes("admin") ? adminNav : [])] : [...(roles.includes("agent") ? agentNav : []), ...(roles.includes("service_provider") ? providerNav : []), ...(roles.includes("management") ? managementNav : [])];
   const navigate = useNavigate();

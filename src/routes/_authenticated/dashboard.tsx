@@ -1,3 +1,4 @@
+import { ReceiveAnalyticsButton } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentDashboard } from "@/components/app/AgentDashboard";
 import { isManager } from "@/lib/roles";
@@ -64,6 +65,7 @@ function Dashboard() {
   return (
     <div>
       <PageHeader title="ড্যাশবোর্ড" subtitle={`আজ ${fmtDate(t)}`} />
+      <div className="mb-4"><ReceiveAnalyticsButton /></div>
 
       <div className="mb-5 grid grid-cols-3 gap-2 sm:grid-cols-6">
         <QuickBtn icon={<Plus />} label="নতুন পরীক্ষার্থী" onClick={() => setCandOpen(true)} />

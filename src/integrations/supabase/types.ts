@@ -485,6 +485,44 @@ export type Database = {
         }
         Relationships: []
       }
+      receive_status_log: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          changed_by_name: string | null
+          id: string
+          new_status: string
+          old_status: string | null
+          submission_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          changed_by_name?: string | null
+          id?: string
+          new_status: string
+          old_status?: string | null
+          submission_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          changed_by_name?: string | null
+          id?: string
+          new_status?: string
+          old_status?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receive_status_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "job_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminders: {
         Row: {
           candidate_id: string | null
