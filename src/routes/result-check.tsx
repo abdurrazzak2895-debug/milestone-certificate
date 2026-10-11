@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { RESULT_LABEL, fmtDate, type ExamResult } from "@/lib/data";
 import { homeForRoles } from "@/lib/roles";
+import { ResultListShare } from "@/components/app/ResultListShare";
 
 export const Route = createFileRoute("/result-check")({
   head: () => ({
@@ -78,6 +79,7 @@ function ResultCheck() {
         </div>
 
         <h1 className="text-center text-2xl font-bold text-primary">রেজাল্ট চেক</h1>
+        {home !== "/auth" && home !== "/portal" && <ResultListShare />}
         <form onSubmit={check} className="card-surface space-y-3 p-5">
           <Field label="পাসপোর্ট নম্বর *"><Input value={pp} onChange={(e) => setPp(e.target.value)} /></Field>
           <Field label="পেশা *">
