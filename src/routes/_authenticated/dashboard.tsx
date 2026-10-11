@@ -138,7 +138,7 @@ function Dashboard() {
           <div className="flex flex-wrap gap-2">
             {pendingResults.map((e) => (
               <Link key={e.id} to="/candidates/$id" params={{ id: e.candidate_id }} className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm hover:bg-muted">
-                {candMap.get(e.candidate_id)?.name} <ResultBadge result={e.result} />
+                {candMap.get(e.candidate_id)?.name} <ResultBadge result={e.result} date={e.result_date} />
               </Link>
             ))}
           </div>
@@ -186,7 +186,7 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
   const subAgent = new Map(subs.map((s) => [s.id, s.submitted_by]));
   const agentName = new Map(agents.map((a) => [a.user_id, `${a.full_name}${a.agent_code ? ` (${a.agent_code})` : ""}`]));
   const list = exams
-    .filter((e) => bogura && e.ttc_id === bogura.id && e.exam_date === t && e.result === "PENDING")
+    .filter((e) => bogura && e.ttc_id === bogura.id && e.exam_date === t)
     .sort((a, b) => (a.exam_time ?? "").localeCompare(b.exam_time ?? ""));
   return (
     <div className="card-surface p-4">
@@ -207,7 +207,7 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
                 <div className="text-xs">মোবাইল: <span className="font-medium">{sub?.mobile ?? "—"}</span>{sub?.secondary_mobile ? `, ${sub.secondary_mobile}` : ""}</div>
                 <div className="text-xs text-muted-foreground">{occName(e.occupation_id)} · {agentName.get(subAgent.get(e.submission_id ?? "") ?? "") ?? "সরাসরি এন্ট্রি"}</div>
               </div></div>
-              <span className="shrink-0 text-sm font-medium">{fmtTime(e.exam_time)}</span>
+              <span className="flex shrink-0 flex-col items-end gap-1 text-sm font-medium">{fmtTime(e.exam_time)}<ResultBadge result={e.result} date={e.result_date} /></span>
             </li>
             );
           })}

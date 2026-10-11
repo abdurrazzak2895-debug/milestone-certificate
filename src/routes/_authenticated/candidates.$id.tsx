@@ -133,7 +133,7 @@ function Profile() {
                         {e.remarks && <div className="text-xs text-muted-foreground">{e.remarks}</div>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <ResultBadge result={e.result} />
+                        <ResultBadge result={e.result} date={e.result_date} />
                         <Button size="sm" variant="ghost" onClick={() => setResExam(e)}>রেজাল্ট</Button>
                         <Button size="sm" variant="ghost" onClick={() => setEditExam(e)}><Pencil className="h-3.5 w-3.5" /></Button>
                       </div>
@@ -151,7 +151,7 @@ function Profile() {
                 {results.map((r) => (
                   <li key={r.id} className="flex justify-between py-2">
                     <span>{fmtDate(r.result_date)} — পরীক্ষা {fmtDate(allExams.find((e) => e.id === r.exam_id)?.exam_date)}</span>
-                    <span className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{r.source === "manual" ? "ম্যানুয়াল" : "অটো"}</span><ResultBadge result={r.result} /></span>
+                    <span className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{r.source === "manual" ? "ম্যানুয়াল" : "অটো"}</span><ResultBadge result={r.result} date={r.result_date} /></span>
                   </li>
                 ))}
               </ul>

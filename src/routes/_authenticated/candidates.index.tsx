@@ -88,7 +88,7 @@ function CandidatesPage() {
                     <div className="truncate font-semibold">{c.name}</div>
                     <div className="text-xs text-muted-foreground">{c.passport_no ?? "—"} · {c.registration_no ?? "—"}</div>
                   </div>
-                  {last && <ResultBadge result={last.result} />}
+                  {last && <ResultBadge result={last.result} date={last.result_date} />}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>{occName(c.occupation_id)}</span><span>{ttcName(c.ttc_id)}</span><span>{c.district}</span>
