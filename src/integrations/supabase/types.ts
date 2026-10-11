@@ -930,6 +930,18 @@ export type Database = {
       is_management_user: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       parent_agent_of: { Args: { _user_id: string }; Returns: string }
+      passport_history: {
+        Args: { _passport: string }
+        Returns: {
+          blocking: boolean
+          created_at: string
+          exam_at: string
+          occupation: string
+          ref_code: string
+          status: string
+          svp_result: string
+        }[]
+      }
       portal_agent_contact: { Args: never; Returns: Json }
       verify_cron_token: {
         Args: { _name: string; _token: string }

@@ -197,6 +197,13 @@
       "when": 1791734234579,
       "tag": "0027_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791737430436,
+      "tag": "0028_passport_duplicate_guard",
+      "breakpoints": true
     }
   ]
 }
