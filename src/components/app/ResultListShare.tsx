@@ -13,7 +13,8 @@ import cardBg from "@/assets/bg-cosmic-1.webp";
 const dhakaDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 
-type Info = { name: string; passport: string; occupation: string; ttc: string; examAt: string; result: string; ref: string };
+export type ResultShareInfo = { name: string; passport: string; occupation: string; ttc: string; examAt: string; result: string; ref: string };
+type Info = ResultShareInfo;
 
 function loadImg(src: string) {
   return new Promise<HTMLImageElement | null>((res) => {
