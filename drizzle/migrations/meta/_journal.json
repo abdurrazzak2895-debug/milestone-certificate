@@ -169,6 +169,13 @@
       "when": 1791706700593,
       "tag": "0023_svp_exam_date",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791720424188,
+      "tag": "0024_receive_status_log",
+      "breakpoints": true
     }
   ]
 }
