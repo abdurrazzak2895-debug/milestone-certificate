@@ -1,11 +1,15 @@
-import { ReceiveAnalyticsButton } from "@/components/app/ReceiveStatus";
+import { ReceiveAnalyticsButton, ReceiveBanner, ReceiveToggle } from "@/components/app/ReceiveStatus";
+import { ResultCheckButton } from "@/components/app/ResultCheckButton";
+import { EditWorkDialog } from "@/components/app/EditWorkDialog";
+import { EditMobileDialog } from "@/components/app/EditMobileDialog";
+import { SvpPill } from "@/components/app/WorkBits";
 import { AgentNotifyPrompt } from "./AgentNotifyPrompt";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Bell, Camera, CheckCircle2, Clock, FilePlus2, ListChecks, Megaphone, Search, XCircle, Award } from "lucide-react";
-import { worksQ, myAccountQ, STATUS_CLS, STATUS_LABEL } from "@/lib/works";
+import { Camera, CheckCircle2, Clock, FilePlus2, ListChecks, Megaphone, Search, XCircle, Award, Users } from "lucide-react";
+import { worksQ, myAccountQ, STATUS_LABEL } from "@/lib/works";
 import { bn, occQ, lookup } from "@/lib/data";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { agentNoticeQ } from "@/components/app/AgentNotice";
@@ -115,7 +119,7 @@ export function AgentDashboard() {
       </Link>
 
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> পরীক্ষার রিমাইন্ডার</h2>
+        <h2 className="mb-3 flex items-center gap-2 font-semibold"><Users className="h-4 w-4 text-primary" /> পরীক্ষার্থী তালিকা</h2>
 
         <div className="mb-3 flex items-center gap-2 overflow-x-auto">
           {DAYS.map(([n, l]) => (
@@ -126,34 +130,36 @@ export function AgentDashboard() {
           <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className={`h-9 shrink-0 rounded-full border px-3 text-sm ${pick ? "border-primary bg-primary/15" : "bg-card"}`} />
         </div>
         {list.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">এই দিনে কোনো পরীক্ষা নেই।</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">এই দিনে কোনো পরীক্ষার্থী নেই।</p>
         ) : (
-          <div className="space-y-2">
-            {byOcc.map(([name, items]) => (
-              <details key={name} open className="rounded-xl border bg-muted/30">
-                <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-semibold">
-                  <span>{name}</span><span className="rounded-full bg-primary px-2 text-xs text-primary-foreground">{bn(items.length)}</span>
-                </summary>
-                <ul className="divide-y px-3">
-                  {items.map((w) => (
-                    <li key={w.id} className="flex items-center gap-3 py-2.5">
-                      <CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={40} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{w.candidate_name} <span className="text-xs font-normal text-muted-foreground">#{w.ref_code}</span></div>
-                        <div className="truncate text-xs text-muted-foreground">{w.passport_no} · {w.mobile}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold">{fmtT(w.exam_at)}</div>
-                        <span className={`mt-1 inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CLS[w.arrival_status || "not_arrived"] ?? STATUS_CLS.not_arrived}`}>
-                          {w.arrival_status === "received" ? "✓ রিসিভ হয়েছে" : STATUS_LABEL[w.arrival_status || "not_arrived"] ?? "এখনো আসেননি"}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </details>
+          <ul className="space-y-3">
+            {list.map((w) => (
+              <li key={w.id} className={`rounded-xl border border-l-4 bg-muted/20 p-3 ${w.svp_result === "PASS" ? "border-l-emerald-500" : "border-l-amber-400"}`}>
+                <ReceiveBanner w={w} />
+                <details>
+                  <summary className="flex cursor-pointer items-center gap-3 list-none">
+                    <CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={44} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold">{w.candidate_name} <span className="text-xs font-normal text-muted-foreground">#{w.ref_code}</span></div>
+                      <div className="truncate text-xs text-muted-foreground">{w.passport_no} · {w.occupation_id ? occ(w.occupation_id) : "—"}</div>
+                    </div>
+                    <div className="text-right text-sm font-semibold">{fmtT(w.exam_at)}{w.status === "approved" && <div className="mt-1"><SvpPill result={w.svp_result} work={w} /></div>}</div>
+                  </summary>
+                  <div className="mt-2 grid gap-1 border-t pt-2 text-xs text-muted-foreground">
+                    <span>মোবাইল: {w.mobile}{w.secondary_mobile ? `, ${w.secondary_mobile}` : ""}</span>
+                    <span>অবস্থা: {STATUS_LABEL[w.status] ?? w.status}</span>
+                    {w.skill_details && <span>দক্ষতা: {w.skill_details}</span>}
+                  </div>
+                </details>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <ReceiveToggle w={w} />
+                  <ResultCheckButton w={w} />
+                  {(w.status === "pending_approval" || w.status === "pending_agent") && <EditWorkDialog w={w} />}
+                  <EditMobileDialog w={w} />
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </section>
 
@@ -168,7 +174,7 @@ export function AgentDashboard() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Link to="/result-check" className="flex items-center justify-center gap-1.5 rounded-xl border border-primary/60 bg-card px-2 py-2 text-xs font-semibold text-primary shadow-sm">
+        <Link to="/agent-results" className="flex items-center justify-center gap-1.5 rounded-xl border border-primary/60 bg-card px-2 py-2 text-xs font-semibold text-primary shadow-sm">
           <Search className="h-4 w-4" /> রেজাল্ট চেক
         </Link>
         <AboutServices />
