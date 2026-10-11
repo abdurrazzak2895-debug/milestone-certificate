@@ -74,6 +74,7 @@ function ManagementPage() {
       </select>
       {day === "date" && <input type="date" className={sel} value={date} onChange={(e) => setDate(e.target.value)} />}
       <Button variant="ghost" size="sm" onClick={() => { setQ(""); setDay("all"); setDate(""); setSlot("all"); }}>সব রিসেট</Button>
+      <Button variant="secondary" size="sm" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
     </div>
     {works.length === 0 ? <p className="card-surface p-6 text-center text-muted-foreground">কোনো পরীক্ষার্থী পাওয়া যায়নি।</p> : works.map((work) => (
       <ReceptionCard key={work.id} work={work} ttc={ttc} occ={occ} done={() => qc.invalidateQueries({ queryKey: ["works"] })} />

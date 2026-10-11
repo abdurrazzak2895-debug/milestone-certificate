@@ -57,7 +57,10 @@ function Provider() {
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <h1 className="font-display text-2xl font-bold">অনুমোদিত কাজ ({bn(works.length)})</h1>
-      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex gap-2">
+        <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
+      </div>
       {works.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">এখনো কোনো অনুমোদিত কাজ নেই।</p> : (
         <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
           <table className="w-full text-sm">
