@@ -1,11 +1,13 @@
-import { ReceiveToggle } from "@/components/app/ReceiveStatus";
+import { ReceiveToggle, ReceiveBanner } from "@/components/app/ReceiveStatus";
+import { ResultCheckButton } from "@/components/app/ResultCheckButton";
+import { supabase } from "@/integrations/supabase/client";
 import { EditMobileDialog } from "@/components/app/EditMobileDialog";
 import { EditWorkDialog } from "@/components/app/EditWorkDialog";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { worksQ, openTicket, fmtDhakaDateTime } from "@/lib/works";
@@ -31,15 +33,19 @@ export const Route = createFileRoute("/_authenticated/my-works")({
   component: MyWorks,
 });
 
-const TABS: [Tab, string][] = [["active", "চলমান কাজ"], ["today", "আজকে"], ["tomorrow", "আগামীকাল"], ["day_after", "পরশু"], ["done", "সম্পন্ন"], ["archive", "আর্কাইভ (১ মাস+)"], ["rejected", "বাতিল"], ["all", "সব কাজ"]];
+const TABS: [Tab, string][] = [["all", "সব কাজ"], ["active", "চলমান কাজ"], ["today", "আজকে"], ["tomorrow", "আগামীকাল"], ["day_after", "পরশু"], ["done", "সম্পন্ন"], ["archive", "আর্কাইভ (১ মাস+)"], ["rejected", "বাতিল"]];
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
 
 function MyWorks() {
   const search = Route.useSearch();
-  const [tab, setTab] = useState<Tab>(search.tab ?? "active");
-  const { data: works = [] } = useQuery(worksQ);
+  const [tab, setTab] = useState<Tab>(search.tab ?? "all");
+  const { data: allWorks = [] } = useQuery(worksQ);
+  const [me, setMe] = useState<string | null>(null);
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setMe(data.user?.id ?? null)); }, []);
+  // Only this ID's own submissions, even for accounts that also have reception/admin access.
+  const works = me ? allWorks.filter((w) => w.submitted_by === me) : [];
   const ttc = lookup(useQuery(ttcQ).data);
   const occ = lookup(useQuery(occQ).data);
   const isDone = (w: (typeof works)[number]) => w.status === "approved" && (w.svp_result === "PASS" || w.svp_result === "FAIL");
@@ -55,7 +61,7 @@ function MyWorks() {
       case "done": return works.filter((w) => isDone(w) && !isArchived(w));
       case "archive": return works.filter(isArchived);
       case "rejected": return works.filter((w) => w.status === "rejected");
-      default: return works.filter((w) => !isArchived(w));
+      default: return works;
     }
   };
   const [q, setQ] = useState("");
@@ -93,6 +99,7 @@ function MyWorks() {
         <ul className="space-y-3">
           {list.map((w) => (
             <li key={w.id} className={`rounded-2xl border border-l-4 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${w.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
+              <ReceiveBanner w={w} />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3 font-semibold"><CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={44} /><span>{w.candidate_name}</span> <span className="text-sm font-normal text-muted-foreground">#{w.ref_code}</span></div>
                 <div className="flex gap-2"><StatusPill status={w.status} />{w.status === "approved" && <SvpPill result={w.svp_result} work={w} />}</div>
@@ -103,7 +110,7 @@ function MyWorks() {
                 <span>TTC: {w.ttc_id ? ttc(w.ttc_id) : "—"}</span>
                 <span>পরীক্ষা: {fmtDhakaDateTime(w.exam_at)}</span>
                 <span>রিসেপশন: {w.arrival_status === "received" ? "রিসিভ করা হয়েছে" : w.arrival_status === "absent" ? "অনুপস্থিত" : "এখনো আসেননি"}</span>
-                <div className="sm:col-span-2"><ReceiveToggle w={w} /></div>
+                <div className="flex flex-wrap gap-2 sm:col-span-2"><ResultCheckButton w={w} /><ReceiveToggle w={w} /></div>
                 {w.svp_checked_at && <span>রেজাল্ট চেক: {fmtDhakaDateTime(w.svp_checked_at)}</span>}
               </div>
               {w.skill_details && <p className="mt-2 rounded-lg bg-muted p-2 text-sm">দক্ষতা: {w.skill_details}</p>}

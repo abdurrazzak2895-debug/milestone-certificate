@@ -121,3 +121,16 @@ function ReceiveAnalytics() {
     </div>
   );
 }
+
+/** Large, clear reception status shown above each candidate's details. */
+export function ReceiveBanner({ w }: { w: Work }) {
+  if (w.status === "rejected") return null;
+  const ok = w.arrival_status === "received";
+  return (
+    <div className={`mb-3 flex items-center gap-2 rounded-xl px-3 py-2 text-base font-bold ${ok ? "bg-primary/15 text-primary" : "bg-destructive/10 text-destructive"}`}>
+      {ok ? <UserCheck className="h-5 w-5" /> : <UserX className="h-5 w-5" />}
+      {ok ? "রিসিপশন রিসিভ হয়েছে" : "রিসিপশন রিসিভ হয়নি"}
+      {ok && w.received_at && <span className="ml-auto text-xs font-normal">{fmtDhakaDateTime(w.received_at)}</span>}
+    </div>
+  );
+}
