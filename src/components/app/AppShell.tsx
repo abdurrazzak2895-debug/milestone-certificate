@@ -1,4 +1,5 @@
 import { useWorksRealtime } from "@/components/app/ReceiveStatus";
+import { NotificationBell } from "@/components/app/NotificationBell";
 import { AgentNotice } from "@/components/app/AgentNotice";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -73,7 +74,7 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
         </button>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8"><div className="mb-4 flex items-center gap-2 md:hidden"><img src={brandLogo.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-primary/50" /><span className="font-display text-base font-bold">Milestone Certificate Institute</span></div>{roles.includes("agent") && <AgentNotice />}{children}</main>
+      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8"><div className="mb-4 flex items-center gap-2"><img src={brandLogo.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-primary/50 md:hidden" /><span className="font-display text-base font-bold md:hidden">Milestone Certificate Institute</span><div className="ml-auto"><NotificationBell /></div></div>{roles.includes("agent") && <AgentNotice />}{children}</main>
 
        <nav className="fixed inset-x-0 bottom-0 z-40 overflow-x-auto border-t bg-card md:hidden">
         <div className="flex min-w-max items-stretch">
