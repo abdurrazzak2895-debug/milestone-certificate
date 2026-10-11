@@ -106,6 +106,7 @@ export function AgentDashboard() {
         <Link to="/result-check" className="flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
           <Search className="h-5 w-5" /> রেজাল্ট চেক
         </Link>
+        <AboutServices />
         <OfficeAddress />
       </div>
 
