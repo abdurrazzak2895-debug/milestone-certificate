@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Camera, CheckCircle2, UserCheck, UserX } from "lucide-react";
+import { Camera, CheckCircle2, Copy, UserCheck, UserX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { worksQ, fmtDhakaDateTime, type Work } from "@/lib/works";
 import { receiveCandidate } from "@/lib/workflow.functions";
