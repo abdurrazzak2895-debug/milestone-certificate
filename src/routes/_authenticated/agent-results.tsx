@@ -6,10 +6,11 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { worksQ, fmtDhakaDateTime } from "@/lib/works";
-import { bn } from "@/lib/data";
+import { bn, occQ, ttcQ, lookup } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { SvpPill } from "@/components/app/WorkBits";
 import { ResultCheckButton } from "@/components/app/ResultCheckButton";
+import { ResultShareActions } from "@/components/app/ResultListShare";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/agent-results")({
@@ -32,6 +33,9 @@ function AgentResults() {
   const qc = useQueryClient();
   const check = useServerFn(checkSubmissionSvp);
   const { data: all = [] } = useQuery(worksQ);
+  const { data: occ } = useQuery(occQ);
+  const { data: ttc } = useQuery(ttcQ);
+  const occName = lookup(occ), ttcName = lookup(ttc);
   const [me, setMe] = useState<string | null>(null);
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setMe(data.user?.id ?? null)); }, []);
   const [date, setDate] = useState(() => dhakaDay(new Date()));
