@@ -204,6 +204,13 @@
       "when": 1791737430436,
       "tag": "0028_passport_duplicate_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791738910507,
+      "tag": "0029_harden_customer_reads",
+      "breakpoints": true
     }
   ]
 }

@@ -907,6 +907,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      candidate_fee_settled: {
+        Args: { _candidate_id: string }
+        Returns: boolean
+      }
       check_applicant_result: {
         Args: { _occupation_id: string; _passport: string }
         Returns: Json
