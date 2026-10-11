@@ -10,6 +10,7 @@ import { worksQ, fmtDhakaDateTime } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
+import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/provider")({

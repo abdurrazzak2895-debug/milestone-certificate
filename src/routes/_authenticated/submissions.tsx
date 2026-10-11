@@ -12,6 +12,7 @@ import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { listAccounts } from "@/lib/accounts.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
+import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
 import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
 import { Textarea } from "@/components/ui/textarea";

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, NativeSelect, ResultBadge, Empty } from "@/components/app/ui-bits";
 import { ExamDialog, ResultDialog } from "@/components/app/forms";
+import { ResultShareActions } from "@/components/app/ResultListShare";
 import { candidatesQ, examsQ, occQ, ttcQ, lookup, bn, fmtDate, fmtTime, todayStr, addDays, dayLabel, RESULTS, RESULT_LABEL, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/exams")({

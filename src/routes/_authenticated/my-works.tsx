@@ -1,5 +1,6 @@
 import { ReceiveToggle, ReceiveBanner } from "@/components/app/ReceiveStatus";
 import { ResultCheckButton } from "@/components/app/ResultCheckButton";
+import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
 import { supabase } from "@/integrations/supabase/client";
 import { EditMobileDialog } from "@/components/app/EditMobileDialog";
 import { EditWorkDialog } from "@/components/app/EditWorkDialog";

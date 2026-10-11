@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
+import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
 import { PhotoInput } from "@/components/app/PhotoInput";
 
 export const Route = createFileRoute("/_authenticated/management")({
