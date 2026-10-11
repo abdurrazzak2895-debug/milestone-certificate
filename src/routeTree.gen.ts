@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResultCheckRouteImport } from './routes/result-check'
+import { Route as AuthenticatedAboutRouteImport } from './routes/_authenticated/about'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
@@ -63,6 +64,11 @@ const ResultCheckRoute = ResultCheckRouteImport.update({
   id: '/result-check',
   path: '/result-check',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAboutRoute = AuthenticatedAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   id: '/accounts',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/result-check': typeof ResultCheckRoute
+  '/about': typeof AuthenticatedAboutRoute
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/result-check': typeof ResultCheckRoute
+  '/about': typeof AuthenticatedAboutRoute
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
@@ -223,6 +231,7 @@ export interface FileRoutesById {
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/result-check': typeof ResultCheckRoute
+  '/_authenticated/about': typeof AuthenticatedAboutRoute
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/reset-password'
     | '/result-check'
+    | '/about'
     | '/accounts'
     | '/dashboard'
     | '/exams'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/reset-password'
     | '/result-check'
+    | '/about'
     | '/accounts'
     | '/dashboard'
     | '/exams'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/reset-password'
     | '/result-check'
+    | '/_authenticated/about'
     | '/_authenticated/accounts'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
@@ -380,6 +392,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/result-check'
       preLoaderRoute: typeof ResultCheckRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/about': {
+      id: '/_authenticated/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AuthenticatedAboutRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/accounts': {
       id: '/_authenticated/accounts'
@@ -518,6 +537,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAboutRoute: typeof AuthenticatedAboutRoute
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
@@ -537,6 +557,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAboutRoute: AuthenticatedAboutRoute,
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,

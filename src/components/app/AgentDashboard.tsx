@@ -1,3 +1,4 @@
+import { AgentNotifyPrompt } from "./AgentNotifyPrompt";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -100,16 +101,11 @@ export function AgentDashboard() {
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Link to="/submit-job" className="flex items-center justify-center gap-2 rounded-2xl bg-primary p-3 font-semibold text-primary-foreground shadow-sm">
-          <FilePlus2 className="h-5 w-5" /> Submit Work
-        </Link>
-        <Link to="/result-check" className="flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
-          <Search className="h-5 w-5" /> রেজাল্ট চেক
-        </Link>
-        <AboutServices />
-        <OfficeAddress />
-      </div>
+      <AgentNotifyPrompt works={works} />
+
+      <Link to="/submit-job" className="flex items-center justify-center gap-2 rounded-2xl bg-primary p-3 font-semibold text-primary-foreground shadow-sm">
+        <FilePlus2 className="h-5 w-5" /> Submit Work
+      </Link>
 
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> পরীক্ষার রিমাইন্ডার</h2>
@@ -161,6 +157,14 @@ export function AgentDashboard() {
             <div className="text-[11px] leading-tight text-muted-foreground">{c.label}</div>
           </Link>
         ))}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Link to="/result-check" className="flex items-center justify-center gap-1.5 rounded-xl border border-primary/60 bg-card px-2 py-2 text-xs font-semibold text-primary shadow-sm">
+          <Search className="h-4 w-4" /> রেজাল্ট চেক
+        </Link>
+        <AboutServices />
+        <OfficeAddress />
       </div>
     </div>
   );
