@@ -18,12 +18,16 @@ const filterSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
+/** Bulk SMS body: bounded length and no external links, so the account can't be used to spread phishing URLs. */
+const safeBody = z.string().trim().min(5).max(800)
+  .refine((b) => !/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|xyz|top|info|link|ly|me)\b)/i.test(b) || /maps\.app\.goo\.gl|google\.com\/maps/i.test(b), "মেসেজে বাইরের লিংক দেওয়া যাবে না (শুধু Google Maps লিংক চলবে)");
+
 /** Simple stable hash so an identical manual message is never re-sent to the same candidate. */
 const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 
 export const sendMessagesNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ filter: filterSchema, body: z.string().trim().min(5).max(1500) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ filter: filterSchema, body: safeBody }).parse(d))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
     const { enqueue, processPending } = await import("./messaging.server");
