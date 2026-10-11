@@ -75,18 +75,54 @@ async function makeCard(d: Info): Promise<Blob> {
   x.fillStyle = "#ffffff"; x.font = "bold 54px sans-serif"; x.fillText("Milestone Certificate", 290, 150);
   x.fillStyle = "rgba(255,255,255,0.75)"; x.font = "32px sans-serif"; x.fillText("Institute · Official SVP Exam Result", 290, 200);
 
-  // Result badge with glow
-  const bx = W / 2, by = 445, br = 130;
-  const bgGlow = x.createRadialGradient(bx, by, br * 0.4, bx, by, br * 2.1);
-  bgGlow.addColorStop(0, pass ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)"); bgGlow.addColorStop(1, "transparent");
-  x.fillStyle = bgGlow; x.beginPath(); x.arc(bx, by, br * 2.1, 0, Math.PI * 2); x.fill();
-  const badge = x.createLinearGradient(bx, by - br, bx, by + br);
-  badge.addColorStop(0, accent); badge.addColorStop(1, accentDark);
-  x.save(); x.shadowColor = accent; x.shadowBlur = 50;
+  // Result badge — dynamic rays, shine sweep and depth
+  const bx = W / 2, by = 450, br = 132;
+  const bgGlow = x.createRadialGradient(bx, by, br * 0.4, bx, by, br * 2.3);
+  bgGlow.addColorStop(0, pass ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)"); bgGlow.addColorStop(1, "transparent");
+  x.fillStyle = bgGlow; x.beginPath(); x.arc(bx, by, br * 2.3, 0, Math.PI * 2); x.fill();
+
+  // Sunray burst behind the badge
+  x.save(); x.translate(bx, by);
+  for (let i = 0; i < 40; i++) {
+    x.rotate(Math.PI / 20);
+    x.fillStyle = i % 2 ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.015)";
+    x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, br * 2.05, 0, Math.PI / 20); x.closePath(); x.fill();
+  }
+  x.restore();
+
+  // Badge body — radial gradient with soft drop shadow
+  x.save(); x.shadowColor = accent; x.shadowBlur = 60; x.shadowOffsetY = 6;
+  const badge = x.createRadialGradient(bx - br * 0.35, by - br * 0.45, br * 0.15, bx, by, br);
+  badge.addColorStop(0, pass ? "#4ade80" : "#f87171");
+  badge.addColorStop(0.55, accent);
+  badge.addColorStop(1, accentDark);
   x.fillStyle = badge; x.beginPath(); x.arc(bx, by, br, 0, Math.PI * 2); x.fill(); x.restore();
-  x.strokeStyle = "rgba(255,255,255,0.85)"; x.lineWidth = 6; x.beginPath(); x.arc(bx, by, br - 12, 0, Math.PI * 2); x.stroke();
-  x.textAlign = "center"; x.fillStyle = "#ffffff"; x.font = "bold 92px sans-serif"; x.fillText(d.result, bx, by + 32);
-  x.fillStyle = "rgba(255,255,255,0.8)"; x.font = "28px sans-serif"; x.fillText(pass ? "✓ VERIFIED RESULT" : "✕ RESULT DECLARED", bx, by + br + 48);
+
+  // Diagonal shine sweep
+  x.save(); x.beginPath(); x.arc(bx, by, br, 0, Math.PI * 2); x.clip();
+  x.translate(bx, by); x.rotate(-Math.PI / 7); x.translate(-bx, -by);
+  const shine = x.createLinearGradient(bx - br, by - br * 1.6, bx + br, by + br * 0.4);
+  shine.addColorStop(0, "rgba(255,255,255,0)"); shine.addColorStop(0.5, "rgba(255,255,255,0.35)"); shine.addColorStop(1, "rgba(255,255,255,0)");
+  x.fillStyle = shine; x.fillRect(bx - br * 2, by - br * 2, br * 4, br * 4);
+  x.restore();
+
+  // Rings — solid inner + dashed accent outer
+  x.strokeStyle = "rgba(255,255,255,0.9)"; x.lineWidth = 5; x.beginPath(); x.arc(bx, by, br - 10, 0, Math.PI * 2); x.stroke();
+  x.setLineDash([2, 12]); x.lineCap = "round";
+  x.strokeStyle = pass ? "rgba(74,222,128,0.9)" : "rgba(248,113,113,0.9)"; x.lineWidth = 4;
+  x.beginPath(); x.arc(bx, by, br + 16, 0, Math.PI * 2); x.stroke(); x.setLineDash([]);
+
+  // Check mark above the word
+  x.strokeStyle = "rgba(255,255,255,0.95)"; x.lineWidth = 10; x.lineCap = "round"; x.lineJoin = "round";
+  x.beginPath(); x.moveTo(bx - 26, by - 56); x.lineTo(bx - 6, by - 36); x.lineTo(bx + 34, by - 76); x.stroke();
+
+  // Word with drop depth
+  x.textAlign = "center";
+  x.save(); x.shadowColor = "rgba(0,0,0,0.45)"; x.shadowBlur = 12; x.shadowOffsetY = 4;
+  x.fillStyle = "#ffffff"; x.font = "bold 96px sans-serif";
+  x.fillText(d.result, bx, by + 46); x.restore();
+  x.fillStyle = "rgba(255,255,255,0.85)"; x.font = "28px sans-serif";
+  x.fillText(pass ? "✓ VERIFIED RESULT" : "✕ RESULT DECLARED", bx, by + br + 56);
 
   // Info glass panel
   const px = 90, py = 660, pw = W - 180, ph = 470;
