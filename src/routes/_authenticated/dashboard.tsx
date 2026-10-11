@@ -19,7 +19,7 @@ import { candidatesQ, examsQ, occQ, ttcQ, remindersQ, lookup, bn, fmtDate, fmtTi
 import { RANGE_LABEL, rangeBounds, inRange, stats, groupCount, monthly, byDate, type RangeKey } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "ড্যাশবোর্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" }, { name: "description", content: "পরিসংখ্যান, রিমাইন্ডার ও আসন্ন পরীক্ষা।" }, { property: "og:title", content: "ড্যাশবোর্ড | Milestone Certificate Institute" }, { property: "og:description", content: "পরিসংখ্যান, রিমাইন্ডার ও আসন্ন পরীক্ষা।" }] }),
+  head: () => ({ meta: [{ title: "ড্যাশবোর্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" }, { name: "description", content: "পরিসংখ্যান, রিমাইন্ডার ও আসন্ন পরীক্ষা।" }, { property: "og:title", content: "ড্যাশবোর্ড | Milestone Certificate Institute" }, { property: "og:description", content: "পরিসংখ্যান, রিমাইন্ডার ও আসন্ন পরীক্ষা।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: DashboardSwitch,
 });
 
