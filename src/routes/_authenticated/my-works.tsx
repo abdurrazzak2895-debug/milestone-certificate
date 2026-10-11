@@ -4,7 +4,8 @@ import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import { Copy, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { worksQ, openTicket, fmtDhakaDateTime } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn } from "@/lib/data";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
@@ -59,10 +60,24 @@ function MyWorks() {
   const s = q.trim().toLowerCase().replace(/^#/, "");
   const list = (s ? works : filterFor(tab)).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
 
+  const copyText = async () => {
+    const groups = new Map<string, typeof list>();
+    for (const w of list) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? new Date(w.exam_at).toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
+    const text = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ws]) => {
+      const [o, t] = k.split("|");
+      return [o, t, "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
+    }).join("\n").trim();
+    if (!text) return toast.error("কপি করার মতো কিছু নেই");
+    try { await navigator.clipboard.writeText(text); toast.success(`${bn(list.length)} জনের তালিকা কপি হয়েছে`); } catch { toast.error("কপি করা যায়নি"); }
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="font-display text-2xl font-bold">আমার জমা দেওয়া কাজ</h1>
-      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex gap-2">
+        <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${tab === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>

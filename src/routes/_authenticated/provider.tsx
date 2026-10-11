@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { Copy, RefreshCw } from "lucide-react";
 import { worksQ, fmtDhakaDateTime } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
@@ -34,6 +34,17 @@ function Provider() {
   const works = data.filter((w) => w.status === "approved").filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
   const [busy, setBusy] = useState<string | null>(null);
 
+  const copyText = async () => {
+    const groups = new Map<string, typeof works>();
+    for (const w of works) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? new Date(w.exam_at).toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
+    const text = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ws]) => {
+      const [o, t] = k.split("|");
+      return [o, t, "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
+    }).join("\n").trim();
+    if (!text) return toast.error("কপি করার মতো কিছু নেই");
+    try { await navigator.clipboard.writeText(text); toast.success(`${bn(works.length)} জনের তালিকা কপি হয়েছে`); } catch { toast.error("কপি করা যায়নি"); }
+  };
+
   const check = async (id: string) => {
     setBusy(id);
     const r = await checkSubmissionSvp({ data: { id } }).catch(() => ({ status: "error" as const, message: "চেক করা যায়নি" }));
@@ -46,7 +57,10 @@ function Provider() {
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <h1 className="font-display text-2xl font-bold">অনুমোদিত কাজ ({bn(works.length)})</h1>
-      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex gap-2">
+        <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
+      </div>
       {works.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">এখনো কোনো অনুমোদিত কাজ নেই।</p> : (
         <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
           <table className="w-full text-sm">
