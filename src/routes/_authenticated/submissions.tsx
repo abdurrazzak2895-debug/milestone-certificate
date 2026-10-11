@@ -1,4 +1,5 @@
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
+import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -150,7 +151,7 @@ function Submissions() {
                 <div className="flex gap-2"><StatusPill status={w.status} />{w.status === "approved" && <SvpPill result={w.svp_result} />}</div>
               </div>
               <div className="mt-2 grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
-                <span>এজেন্ট: {agentName(w.submitted_by)}</span>
+                <AgentPhoto id={w.submitted_by} name={agentName(w.submitted_by)} />
                 <span>পাসপোর্ট: {w.passport_no}</span>
                 <span>মোবাইল: {w.mobile}</span>
                 {w.secondary_mobile && <span>অতিরিক্ত মোবাইল: {w.secondary_mobile}</span>}

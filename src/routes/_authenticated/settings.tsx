@@ -12,7 +12,7 @@ import { changeMyAdminEmail } from "@/lib/accounts.functions";
 import { occQ, ttcQ, settingsQ, remindersQ, candidatesQ, fmtDate, todayStr, useRefreshAll } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" }, { name: "description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" }, { property: "og:title", content: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" }, { property: "og:description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" }] }),
+  head: () => ({ meta: [{ title: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" }, { name: "description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" }, { property: "og:title", content: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" }, { property: "og:description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: SettingsPage,
 });
 

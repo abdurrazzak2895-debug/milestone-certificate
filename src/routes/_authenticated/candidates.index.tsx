@@ -10,7 +10,7 @@ import { CandidateDialog } from "@/components/app/forms";
 import { candidatesQ, examsQ, occQ, ttcQ, lookup, bn, fmtDate, RESULTS, RESULT_LABEL, todayStr, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/")({
-  head: () => ({ meta: [{ title: "পরীক্ষার্থী তালিকা | Milestone Certificate Institute" }, { name: "description", content: "পরীক্ষার্থী খুঁজুন, ফিল্টার ও যোগ করুন।" }, { property: "og:title", content: "পরীক্ষার্থী তালিকা | Milestone Certificate Institute" }, { property: "og:description", content: "পরীক্ষার্থী খুঁজুন, ফিল্টার ও যোগ করুন।" }] }),
+  head: () => ({ meta: [{ title: "পরীক্ষার্থী তালিকা | Milestone Certificate Institute" }, { name: "description", content: "পরীক্ষার্থী খুঁজুন, ফিল্টার ও যোগ করুন।" }, { property: "og:title", content: "পরীক্ষার্থী তালিকা | Milestone Certificate Institute" }, { property: "og:description", content: "পরীক্ষার্থী খুঁজুন, ফিল্টার ও যোগ করুন।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: CandidatesPage,
 });
 

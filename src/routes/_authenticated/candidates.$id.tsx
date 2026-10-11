@@ -1,4 +1,6 @@
 import { worksQ, openTicket, STATUS_LABEL } from "@/lib/works";
+import { CandidatePhoto } from "@/components/app/CandidatePhoto";
+import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -12,7 +14,7 @@ import { CandidateDialog, ExamDialog, ResultDialog } from "@/components/app/form
 import { candidatesQ, examsQ, occQ, ttcQ, resultsQ, lookup, bn, fmtDate, fmtTime, todayStr, dayLabel, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
-  head: () => ({ meta: [{ title: "পরীক্ষার্থীর প্রোফাইল | Milestone Certificate Institute" }, { name: "description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:title", content: "পরীক্ষার্থীর প্রোফাইল | Milestone Certificate Institute" }, { property: "og:description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }] }),
+  head: () => ({ meta: [{ title: "পরীক্ষার্থীর প্রোফাইল | Milestone Certificate Institute" }, { name: "description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:title", content: "পরীক্ষার্থীর প্রোফাইল | Milestone Certificate Institute" }, { property: "og:description", content: "পরীক্ষার্থীর সম্পূর্ণ ইতিহাস।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Profile,
 });
 
@@ -34,12 +36,6 @@ function Profile() {
   const [editExam, setEditExam] = useState<Exam | null>(null);
   const [resExam, setResExam] = useState<Exam | null>(null);
   const [del, setDel] = useState(false);
-
-  const photo = useQuery({
-    queryKey: ["photo", cands?.find((c) => c.id === id)?.photo_url],
-    enabled: !!cands?.find((c) => c.id === id)?.photo_url,
-    queryFn: async () => (await supabase.storage.from("candidate-photos").createSignedUrl(cands!.find((c) => c.id === id)!.photo_url!, 3600)).data?.signedUrl ?? null,
-  });
 
   const c = cands?.find((x) => x.id === id);
   if (isLoading) return <Empty>লোড হচ্ছে...</Empty>;
@@ -95,11 +91,12 @@ function Profile() {
         <div className="card-surface p-4">
           <h3 className="mb-3 text-base font-semibold">ব্যক্তিগত তথ্য</h3>
           <div className="mb-3 flex justify-center">
-            {photo.data ? <img src={photo.data} alt={c.name} className="h-24 w-24 rounded-2xl object-cover" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary-soft text-primary"><User className="h-10 w-10" /></div>}
+            <CandidatePhoto path={c.photo_url} name={c.name} size={112} />
           </div>
           <dl className="space-y-1.5 text-sm">
             {info.map(([k, v]) => <div key={k} className="flex justify-between gap-2"><dt className="text-muted-foreground">{k}</dt><dd className="text-right font-medium">{v}</dd></div>)}
           </dl>
+          {work && <div className="mt-3"><AgentPhoto id={work.submitted_by} name={agent?.full_name} /></div>}
           {c.skill_details && <p className="mt-3 rounded-lg bg-muted p-2 text-sm"><b>দক্ষতা:</b> {c.skill_details}</p>}
           {work?.ticket_path && <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => openTicket(work.ticket_path)}>তাকামুল টিকিট দেখুন</Button>}
           {c.notes && <p className="mt-3 rounded-lg bg-muted p-2 text-sm">{c.notes}</p>}

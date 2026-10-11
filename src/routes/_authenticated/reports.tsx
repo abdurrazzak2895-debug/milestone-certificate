@@ -9,7 +9,7 @@ import { candidatesQ, examsQ, occQ, ttcQ, lookup, bn, fmtDate, todayStr, RESULT_
 import { groupCount, passRateBy, monthly, repeatCounts } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/reports")({
-  head: () => ({ meta: [{ title: "রিপোর্ট ও বিশ্লেষণ | Milestone Certificate Institute" }, { name: "description", content: "বিশ্লেষণ, চার্ট এবং CSV/Excel এক্সপোর্ট।" }, { property: "og:title", content: "রিপোর্ট ও বিশ্লেষণ | Milestone Certificate Institute" }, { property: "og:description", content: "বিশ্লেষণ, চার্ট এবং CSV/Excel এক্সপোর্ট।" }] }),
+  head: () => ({ meta: [{ title: "রিপোর্ট ও বিশ্লেষণ | Milestone Certificate Institute" }, { name: "description", content: "বিশ্লেষণ, চার্ট এবং CSV/Excel এক্সপোর্ট।" }, { property: "og:title", content: "রিপোর্ট ও বিশ্লেষণ | Milestone Certificate Institute" }, { property: "og:description", content: "বিশ্লেষণ, চার্ট এবং CSV/Excel এক্সপোর্ট।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Reports,
 });
 

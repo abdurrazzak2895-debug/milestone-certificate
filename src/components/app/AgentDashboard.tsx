@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compress-image";
 import { OfficeAddress } from "@/components/app/OfficeAddress";
 import { AboutServices } from "@/components/app/AboutServices";
+import { Button } from "@/components/ui/button";
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
@@ -44,7 +45,7 @@ export function AgentDashboard() {
     if (!f || !avatarPath) return;
     try {
       const img = await compressImage(f);
-      const { error } = await supabase.storage.from("candidate-photos").upload(avatarPath, img, { contentType: "image/jpeg", upsert: true });
+      const { error } = await supabase.storage.from("candidate-photos").upload(avatarPath, img, { contentType: img.type, upsert: true });
       if (error) throw error;
       toast.success("প্রোফাইল ছবি আপডেট হয়েছে");
       qc.invalidateQueries({ queryKey: ["photo", avatarPath] });
@@ -59,10 +60,10 @@ export function AgentDashboard() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <section className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-2 shadow-sm">
-        <button onClick={() => camRef.current?.click()} title="প্রোফাইল ছবি" className="relative">
-          <CandidatePhoto path={avatarPath} name={me?.full_name ?? "A"} size={40} />
-          <Camera className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-primary p-0.5 text-primary-foreground" />
-        </button>
+        <div className="relative shrink-0">
+          <CandidatePhoto path={avatarPath} name={me?.full_name ?? "A"} size={80} />
+          <Button variant="secondary" size="icon" onClick={() => camRef.current?.click()} title="প্রোফাইল ছবি পরিবর্তন" aria-label="প্রোফাইল ছবি পরিবর্তন" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"><Camera className="h-4 w-4" /></Button>
+        </div>
         <input ref={camRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-sm">
           <span className="font-display font-bold">এজেন্ট ড্যাশবোর্ড</span>
