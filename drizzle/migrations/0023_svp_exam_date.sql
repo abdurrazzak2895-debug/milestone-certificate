@@ -1,0 +1,1 @@
+ALTER TABLE public.job_submissions ADD COLUMN IF NOT EXISTS svp_exam_date date, ADD COLUMN IF NOT EXISTS svp_old_result text;
