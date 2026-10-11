@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/submissions")({
   component: Submissions,
 });
 
-const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["approved_old", "📦 পুরোনো অনুমোদিত"], ["pending_agent", "📁 সাব-এজেন্টের অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
+const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["approved_old", "📦 পুরোনো অনুমোদিত"], ["duplicate", "⚠️ ডুপ্লিকেট পাসপোর্ট"], ["pending_agent", "📁 সাব-এজেন্টের অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
 
 function Submissions() {
   const { roles } = Route.useRouteContext();
@@ -68,7 +68,11 @@ function Submissions() {
   const cutoff = Date.now() - 2 * 86400000;
   const isOldApproved = (w: Work) => w.status === "approved" && new Date(w.exam_at ?? w.reviewed_at ?? w.created_at).getTime() < cutoff;
   const searching = q.trim().length > 0;
+  const passCount = new Map<string, number>();
+  for (const w of works) passCount.set(w.passport_no, (passCount.get(w.passport_no) ?? 0) + 1);
+  const isDup = (w: Work) => (passCount.get(w.passport_no) ?? 0) > 1;
   const list = (filter === "all" ? base
+    : filter === "duplicate" ? base.filter(isDup)
     : filter === "approved_old" ? base.filter(isOldApproved)
     : filter === "approved" ? base.filter((w) => w.status === "approved" && (searching || !isOldApproved(w)))
     : base.filter((w) => w.status === filter))
