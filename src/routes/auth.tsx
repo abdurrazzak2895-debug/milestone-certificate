@@ -52,8 +52,11 @@ function AuthPage() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slide, setSlide] = useState(0);
+  const [remember, setRemember] = useState(true);
 
   useEffect(() => {
+    const saved = localStorage.getItem("remember_login");
+    if (saved) setMobile(saved);
     const timer = window.setInterval(() => setSlide((c) => (c + 1) % slides.length), 7000);
     return () => window.clearInterval(timer);
   }, []);
@@ -80,22 +83,29 @@ function AuthPage() {
     </button>
   );
 
+  const isEmail = mobile.includes("@");
+  const loginEmail = isEmail ? mobile.trim().toLowerCase() : `88${mobile}@phone.login.local`;
+
   const signIn = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: `88${mobile}@phone.login.local`, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (error || !data.user) return null;
     return data.user;
   };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!mobileSchema.safeParse(mobile).success) return toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
+    if (isEmail) {
+      if (!z.string().email().safeParse(mobile.trim()).success) return toast.error("সঠিক ইমেইল দিন");
+    } else if (!mobileSchema.safeParse(mobile).success) return toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
     if (!password) return;
     setBusy(true);
     const user = await signIn();
     if (!user) {
       setBusy(false);
-      return toast.error(mode === "login" ? "মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়" : "মোবাইল নম্বর বা বর্তমান পাসওয়ার্ড সঠিক নয়");
+      return toast.error(mode === "login" ? "লগইন তথ্য বা পাসওয়ার্ড সঠিক নয়" : "লগইন তথ্য বা বর্তমান পাসওয়ার্ড সঠিক নয়");
     }
+    if (remember) localStorage.setItem("remember_login", mobile.trim());
+    else localStorage.removeItem("remember_login");
     if (mode === "change") {
       if (newPass.length < 6) {
         setBusy(false);
@@ -120,7 +130,8 @@ function AuthPage() {
     navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
   };
 
-  const canSubmit = mobile.length === 11 && !!password && (mode === "login" || (newPass.length >= 6 && newPass === confirmPass));
+  const idOk = isEmail ? mobile.trim().length > 5 : mobile.length === 11;
+  const canSubmit = idOk && !!password && (mode === "login" || (newPass.length >= 6 && newPass === confirmPass));
 
   return (
     <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-8 sm:px-6">
