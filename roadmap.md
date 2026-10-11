@@ -11,3 +11,5 @@
 - [x] গ্লোবাল লোডিং লোগোতে ব্র্যান্ড লোগো বসানো (WorkerLoader.tsx)
 
 - [ ] Test Submit Work form end-to-end (photo, note, TTC, button states) — needs agent test account choice
+- [x] Agent dashboard: "আমাদের সেবা / About" dialog with full services text and copy option
+- [x] Turn off daily auto exam SMS (unscheduled daily-exam-sms cron); SMS sends only from admin "SMS পাঠান" button
