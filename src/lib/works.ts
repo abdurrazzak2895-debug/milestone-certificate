@@ -27,8 +27,14 @@ export const worksQ = queryOptions({
   queryKey: ["works"],
   refetchInterval: 5 * 60 * 1000,
   queryFn: async () => {
-    const { data, error } = await supabase.from("job_submissions").select("*").order("exam_at", { ascending: true });
-    if (error) throw error;
+    // Page through results so lists are never cut off at the default row limit.
+    const data: Work[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data: page, error } = await supabase.from("job_submissions").select("*").order("exam_at", { ascending: true }).order("id").range(from, from + 999);
+      if (error) throw error;
+      data.push(...(page ?? []));
+      if (!page || page.length < 1000) break;
+    }
     return (data ?? []).map((w) => ({ ...w, candidate_name: (w.candidate_name ?? "").toUpperCase(), passport_no: (w.passport_no ?? "").toUpperCase() })) as Work[];
   },
 });
