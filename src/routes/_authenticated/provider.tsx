@@ -10,6 +10,7 @@ import { worksQ, fmtDhakaDateTime } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
+import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/provider")({
@@ -80,7 +81,7 @@ function Provider() {
                   <td className="px-3 py-2">{fmtDhakaDateTime(w.exam_at)}</td>
                    <td className="px-3 py-2"><StatusPill status={w.arrival_status} /><div className="mt-1"><ReceiveToggle w={w} /></div></td>
                   <td className="px-3 py-2"><SvpPill result={w.svp_result} work={w} /></td>
-                  <td className="px-3 py-2"><Button size="sm" variant="outline" disabled={busy === w.id} onClick={() => check(w.id)}><RefreshCw className="h-4 w-4" /></Button></td>
+                  <td className="px-3 py-2"><div className="flex flex-wrap gap-1.5"><Button size="sm" variant="outline" disabled={busy === w.id} onClick={() => check(w.id)}><RefreshCw className="h-4 w-4" /></Button>{(() => { const d = workShareInfo(w, occ, ttc); return d ? <ResultShareActions d={d} /> : null; })()}</div></td>
                 </tr>
               ))}
             </tbody>

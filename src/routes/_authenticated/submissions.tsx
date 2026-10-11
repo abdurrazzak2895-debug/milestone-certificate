@@ -12,6 +12,7 @@ import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { listAccounts } from "@/lib/accounts.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
+import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
 import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
 import { Textarea } from "@/components/ui/textarea";
@@ -181,6 +182,7 @@ function Submissions() {
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>
+                {(() => { const d = workShareInfo(w, occ, ttc); return d ? <ResultShareActions d={d} /> : null; })()}
                 {roles.includes("admin") && <AdminEditWorkDialog w={w} />}
                 {canReview && w.status !== "approved" && <Button size="sm" disabled={busyId === w.id} onClick={() => review(w, "approved")}><Check className="mr-1 h-4 w-4" /> Approve</Button>}
                 {canReview && w.status !== "rejected" && <Button size="sm" variant="destructive" disabled={busyId === w.id} onClick={() => { setReason(""); setRejecting(w); }}><X className="mr-1 h-4 w-4" /> Reject</Button>}

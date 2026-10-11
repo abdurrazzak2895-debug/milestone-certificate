@@ -16,6 +16,12 @@ const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dha
 export type ResultShareInfo = { name: string; passport: string; occupation: string; ttc: string; examAt: string; result: string; ref: string };
 type Info = ResultShareInfo;
 
+/** Build share info from a work/submission row; returns null unless the result is PASS/FAIL. */
+export function workShareInfo(w: Pick<Work, "candidate_name" | "passport_no" | "occupation_id" | "ttc_id" | "exam_at" | "svp_result" | "ref_code">, occ: (id: string | null) => string | undefined, ttc: (id: string | null) => string | undefined): ResultShareInfo | null {
+  if (w.svp_result !== "PASS" && w.svp_result !== "FAIL") return null;
+  return { name: w.candidate_name, passport: w.passport_no, occupation: occ(w.occupation_id) ?? "—", ttc: ttc(w.ttc_id) ?? "—", examAt: fmtDhakaDateTime(w.exam_at), result: w.svp_result, ref: w.ref_code };
+}
+
 function loadImg(src: string) {
   return new Promise<HTMLImageElement | null>((res) => {
     const i = new Image(); i.crossOrigin = "anonymous";

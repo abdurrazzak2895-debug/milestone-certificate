@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, NativeSelect, ResultBadge, Empty } from "@/components/app/ui-bits";
 import { CandidateDialog } from "@/components/app/forms";
+import { ResultShareActions } from "@/components/app/ResultListShare";
 import { candidatesQ, examsQ, occQ, ttcQ, lookup, bn, fmtDate, RESULTS, RESULT_LABEL, todayStr, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/")({
@@ -94,6 +95,11 @@ function CandidatesPage() {
                   <span>{occName(c.occupation_id)}</span><span>{ttcName(c.ttc_id)}</span><span>{c.district}</span>
                   {c.mobile && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{c.mobile}</span>}
                 </div>
+                {last && (last.result === "PASS" || last.result === "FAIL") && (
+                  <div className="mt-2 flex flex-wrap gap-1.5" onClick={(ev) => ev.preventDefault()}>
+                    <ResultShareActions d={{ name: c.name, passport: c.passport_no ?? "—", occupation: occName(last.occupation_id ?? c.occupation_id) ?? "—", ttc: ttcName(last.ttc_id ?? c.ttc_id) ?? "—", examAt: fmtDate(last.exam_date), result: last.result, ref: c.registration_no ?? "—" }} />
+                  </div>
+                )}
                 <div className="mt-3 flex justify-between border-t pt-2 text-xs">
                   <span>মোট পরীক্ষা: <b>{bn(ex.length)}</b></span>
                   {next ? <span className="font-medium text-primary">পরবর্তী: {fmtDate(next.exam_date)}</span> : <span className="text-muted-foreground">আসন্ন নেই</span>}
