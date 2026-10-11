@@ -9,7 +9,7 @@ async function assertAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("শুধু অ্যাডমিন এই কাজ করতে পারবেন");
 }
 
-export type Account = { id: string; name: string; mobile: string; role: string; agent_code: string | null; active: boolean; created_at: string };
+export type Account = { id: string; name: string; mobile: string; role: string; agent_code: string | null; active: boolean; created_at: string; parent_name: string | null };
 
 export const listAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -19,7 +19,7 @@ export const listAccounts = createServerFn({ method: "GET" })
     const { data } = await context.supabase.from("agent_accounts").select("*").order("created_at", { ascending: false });
     const { data: rr } = await context.supabase.from("user_roles").select("user_id, role");
     const dual = new Set((rr ?? []).filter((r) => r.role === "agent" && (rr ?? []).some((x) => x.user_id === r.user_id && x.role === "management")).map((r) => r.user_id));
-    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: dual.has(a.user_id) ? "reception_agent" : a.role, agent_code: a.agent_code, active: a.active, created_at: a.created_at }));
+    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: dual.has(a.user_id) ? "reception_agent" : a.role, agent_code: a.agent_code, active: a.active, created_at: a.created_at, parent_name: a.parent_agent_id ? (data ?? []).find((p) => p.user_id === a.parent_agent_id)?.full_name ?? "এজেন্ট" : null }));
   });
 
 const createSchema = z.object({
