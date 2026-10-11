@@ -6,6 +6,7 @@ export type Work = Database["public"]["Tables"]["job_submissions"]["Row"];
 
 export const STATUS_LABEL: Record<string, string> = {
   pending_approval: "অপেক্ষমান",
+  pending_agent: "এজেন্টের অনুমোদনের অপেক্ষায়",
   approved: "অনুমোদিত",
   rejected: "বাতিল",
   not_arrived: "এখনো আসেননি",
@@ -14,6 +15,7 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 export const STATUS_CLS: Record<string, string> = {
   pending_approval: "bg-muted text-foreground",
+  pending_agent: "bg-accent text-accent-foreground",
   approved: "bg-primary/15 text-primary",
   rejected: "bg-destructive/15 text-destructive",
   not_arrived: "bg-muted text-muted-foreground",

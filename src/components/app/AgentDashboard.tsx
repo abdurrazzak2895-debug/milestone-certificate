@@ -21,8 +21,10 @@ const fmtT = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { timeZo
 const DAYS = [[0, "আজ"], [1, "আগামীকাল"], [2, "পরশু"]] as const;
 
 export function AgentDashboard() {
-  const { data: works = [] } = useQuery(worksQ);
+  const { data: allWorks = [] } = useQuery(worksQ);
   const { data: me } = useQuery(myAccountQ);
+  // Sub-agent works are reviewed on /sub-agents; dashboard counts only this ID's own works.
+  const works = me ? allWorks.filter((w) => w.submitted_by === me.user_id) : allWorks;
   const occ = lookup(useQuery(occQ).data);
   const [day, setDay] = useState<0 | 1 | 2>(0);
   const count = (s: string) => works.filter((w) => w.status === s).length;

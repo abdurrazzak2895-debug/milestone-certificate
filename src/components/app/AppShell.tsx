@@ -25,6 +25,7 @@ const agentNav = [
   { to: "/dashboard", label: "ড্যাশবোর্ড", icon: Home },
   { to: "/submit-job", label: "Submit Work", icon: ClipboardCheck },
   { to: "/my-works", label: "আমার কাজ", icon: Briefcase },
+  { to: "/sub-agents", label: "সাব-এজেন্ট", icon: Users },
   { to: "/result-check", label: "রেজাল্ট চেক", icon: ClipboardCheck },
   { to: "/office", label: "অফিস ঠিকানা", icon: Home },
   { to: "/about", label: "About", icon: Globe },

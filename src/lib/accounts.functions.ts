@@ -146,3 +146,54 @@ export const updateAccount = createServerFn({ method: "POST" })
     if (rErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
     return { ok: true as const };
   });
+
+/** Main agents (not sub-agents) create sub-agent IDs that get every agent facility. */
+export const createSubAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    name: z.string().trim().min(2).max(100),
+    mobile: z.string().regex(/^01[3-9]\d{8}$/),
+    password: z.string().min(6).max(72),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: isAgent } = await context.supabase.rpc("has_role_text", { _user_id: context.userId, _role: "agent" });
+    if (!isAgent) return { ok: false as const, message: "শুধু এজেন্ট সাব-এজেন্ট তৈরি করতে পারবেন" };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: me } = await supabaseAdmin.from("agent_accounts").select("active,parent_agent_id").eq("user_id", context.userId).maybeSingle();
+    if (!me || !me.active || me.parent_agent_id) return { ok: false as const, message: "সাব-এজেন্ট আইডি থেকে আরেকটি সাব-এজেন্ট তৈরি করা যাবে না" };
+    const email = emailFor(data.mobile);
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({ email, password: data.password, email_confirm: true, user_metadata: { full_name: data.name } });
+    if (error || !created.user) return { ok: false as const, message: /already/i.test(error?.message ?? "") ? "এই মোবাইল নম্বরে আগেই অ্যাকাউন্ট আছে" : "অ্যাকাউন্ট তৈরি করা যায়নি" };
+    const uid = created.user.id;
+    await supabaseAdmin.from("profiles").upsert({ id: uid, full_name: data.name, email });
+    const { error: rErr } = await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: "agent" });
+    const { error: aErr } = await supabaseAdmin.from("agent_accounts").insert({ user_id: uid, full_name: data.name, mobile: data.mobile, role: "agent", parent_agent_id: context.userId });
+    if (rErr || aErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
+    return { ok: true as const };
+  });
+
+export const setSubAgentActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("agent_accounts").update({ active: data.active }).eq("user_id", data.id).eq("parent_agent_id", context.userId);
+    return { ok: !error };
+  });
+
+/** Parent agent approves/rejects a sub-agent's work; approved work moves to the normal admin queue. */
+export const reviewSubAgentWork = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), approve: z.boolean(), reason: z.string().trim().max(500).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin.from("job_submissions").select("submitted_by,status").eq("id", data.id).maybeSingle();
+    if (!row || row.status !== "pending_agent") return { ok: false as const };
+    const { data: sub } = await supabaseAdmin.from("agent_accounts").select("parent_agent_id").eq("user_id", row.submitted_by).maybeSingle();
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (sub?.parent_agent_id !== context.userId && !isAdmin) return { ok: false as const };
+    const { error } = await supabaseAdmin.from("job_submissions").update(data.approve
+      ? { status: "pending_approval" }
+      : { status: "rejected", rejection_reason: data.reason || "এজেন্ট বাতিল করেছেন", reviewed_by: context.userId, reviewed_at: new Date().toISOString() }).eq("id", data.id);
+    return { ok: !error };
+  });
