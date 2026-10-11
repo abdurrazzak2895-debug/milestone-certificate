@@ -231,10 +231,7 @@ export function ResultListShare() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <ResultCheckButton w={w} />
-                {done && <>
-                  <Button size="sm" variant="outline" onClick={() => download(w)}><Download className="mr-1 h-4 w-4" />ছবি ডাউনলোড</Button>
-                  <Button size="sm" onClick={() => share(w)}><Share2 className="mr-1 h-4 w-4" />WhatsApp</Button>
-                </>}
+                {done && <ResultShareActions d={info(w)} />}
               </div>
             </div>
           );
