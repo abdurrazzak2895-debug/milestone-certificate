@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, NativeSelect, ResultBadge, Empty } from "@/components/app/ui-bits";
 import { CandidateDialog } from "@/components/app/forms";
+import { ResultShareActions } from "@/components/app/ResultListShare";
 import { candidatesQ, examsQ, occQ, ttcQ, lookup, bn, fmtDate, RESULTS, RESULT_LABEL, todayStr, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/candidates/")({
