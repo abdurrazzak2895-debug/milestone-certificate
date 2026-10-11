@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/submissions")({
   component: Submissions,
 });
 
-const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["pending_agent", "📁 সাব-এজেন্টের অপেক্ষমান"], ["approved", "অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
+const FILTERS: [string, string][] = [["pending_approval", "অপেক্ষমান"], ["pending_agent", "📁 সাব-এজেন্টের অপেক্ষমান"], ["approved", "অনুমোদিত"], ["approved_old", "📦 পুরোনো অনুমোদিত"], ["rejected", "বাতিল"], ["all", "সব"]];
 
 function Submissions() {
   const { roles } = Route.useRouteContext();
@@ -64,8 +64,18 @@ function Submissions() {
     if (s && ![w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))) return false;
     return true;
   });
-  const list = (filter === "all" ? base : base.filter((w) => w.status === filter))
-    .slice().sort((a, b) => (day === "all" ? b.created_at.localeCompare(a.created_at) : (a.exam_at ?? "").localeCompare(b.exam_at ?? "")));
+  const cutoff = Date.now() - 2 * 86400000;
+  const isOldApproved = (w: Work) => w.status === "approved" && new Date(w.exam_at ?? w.reviewed_at ?? w.created_at).getTime() < cutoff;
+  const searching = q.trim().length > 0;
+  const list = (filter === "all" ? base
+    : filter === "approved_old" ? base.filter(isOldApproved)
+    : filter === "approved" ? base.filter((w) => w.status === "approved" && (searching || !isOldApproved(w)))
+    : base.filter((w) => w.status === filter))
+    .slice().sort((a, b) => {
+      if (day !== "all") return (a.exam_at ?? "").localeCompare(b.exam_at ?? "");
+      const ap = a.status === "approved" ? 0 : 1, bp = b.status === "approved" ? 0 : 1;
+      return ap - bp || b.created_at.localeCompare(a.created_at);
+    });
   const agentIds = Array.from(new Set(works.map((w) => w.submitted_by)));
   const agencySummary = agentIds.map((id) => ({ id, name: agentName(id), total: works.filter((w) => w.submitted_by === id).length, pending: works.filter((w) => w.submitted_by === id && w.status === "pending_approval").length }))
     .sort((a, b) => b.pending - a.pending || b.total - a.total);
@@ -139,7 +149,7 @@ function Submissions() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${filter === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
-            {l} ({bn(k === "all" ? base.length : base.filter((w) => w.status === k).length)})
+            {l} ({bn(k === "all" ? base.length : k === "approved_old" ? base.filter(isOldApproved).length : k === "approved" ? base.filter((w) => w.status === "approved" && !isOldApproved(w)).length : base.filter((w) => w.status === k).length)})
           </button>
         ))}
       </div>
