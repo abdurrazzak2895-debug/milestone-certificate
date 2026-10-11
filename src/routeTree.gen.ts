@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResultCheckRouteImport } from './routes/result-check'
 import { Route as AuthenticatedAboutRouteImport } from './routes/_authenticated/about'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
+import { Route as AuthenticatedAgentResultsRouteImport } from './routes/_authenticated/agent-results'
 import { Route as AuthenticatedCenterAddressesRouteImport } from './routes/_authenticated/center-addresses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
@@ -79,6 +80,12 @@ const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAgentResultsRoute =
+  AuthenticatedAgentResultsRouteImport.update({
+    id: '/agent-results',
+    path: '/agent-results',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCenterAddressesRoute =
   AuthenticatedCenterAddressesRouteImport.update({
     id: '/center-addresses',
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/result-check': typeof ResultCheckRoute
   '/about': typeof AuthenticatedAboutRoute
   '/accounts': typeof AuthenticatedAccountsRoute
+  '/agent-results': typeof AuthenticatedAgentResultsRoute
   '/center-addresses': typeof AuthenticatedCenterAddressesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
@@ -233,6 +241,7 @@ export interface FileRoutesByTo {
   '/result-check': typeof ResultCheckRoute
   '/about': typeof AuthenticatedAboutRoute
   '/accounts': typeof AuthenticatedAccountsRoute
+  '/agent-results': typeof AuthenticatedAgentResultsRoute
   '/center-addresses': typeof AuthenticatedCenterAddressesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/exams': typeof AuthenticatedExamsRoute
@@ -266,6 +275,7 @@ export interface FileRoutesById {
   '/result-check': typeof ResultCheckRoute
   '/_authenticated/about': typeof AuthenticatedAboutRoute
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
+  '/_authenticated/agent-results': typeof AuthenticatedAgentResultsRoute
   '/_authenticated/center-addresses': typeof AuthenticatedCenterAddressesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/result-check'
     | '/about'
     | '/accounts'
+    | '/agent-results'
     | '/center-addresses'
     | '/dashboard'
     | '/exams'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/result-check'
     | '/about'
     | '/accounts'
+    | '/agent-results'
     | '/center-addresses'
     | '/dashboard'
     | '/exams'
@@ -362,6 +374,7 @@ export interface FileRouteTypes {
     | '/result-check'
     | '/_authenticated/about'
     | '/_authenticated/accounts'
+    | '/_authenticated/agent-results'
     | '/_authenticated/center-addresses'
     | '/_authenticated/dashboard'
     | '/_authenticated/exams'
@@ -455,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/accounts'
       fullPath: '/accounts'
       preLoaderRoute: typeof AuthenticatedAccountsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agent-results': {
+      id: '/_authenticated/agent-results'
+      path: '/agent-results'
+      fullPath: '/agent-results'
+      preLoaderRoute: typeof AuthenticatedAgentResultsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/center-addresses': {
@@ -617,6 +637,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAboutRoute: typeof AuthenticatedAboutRoute
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
+  AuthenticatedAgentResultsRoute: typeof AuthenticatedAgentResultsRoute
   AuthenticatedCenterAddressesRoute: typeof AuthenticatedCenterAddressesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
@@ -640,6 +661,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAboutRoute: AuthenticatedAboutRoute,
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
+  AuthenticatedAgentResultsRoute: AuthenticatedAgentResultsRoute,
   AuthenticatedCenterAddressesRoute: AuthenticatedCenterAddressesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
