@@ -149,7 +149,7 @@ function Submissions() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${filter === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
-            {l} ({bn(k === "all" ? base.length : base.filter((w) => w.status === k).length)})
+            {l} ({bn(k === "all" ? base.length : k === "approved_old" ? base.filter(isOldApproved).length : k === "approved" ? base.filter((w) => w.status === "approved" && !isOldApproved(w)).length : base.filter((w) => w.status === k).length)})
           </button>
         ))}
       </div>
