@@ -1,3 +1,4 @@
+import { PassportHistory } from "@/components/app/PassportHistory";
 import { ReceiveToggle } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentPhoto } from "@/components/app/AgentPhoto";
@@ -154,7 +155,7 @@ function Submissions() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${filter === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
-            {l} ({bn(k === "all" ? base.length : k === "approved_old" ? base.filter(isOldApproved).length : k === "approved" ? base.filter((w) => w.status === "approved" && !isOldApproved(w)).length : base.filter((w) => w.status === k).length)})
+            {l} ({bn(k === "all" ? base.length : k === "duplicate" ? base.filter(isDup).length : k === "approved_old" ? base.filter(isOldApproved).length : k === "approved" ? base.filter((w) => w.status === "approved" && !isOldApproved(w)).length : base.filter((w) => w.status === k).length)})
           </button>
         ))}
       </div>
@@ -168,7 +169,7 @@ function Submissions() {
               </div>
               <div className="mt-2 grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
                 <AgentPhoto id={w.submitted_by} name={agentName(w.submitted_by)} />
-                <span>পাসপোর্ট: {w.passport_no}</span>
+                <span>পাসপোর্ট: {w.passport_no}{isDup(w) && <span className="ml-1 rounded bg-destructive/15 px-1 text-xs font-semibold text-destructive">ডুপ্লিকেট</span>}</span>
                 <span>মোবাইল: {w.mobile}</span>
                 {w.secondary_mobile && <span>অতিরিক্ত মোবাইল: {w.secondary_mobile}</span>}
                 <span>পেশা: {occ(w.occupation_id)}</span>
@@ -192,6 +193,7 @@ function Submissions() {
                 {canReview && w.status !== "rejected" && <Button size="sm" variant="destructive" disabled={busyId === w.id} onClick={() => { setReason(""); setRejecting(w); }}><X className="mr-1 h-4 w-4" /> Reject</Button>}
                 {canReview && w.status === "approved" && <Button size="sm" variant="secondary" disabled={busyId === w.id} onClick={() => svp(w)}><RefreshCw className="mr-1 h-4 w-4" /> SVP চেক</Button>}
               </div>
+              {isDup(w) && <PassportHistory passport={w.passport_no} excludeRef={w.ref_code} />}
               <WorkNotes submissionId={w.id} canAdd={false} />
             </li>
           ))}
