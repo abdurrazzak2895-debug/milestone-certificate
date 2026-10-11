@@ -217,7 +217,7 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
           <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm font-normal" />
           {!pick && <SmsButton />}<span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span></span>
       </h3>
-      {list.length === 0 ? <Empty>আজ বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
+      {list.length === 0 ? <Empty>{pick ? "এই তারিখে" : "আজ"} বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
         <ul className="max-h-72 divide-y overflow-y-auto">
           {list.map((e) => {
             const sub = subs.find((s) => s.id === e.submission_id);
@@ -262,7 +262,7 @@ function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occ
       m.set(key, g);
     }
     return [...m.entries()].sort((a, b) => b[1].total - a[1].total);
-  }, [exams, bogura, subs, agents, t, occName, rk]);
+  }, [exams, bogura, subs, agents, t, occName, rk, pick]);
   const total = rows.reduce((n, [, g]) => n + g.total, 0);
 
   return (
