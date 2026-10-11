@@ -1,6 +1,7 @@
 import { EditMobileDialog } from "@/components/app/EditMobileDialog";
 import { EditWorkDialog } from "@/components/app/EditWorkDialog";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
+import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -110,6 +111,7 @@ function MyWorks() {
               <Button variant="ghost" size="sm" className="mt-2" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Takamul Ticket</Button>
               {w.status === "pending_approval" ? <EditWorkDialog w={w} /> : w.status === "approved" && <p className="mt-2 text-xs text-muted-foreground">অনুমোদিত — এডিট বন্ধ</p>}
               <EditMobileDialog w={w} />
+              <div className="mt-3"><AgentPhoto id={w.submitted_by} /></div>
               <WorkNotes submissionId={w.id} canAdd />
             </li>
           ))}

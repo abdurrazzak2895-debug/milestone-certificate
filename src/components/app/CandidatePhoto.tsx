@@ -14,8 +14,8 @@ export function CandidatePhoto({ path, name, size = 48 }: { path: string | null 
   const { data: url } = useQuery({
     queryKey: ["photo", path],
     enabled: usable,
-    staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: path?.endsWith("/agent-profile.jpg") ? 60 * 1000 : 50 * 60 * 1000,
+    refetchInterval: path?.endsWith("/agent-profile.jpg") ? 60 * 1000 : false,
     queryFn: async () => {
       if (!path) return null;
       const result = await supabase.storage.from("candidate-photos").createSignedUrl(path, 3600);
@@ -39,7 +39,7 @@ export function CandidatePhoto({ path, name, size = 48 }: { path: string | null 
       </div>
       {url && (
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-lg p-3" onClick={(e) => e.stopPropagation()}>
+          <DialogContent className="sm:max-w-3xl p-3" onClick={(e) => e.stopPropagation()}>
             <DialogTitle className="text-center uppercase">{name}</DialogTitle>
             <img src={url} alt={name} className="max-h-[75vh] w-full rounded-xl object-contain" />
           </DialogContent>
