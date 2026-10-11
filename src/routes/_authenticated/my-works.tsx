@@ -74,7 +74,10 @@ function MyWorks() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="font-display text-2xl font-bold">আমার জমা দেওয়া কাজ</h1>
-      <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex gap-2">
+        <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${tab === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
