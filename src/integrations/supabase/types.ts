@@ -624,6 +624,53 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_automations: {
+        Row: {
+          active: boolean
+          created_at: string
+          custom_at: string | null
+          filter: Json
+          id: string
+          last_run_on: string | null
+          name: string
+          schedule: string
+          send_hour: number
+          template_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          custom_at?: string | null
+          filter?: Json
+          id?: string
+          last_run_on?: string | null
+          name: string
+          schedule?: string
+          send_hour?: number
+          template_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          custom_at?: string | null
+          filter?: Json
+          id?: string
+          last_run_on?: string | null
+          name?: string
+          schedule?: string
+          send_hour?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_automations_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "sms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sms_log: {
         Row: {
           created_at: string
@@ -651,9 +698,98 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_messages: {
+        Row: {
+          automation_id: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          dedupe_key: string
+          error: string | null
+          id: string
+          phone: string
+          recipient_name: string | null
+          sent_at: string | null
+          status: string
+          submission_id: string | null
+        }
+        Insert: {
+          automation_id?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          dedupe_key: string
+          error?: string | null
+          id?: string
+          phone: string
+          recipient_name?: string | null
+          sent_at?: string | null
+          status?: string
+          submission_id?: string | null
+        }
+        Update: {
+          automation_id?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          dedupe_key?: string
+          error?: string | null
+          id?: string
+          phone?: string
+          recipient_name?: string | null
+          sent_at?: string | null
+          status?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "sms_automations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_templates: {
+        Row: {
+          agent_id: string | null
+          body: string
+          created_at: string
+          id: string
+          name: string
+          ttc_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          ttc_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          ttc_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_templates_ttc_id_fkey"
+            columns: ["ttc_id"]
+            isOneToOne: false
+            referencedRelation: "ttc_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ttc_centers: {
         Row: {
           active: boolean
+          address: string | null
           created_at: string
           district: string | null
           id: string
@@ -662,6 +798,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          address?: string | null
           created_at?: string
           district?: string | null
           id?: string
@@ -670,6 +807,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          address?: string | null
           created_at?: string
           district?: string | null
           id?: string

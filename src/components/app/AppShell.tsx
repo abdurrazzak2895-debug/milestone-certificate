@@ -20,7 +20,7 @@ const nav = [
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ] as const;
-const adminNav = [{ to: "/finance", label: "গোপন হিসাব", icon: BarChart3, desktopOnly: true }] as const;
+const adminNav = [{ to: "/messages", label: "মেসেজ ম্যানেজমেন্ট", icon: ClipboardCheck }, { to: "/finance", label: "গোপন হিসাব", icon: BarChart3, desktopOnly: true }] as const;
 const agentNav = [
   { to: "/dashboard", label: "ড্যাশবোর্ড", icon: Home },
   { to: "/submit-job", label: "Submit Work", icon: ClipboardCheck },

@@ -21,6 +21,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
 import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedManagementRouteImport } from './routes/_authenticated/management'
+import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedMyWorksRouteImport } from './routes/_authenticated/my-works'
 import { Route as AuthenticatedOfficeRouteImport } from './routes/_authenticated/office'
 import { Route as AuthenticatedPaymentsRouteImport } from './routes/_authenticated/payments'
@@ -35,6 +36,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as ApiPublicCronExamSmsRouteImport } from './routes/api/public/cron/exam-sms'
+import { Route as ApiPublicCronMessagingRouteImport } from './routes/api/public/cron/messaging'
 import { Route as ApiPublicCronSvpResultsRouteImport } from './routes/api/public/cron/svp-results'
 
 const IndexRoute = IndexRouteImport.update({
@@ -94,6 +96,11 @@ const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
 const AuthenticatedManagementRoute = AuthenticatedManagementRouteImport.update({
   id: '/management',
   path: '/management',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMyWorksRoute = AuthenticatedMyWorksRouteImport.update({
@@ -169,6 +176,11 @@ const ApiPublicCronExamSmsRoute = ApiPublicCronExamSmsRouteImport.update({
   path: '/api/public/cron/exam-sms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronMessagingRoute = ApiPublicCronMessagingRouteImport.update({
+  id: '/api/public/cron/messaging',
+  path: '/api/public/cron/messaging',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronSvpResultsRoute = ApiPublicCronSvpResultsRouteImport.update({
   id: '/api/public/cron/svp-results',
   path: '/api/public/cron/svp-results',
@@ -187,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/exams': typeof AuthenticatedExamsRoute
   '/finance': typeof AuthenticatedFinanceRoute
   '/management': typeof AuthenticatedManagementRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/office': typeof AuthenticatedOfficeRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -201,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/': typeof AuthenticatedCandidatesIndexRoute
   '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
+  '/api/public/cron/messaging': typeof ApiPublicCronMessagingRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesByTo {
@@ -215,6 +229,7 @@ export interface FileRoutesByTo {
   '/exams': typeof AuthenticatedExamsRoute
   '/finance': typeof AuthenticatedFinanceRoute
   '/management': typeof AuthenticatedManagementRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/office': typeof AuthenticatedOfficeRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -229,6 +244,7 @@ export interface FileRoutesByTo {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates': typeof AuthenticatedCandidatesIndexRoute
   '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
+  '/api/public/cron/messaging': typeof ApiPublicCronMessagingRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesById {
@@ -245,6 +261,7 @@ export interface FileRoutesById {
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
   '/_authenticated/finance': typeof AuthenticatedFinanceRoute
   '/_authenticated/management': typeof AuthenticatedManagementRoute
+  '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/my-works': typeof AuthenticatedMyWorksRoute
   '/_authenticated/office': typeof AuthenticatedOfficeRoute
   '/_authenticated/payments': typeof AuthenticatedPaymentsRoute
@@ -259,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/': typeof AuthenticatedCandidatesIndexRoute
   '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
+  '/api/public/cron/messaging': typeof ApiPublicCronMessagingRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRouteTypes {
@@ -275,6 +293,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/finance'
     | '/management'
+    | '/messages'
     | '/my-works'
     | '/office'
     | '/payments'
@@ -289,6 +308,7 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/'
     | '/api/public/cron/exam-sms'
+    | '/api/public/cron/messaging'
     | '/api/public/cron/svp-results'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -303,6 +323,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/finance'
     | '/management'
+    | '/messages'
     | '/my-works'
     | '/office'
     | '/payments'
@@ -317,6 +338,7 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates'
     | '/api/public/cron/exam-sms'
+    | '/api/public/cron/messaging'
     | '/api/public/cron/svp-results'
   id:
     | '__root__'
@@ -332,6 +354,7 @@ export interface FileRouteTypes {
     | '/_authenticated/exams'
     | '/_authenticated/finance'
     | '/_authenticated/management'
+    | '/_authenticated/messages'
     | '/_authenticated/my-works'
     | '/_authenticated/office'
     | '/_authenticated/payments'
@@ -346,6 +369,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/'
     | '/api/public/cron/exam-sms'
+    | '/api/public/cron/messaging'
     | '/api/public/cron/svp-results'
   fileRoutesById: FileRoutesById
 }
@@ -358,6 +382,7 @@ export interface RootRouteChildren {
   ResultCheckRoute: typeof ResultCheckRoute
   AdminLoginRoute: typeof AdminLoginRoute
   ApiPublicCronExamSmsRoute: typeof ApiPublicCronExamSmsRoute
+  ApiPublicCronMessagingRoute: typeof ApiPublicCronMessagingRoute
   ApiPublicCronSvpResultsRoute: typeof ApiPublicCronSvpResultsRoute
 }
 
@@ -445,6 +470,13 @@ declare module '@tanstack/react-router' {
       path: '/management'
       fullPath: '/management'
       preLoaderRoute: typeof AuthenticatedManagementRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/messages': {
+      id: '/_authenticated/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AuthenticatedMessagesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/my-works': {
@@ -545,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronExamSmsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/messaging': {
+      id: '/api/public/cron/messaging'
+      path: '/api/public/cron/messaging'
+      fullPath: '/api/public/cron/messaging'
+      preLoaderRoute: typeof ApiPublicCronMessagingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/svp-results': {
       id: '/api/public/cron/svp-results'
       path: '/api/public/cron/svp-results'
@@ -562,6 +601,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
   AuthenticatedManagementRoute: typeof AuthenticatedManagementRoute
+  AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMyWorksRoute: typeof AuthenticatedMyWorksRoute
   AuthenticatedOfficeRoute: typeof AuthenticatedOfficeRoute
   AuthenticatedPaymentsRoute: typeof AuthenticatedPaymentsRoute
@@ -583,6 +623,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
   AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
   AuthenticatedManagementRoute: AuthenticatedManagementRoute,
+  AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMyWorksRoute: AuthenticatedMyWorksRoute,
   AuthenticatedOfficeRoute: AuthenticatedOfficeRoute,
   AuthenticatedPaymentsRoute: AuthenticatedPaymentsRoute,
@@ -609,6 +650,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResultCheckRoute: ResultCheckRoute,
   AdminLoginRoute: AdminLoginRoute,
   ApiPublicCronExamSmsRoute: ApiPublicCronExamSmsRoute,
+  ApiPublicCronMessagingRoute: ApiPublicCronMessagingRoute,
   ApiPublicCronSvpResultsRoute: ApiPublicCronSvpResultsRoute,
 }
 export const routeTree = rootRouteImport
