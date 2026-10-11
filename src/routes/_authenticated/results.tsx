@@ -107,7 +107,9 @@ function ResultsPage() {
               <p className="mt-1 text-foreground/80">নিচে থেকে ম্যানুয়ালি রেজাল্ট দিন।</p>
             </div>
           )}
-          {match && (
+          {match && (() => {
+            const declared = exams.filter((e) => e.candidate_id === match.id && (e.result === "PASS" || e.result === "FAIL")).sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0];
+            return (
             <div className="rounded-lg border p-3 text-sm">
               <div className="font-semibold">{match.name}</div>
               <div className="text-muted-foreground">{match.passport_no} · {occName(match.occupation_id)}</div>
@@ -117,8 +119,15 @@ function ResultsPage() {
                   <Button size="sm" onClick={() => setResExam(matchExam)}>ম্যানুয়াল রেজাল্ট দিন</Button>
                 </div>
               ) : <div className="mt-2 text-muted-foreground">কোনো অপেক্ষমান পরীক্ষা নেই</div>}
+              {declared && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2">
+                  <ResultBadge result={declared.result} date={declared.result_date} />
+                  <ResultShareActions d={{ name: match.name, passport: match.passport_no ?? "—", occupation: occName(declared.occupation_id ?? match.occupation_id) ?? "—", ttc: ttcName(declared.ttc_id ?? match.ttc_id) ?? "—", examAt: fmtDate(declared.exam_date), result: declared.result, ref: "—" }} />
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
         </div>
 
         <div className="card-surface p-4 lg:col-span-3">
