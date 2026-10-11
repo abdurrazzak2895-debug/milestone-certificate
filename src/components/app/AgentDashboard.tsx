@@ -10,6 +10,7 @@ import { agentNoticeQ } from "@/components/app/AgentNotice";
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compress-image";
 import { OfficeAddress } from "@/components/app/OfficeAddress";
+import { AboutServices } from "@/components/app/AboutServices";
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
