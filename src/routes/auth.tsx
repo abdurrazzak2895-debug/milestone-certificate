@@ -4,7 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, KeyRound, Lock, LogIn, Smartphone } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, LogIn, Mail, ShieldCheck, Smartphone } from "lucide-react";
 import { checkDeviceSession, claimDeviceSession } from "@/lib/device-session";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import space1 from "@/assets/space-1.webp";
@@ -185,17 +185,18 @@ function AuthPage() {
               </div>
 
               <GlowField
-                icon={<Smartphone className="h-5 w-5" />}
+                icon={isEmail ? <Mail className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
                 id="mobile"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                placeholder="01XXXXXXXXX"
+                type="text"
+                autoComplete="username"
+                placeholder="মোবাইল নম্বর বা ইমেইল"
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                maxLength={11}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMobile(/[a-zA-Z@]/.test(v) ? v.replace(/\s/g, "") : v.replace(/\D/g, "").slice(0, 11));
+                }}
                 required
-                style={{ letterSpacing: "0.2em" }}
+                style={{ letterSpacing: isEmail ? "0.02em" : "0.2em" }}
               />
               <GlowField
                 icon={<Lock className="h-5 w-5" />}
@@ -240,6 +241,10 @@ function AuthPage() {
                 <span className="relative">{busy ? "অপেক্ষা করুন..." : mode === "login" ? "লগইন করুন" : "পাসওয়ার্ড পরিবর্তন করুন"}</span>
               </button>
 
+              <label className="flex cursor-pointer items-center justify-center gap-2 text-sm text-white/70">
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-cyan-400" />
+                মোবাইল নম্বর / ইমেইল মনে রাখুন
+              </label>
               {mode === "login" && (
                 <button type="button" onClick={() => setMode("change")} className="block w-full text-center text-sm text-cyan-300/80 transition-colors hover:text-cyan-200">
                   পাসওয়ার্ড ভুলে গেছেন? এখান থেকেই বদলে নিন
@@ -254,6 +259,13 @@ function AuthPage() {
             <span key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === slide ? "w-6 bg-cyan-300" : "w-1.5 bg-white/30"}`} />
           ))}
         </div>
+
+        <div className="mt-5 flex justify-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-4 py-1.5 text-[11px] font-semibold text-emerald-200 shadow-[0_0_25px_-8px_rgba(52,211,153,0.8)] backdrop-blur">
+            <ShieldCheck className="h-3.5 w-3.5" /> 256-Bit SSL Encrypted &amp; Official Skill Verification Portal
+          </span>
+        </div>
+        <p className="mt-3 text-center text-[11px] text-white/45">© {new Date().getFullYear()} Milestone Certificate Institute · সর্বস্বত্ব সংরক্ষিত</p>
       </section>
     </main>
   );
