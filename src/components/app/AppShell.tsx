@@ -1,7 +1,7 @@
 import { AgentNotice } from "@/components/app/AgentNotice";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Home, LogOut, Settings, UserCheck, Users } from "lucide-react";
+import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Globe, Home, LogOut, Settings, UserCheck, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { TechBackground } from "./TechBackground";
@@ -26,6 +26,7 @@ const agentNav = [
   { to: "/my-works", label: "আমার কাজ", icon: Briefcase },
   { to: "/result-check", label: "রেজাল্ট চেক", icon: ClipboardCheck },
   { to: "/office", label: "অফিস ঠিকানা", icon: Home },
+  { to: "/about", label: "About", icon: Globe },
 ] as const;
 const providerNav = [{ to: "/provider", label: "আমার কাজ", icon: Briefcase }] as const;
 const managementNav = [
