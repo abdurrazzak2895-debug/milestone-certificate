@@ -32,6 +32,29 @@ export const sendMessagesNow = createServerFn({ method: "POST" })
     return { ...q, ...p };
   });
 
+/** Sends one test SMS to the admin's own number before any bulk send. Logged with a unique key so it never dedupes. */
+export const sendTestSms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ phone: z.string().regex(/^01[3-9]\d{8}$/, "সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন"), body: z.string().trim().min(5).max(1500) }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { sendSms } = await import("./messaging.server");
+    const err = await sendSms(data.phone, data.body);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("sms_messages").insert({
+      dedupe_key: `test:${context.userId}:${Date.now()}`,
+      recipient_name: "টেস্ট (নিজের নম্বর)",
+      phone: data.phone,
+      body: data.body,
+      status: err ? "failed" : "sent",
+      error: err,
+      created_by: context.userId,
+      sent_at: err ? null : new Date().toISOString(),
+    });
+    if (err) throw new Error(err);
+    return { ok: true };
+  });
+
 export const processQueueNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

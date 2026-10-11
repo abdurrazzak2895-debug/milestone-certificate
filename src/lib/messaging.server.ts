@@ -4,7 +4,7 @@ async function admin() {
   return (await import("@/integrations/supabase/client.server")).supabaseAdmin;
 }
 
-async function sendSms(phone: string, message: string): Promise<string | null> {
+export async function sendSms(phone: string, message: string): Promise<string | null> {
   const params = new URLSearchParams({ api_key: process.env["BULKSMSBD_API_KEY"] ?? "", type: "text", number: phone, senderid: process.env["BULKSMSBD_SENDER_ID"] ?? "", message });
   try {
     const res = await fetch(`http://bulksmsbd.net/api/smsapi?${params}`);
