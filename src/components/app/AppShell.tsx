@@ -2,7 +2,7 @@ import { useWorksRealtime } from "@/components/app/ReceiveStatus";
 import { AgentNotice } from "@/components/app/AgentNotice";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Globe, Home, LogOut, Settings, UserCheck, Users } from "lucide-react";
+import { Briefcase, BarChart3, CalendarDays, ClipboardCheck, Globe, Home, LogOut, MapPin, Settings, UserCheck, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { TechBackground } from "./TechBackground";
@@ -20,7 +20,7 @@ const nav = [
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ] as const;
-const adminNav = [{ to: "/messages", label: "মেসেজ ম্যানেজমেন্ট", icon: ClipboardCheck }, { to: "/finance", label: "গোপন হিসাব", icon: BarChart3, desktopOnly: true }] as const;
+const adminNav = [{ to: "/messages", label: "মেসেজ ম্যানেজমেন্ট", icon: ClipboardCheck }, { to: "/center-addresses", label: "কেন্দ্রের ঠিকানা", icon: MapPin, desktopOnly: true }, { to: "/finance", label: "গোপন হিসাব", icon: BarChart3, desktopOnly: true }] as const;
 const agentNav = [
   { to: "/dashboard", label: "ড্যাশবোর্ড", icon: Home },
   { to: "/submit-job", label: "Submit Work", icon: ClipboardCheck },
