@@ -10,13 +10,13 @@ import brandLogo from "@/assets/brand-logo.png.asset.json";
 
 const nav = [
   { to: "/dashboard", label: "হোম", icon: Home },
+  { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck, desktopOnly: true },
+  { to: "/management", label: "রিসেপশন", icon: UserCheck, desktopOnly: true },
   { to: "/candidates", label: "পরীক্ষার্থী", icon: Users },
   { to: "/exams", label: "পরীক্ষা", icon: CalendarDays },
   { to: "/results", label: "রেজাল্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/reports", label: "রিপোর্ট", icon: BarChart3 },
-  { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck, desktopOnly: true },
   { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users, desktopOnly: true },
-  { to: "/management", label: "রিসেপশন", icon: UserCheck, desktopOnly: true },
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ] as const;
