@@ -45,7 +45,7 @@ export const retryFailed = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("sms_messages").update({ status: "pending" }).eq("status", "failed");
+    await supabaseAdmin.from("sms_messages").update({ status: "pending" }).in("status", ["failed", "sending"]);
     const { processPending } = await import("./messaging.server");
     return processPending(150);
   });

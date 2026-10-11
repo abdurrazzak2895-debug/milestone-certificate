@@ -21,6 +21,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedExamsRouteImport } from './routes/_authenticated/exams'
 import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedManagementRouteImport } from './routes/_authenticated/management'
+import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedMyWorksRouteImport } from './routes/_authenticated/my-works'
 import { Route as AuthenticatedOfficeRouteImport } from './routes/_authenticated/office'
 import { Route as AuthenticatedPaymentsRouteImport } from './routes/_authenticated/payments'
@@ -95,6 +96,11 @@ const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
 const AuthenticatedManagementRoute = AuthenticatedManagementRouteImport.update({
   id: '/management',
   path: '/management',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMyWorksRoute = AuthenticatedMyWorksRouteImport.update({
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/exams': typeof AuthenticatedExamsRoute
   '/finance': typeof AuthenticatedFinanceRoute
   '/management': typeof AuthenticatedManagementRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/office': typeof AuthenticatedOfficeRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/exams': typeof AuthenticatedExamsRoute
   '/finance': typeof AuthenticatedFinanceRoute
   '/management': typeof AuthenticatedManagementRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/my-works': typeof AuthenticatedMyWorksRoute
   '/office': typeof AuthenticatedOfficeRoute
   '/payments': typeof AuthenticatedPaymentsRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/_authenticated/exams': typeof AuthenticatedExamsRoute
   '/_authenticated/finance': typeof AuthenticatedFinanceRoute
   '/_authenticated/management': typeof AuthenticatedManagementRoute
+  '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/my-works': typeof AuthenticatedMyWorksRoute
   '/_authenticated/office': typeof AuthenticatedOfficeRoute
   '/_authenticated/payments': typeof AuthenticatedPaymentsRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/finance'
     | '/management'
+    | '/messages'
     | '/my-works'
     | '/office'
     | '/payments'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/finance'
     | '/management'
+    | '/messages'
     | '/my-works'
     | '/office'
     | '/payments'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/_authenticated/exams'
     | '/_authenticated/finance'
     | '/_authenticated/management'
+    | '/_authenticated/messages'
     | '/_authenticated/my-works'
     | '/_authenticated/office'
     | '/_authenticated/payments'
@@ -458,6 +470,13 @@ declare module '@tanstack/react-router' {
       path: '/management'
       fullPath: '/management'
       preLoaderRoute: typeof AuthenticatedManagementRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/messages': {
+      id: '/_authenticated/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AuthenticatedMessagesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/my-works': {
@@ -582,6 +601,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExamsRoute: typeof AuthenticatedExamsRoute
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
   AuthenticatedManagementRoute: typeof AuthenticatedManagementRoute
+  AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMyWorksRoute: typeof AuthenticatedMyWorksRoute
   AuthenticatedOfficeRoute: typeof AuthenticatedOfficeRoute
   AuthenticatedPaymentsRoute: typeof AuthenticatedPaymentsRoute
@@ -603,6 +623,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExamsRoute: AuthenticatedExamsRoute,
   AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
   AuthenticatedManagementRoute: AuthenticatedManagementRoute,
+  AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMyWorksRoute: AuthenticatedMyWorksRoute,
   AuthenticatedOfficeRoute: AuthenticatedOfficeRoute,
   AuthenticatedPaymentsRoute: AuthenticatedPaymentsRoute,
