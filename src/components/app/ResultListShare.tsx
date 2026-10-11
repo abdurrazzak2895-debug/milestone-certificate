@@ -204,31 +204,6 @@ export function ResultListShare() {
 
   const info = (w: Work): Info => ({ name: w.candidate_name, passport: w.passport_no, occupation: occName(w.occupation_id) ?? "—", ttc: ttcName(w.ttc_id) ?? "—", examAt: fmtDhakaDateTime(w.exam_at), result: w.svp_result, ref: w.ref_code });
 
-  const download = async (w: Work) => {
-    const d = info(w), blob = await makeCard(d);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = `Result-${d.passport}-${d.result}.png`; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast.success("ছবি ডাউনলোড হয়েছে");
-  };
-  const share = async (w: Work) => {
-    const d = info(w);
-    toast.info("ছবি তৈরি হচ্ছে…");
-    const blob = await makeCard(d);
-    const file = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
-    const nav = navigator as Navigator & { canShare?: (x: ShareData) => boolean };
-    if (nav.share && nav.canShare?.({ files: [file] })) {
-      try {
-        await nav.share({ files: [file], text: msgText(d), title: `SVP Result: ${d.result}` });
-        return;
-      } catch (err) {
-        // User closed the share sheet — nothing else to do.
-        if ((err as DOMException)?.name === "AbortError") return;
-      }
-    }
-    // Fallback: open WhatsApp with the text details (image can't be attached outside the share sheet).
-    window.open(`https://wa.me/?text=${encodeURIComponent(msgText(d))}`, "_blank");
-  };
 
   const shift = (n: number) => { const d = new Date(`${date || today()}T00:00:00`); d.setDate(d.getDate() + n); setDate(d.toLocaleDateString("en-CA")); };
 
