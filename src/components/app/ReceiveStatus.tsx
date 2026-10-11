@@ -60,7 +60,7 @@ function ReceiveLog({ id, open, onOpenChange }: { id: string; open: boolean; onO
         <DialogHeader><DialogTitle>রিসিভ স্ট্যাটাসের রেকর্ড</DialogTitle></DialogHeader>
         {data.length === 0 ? <p className="text-sm text-muted-foreground">এখনো কোনো পরিবর্তন হয়নি</p> : (
           <ul className="divide-y text-sm">{data.map((l) => (
-            <li key={l.id} className="py-2"><b>{l.new_status === "received" ? "✓ রিসিভ হয়েছে" : "✗ রিসিভ হয়নি"}</b> — {l.changed_by_name ?? "—"}<div className="text-xs text-muted-foreground">{fmtDhakaDateTime(l.changed_at)}</div></li>
+            <li key={l.id} className="py-2"><b>{l.new_status === "received" ? "✓ রিসিভ হয়েছে" : l.new_status === "absent" ? "✗ অনুপস্থিত" : "✗ রিসিভ হয়নি"}</b> — {l.changed_by_name ?? "—"}<div className="text-xs text-muted-foreground">{fmtDhakaDateTime(l.changed_at)}</div></li>
           ))}</ul>
         )}
       </DialogContent>

@@ -16,3 +16,4 @@
 - [x] Turn off daily auto exam SMS (unscheduled daily-exam-sms cron); SMS sends only from admin "SMS পাঠান" button
 
 - [x] Text copy header now includes exam date on all IDs (agent, reception, provider, admin)
+- [x] Receive status toggle (all IDs), live sync, change log, receive analysis with filters

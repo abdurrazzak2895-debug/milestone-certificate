@@ -1,3 +1,4 @@
+import { ReceiveAnalyticsButton } from "@/components/app/ReceiveStatus";
 import { AgentNotifyPrompt } from "./AgentNotifyPrompt";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,6 +60,7 @@ export function AgentDashboard() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex justify-end"><ReceiveAnalyticsButton /></div>
       <section className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-2 shadow-sm">
         <div className="relative shrink-0">
           <CandidatePhoto path={avatarPath} name={me?.full_name ?? "A"} size={80} />
