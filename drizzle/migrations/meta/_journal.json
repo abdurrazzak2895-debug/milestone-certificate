@@ -183,6 +183,13 @@
       "when": 1791722186667,
       "tag": "0025_sub_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791722516631,
+      "tag": "0026_messaging_system",
+      "breakpoints": true
     }
   ]
 }
