@@ -42,7 +42,9 @@ export const receiveCandidate = createServerFn({ method: "POST" })
     if (!(await hasAnyRole(context.supabase, context.userId, ["admin", "staff", "management"]))) throw new Error("অনুমতি নেই");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const received = data.arrivalStatus === "received";
-    const { data: prev } = await supabaseAdmin.from("job_submissions").select("arrival_status").eq("id", data.id).maybeSingle();
+    const { data: prev } = await supabaseAdmin.from("job_submissions").select("arrival_status,candidate_photo_path").eq("id", data.id).maybeSingle();
+    if (data.photoPath && data.photoPath !== prev?.candidate_photo_path
+      && !(data.photoPath.startsWith(`candidate-drafts/${context.userId}/`) && !data.photoPath.includes("..") && !data.photoPath.endsWith("/agent-profile.jpg"))) throw new Error("ছবি সঠিক নয়");
     const { data: me } = await supabaseAdmin.from("agent_accounts").select("full_name").eq("user_id", context.userId).maybeSingle();
     if (prev && prev.arrival_status !== data.arrivalStatus) await supabaseAdmin.from("receive_status_log").insert({ submission_id: data.id, old_status: prev.arrival_status, new_status: data.arrivalStatus, changed_by: context.userId, changed_by_name: me?.full_name ?? "অ্যাডমিন" });
     const { error } = await supabaseAdmin.from("job_submissions").update({
