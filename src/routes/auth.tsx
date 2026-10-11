@@ -6,7 +6,7 @@ import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, KeyRound, Lock, LogIn, Smartphone } from "lucide-react";
 import { checkDeviceSession, claimDeviceSession } from "@/lib/device-session";
-import brandLogo from "@/assets/brand-logo.png";
+import brandLogo from "@/assets/brand-logo.png.asset.json";
 import space1 from "@/assets/space-1.webp";
 import space2 from "@/assets/space-2.webp";
 import space3 from "@/assets/space-3.webp";
