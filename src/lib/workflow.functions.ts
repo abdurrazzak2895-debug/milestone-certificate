@@ -99,3 +99,27 @@ export const updateCandidateMobile = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true as const };
   });
+
+/** Quick receive toggle from any authorized ID; every change is logged with who/when. */
+export const setReceiveStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid(), status: z.enum(["received", "not_arrived"]) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { data: row } = await context.supabase.from("job_submissions").select("submitted_by,status,arrival_status").eq("id", data.id).maybeSingle();
+    if (!row || row.status === "rejected") throw new Error("অনুমতি নেই");
+    const staff = await hasAnyRole(context.supabase, context.userId, ["admin", "staff", "management", "service_provider"]);
+    if (!staff && row.submitted_by !== context.userId) throw new Error("অনুমতি নেই");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: acc } = await supabaseAdmin.from("agent_accounts").select("full_name,active").eq("user_id", context.userId).maybeSingle();
+    if (acc && !acc.active) throw new Error("অ্যাকাউন্ট নিষ্ক্রিয়");
+    if (row.arrival_status === data.status) return { ok: true as const };
+    const received = data.status === "received";
+    const { error } = await supabaseAdmin.from("job_submissions").update({
+      arrival_status: data.status, received_at: received ? new Date().toISOString() : null, received_by: received ? context.userId : null,
+    }).eq("id", data.id);
+    if (error) throw error;
+    await supabaseAdmin.from("receive_status_log").insert({
+      submission_id: data.id, old_status: row.arrival_status, new_status: data.status, changed_by: context.userId, changed_by_name: acc?.full_name ?? "অ্যাডমিন",
+    });
+    return { ok: true as const };
+  });
