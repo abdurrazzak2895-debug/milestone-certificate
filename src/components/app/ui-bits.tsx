@@ -1,6 +1,6 @@
 import type { ReactNode, SelectHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
-import { RESULT_LABEL, type ExamResult } from "@/lib/data";
+import { RESULT_LABEL, fmtDate, type ExamResult } from "@/lib/data";
 
 const resultStyle: Record<ExamResult, string> = {
   PENDING: "bg-warning-soft text-warning",
@@ -10,10 +10,11 @@ const resultStyle: Record<ExamResult, string> = {
   CANCELLED: "bg-info-soft text-info",
 };
 
-export function ResultBadge({ result }: { result: ExamResult }) {
+export function ResultBadge({ result, date }: { result: ExamResult; date?: string | null }) {
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold", resultStyle[result])}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", resultStyle[result])}>
       {RESULT_LABEL[result]}
+      {date && <span className="font-normal opacity-80">· {fmtDate(date)}</span>}
     </span>
   );
 }
