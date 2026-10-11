@@ -84,7 +84,7 @@ function AgentResults() {
                   <td className="px-3 py-2">{w.candidate_name}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{fmtDhakaDateTime(w.exam_at)}</td>
                   <td className="px-3 py-2"><SvpPill result={w.svp_result} work={w} checking={busy} /></td>
-                  <td className="px-3 py-2"><ResultCheckButton w={w} /></td>
+                  <td className="px-3 py-2"><div className="flex flex-wrap gap-1.5"><ResultCheckButton w={w} />{(w.svp_result === "PASS" || w.svp_result === "FAIL") && <ResultShareActions d={{ name: w.candidate_name, passport: w.passport_no, occupation: occName(w.occupation_id) ?? "—", ttc: ttcName(w.ttc_id) ?? "—", examAt: fmtDhakaDateTime(w.exam_at), result: w.svp_result, ref: w.ref_code }} />}</div></td>
                 </tr>
               ))}
             </tbody>
