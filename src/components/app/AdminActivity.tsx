@@ -99,7 +99,7 @@ export function AdminActivity() {
             {waList.map((r) => (
               <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5 text-sm">
                 <span className="truncate">{r.candidate_name} · {r.mobile}</span>
-                <a href={waLink(r)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md bg-success px-2 py-1 text-xs font-medium text-success-foreground"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</a>
+                <a href={waLink(r)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md bg-success px-2 py-1 text-xs font-medium text-primary-foreground"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</a>
               </div>
             ))}
           </div>

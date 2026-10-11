@@ -1,6 +1,7 @@
 import { ReceiveAnalyticsButton } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentDashboard } from "@/components/app/AgentDashboard";
+import { AdminActivity } from "@/components/app/AdminActivity";
 import { isManager } from "@/lib/roles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +67,7 @@ function Dashboard() {
     <div>
       <PageHeader title="ড্যাশবোর্ড" subtitle={`আজ ${fmtDate(t)}`} />
       <div className="mb-4"><ReceiveAnalyticsButton /></div>
+      {Route.useRouteContext().roles.includes("admin") && <AdminActivity />}
 
       <div className="mb-5 grid grid-cols-3 gap-2 sm:grid-cols-6">
         <QuickBtn icon={<Plus />} label="নতুন পরীক্ষার্থী" onClick={() => setCandOpen(true)} />
