@@ -32,6 +32,7 @@ import { Route as AuthenticatedSubmitJobRouteImport } from './routes/_authentica
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
+import { Route as ApiPublicCronExamSmsRouteImport } from './routes/api/public/cron/exam-sms'
 import { Route as ApiPublicCronSvpResultsRouteImport } from './routes/api/public/cron/svp-results'
 
 const IndexRoute = IndexRouteImport.update({
@@ -151,6 +152,11 @@ const AuthenticatedCandidatesIdRoute =
     path: '/candidates/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCronExamSmsRoute = ApiPublicCronExamSmsRouteImport.update({
+  id: '/api/public/cron/exam-sms',
+  path: '/api/public/cron/exam-sms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronSvpResultsRoute = ApiPublicCronSvpResultsRouteImport.update({
   id: '/api/public/cron/svp-results',
   path: '/api/public/cron/svp-results',
@@ -180,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/': typeof AuthenticatedCandidatesIndexRoute
+  '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesByTo {
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates': typeof AuthenticatedCandidatesIndexRoute
+  '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesById {
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/': typeof AuthenticatedCandidatesIndexRoute
+  '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRouteTypes {
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates/'
+    | '/api/public/cron/exam-sms'
     | '/api/public/cron/svp-results'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates'
+    | '/api/public/cron/exam-sms'
     | '/api/public/cron/svp-results'
   id:
     | '__root__'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/'
+    | '/api/public/cron/exam-sms'
     | '/api/public/cron/svp-results'
   fileRoutesById: FileRoutesById
 }
@@ -321,6 +333,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResultCheckRoute: typeof ResultCheckRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  ApiPublicCronExamSmsRoute: typeof ApiPublicCronExamSmsRoute
   ApiPublicCronSvpResultsRoute: typeof ApiPublicCronSvpResultsRoute
 }
 
@@ -487,6 +500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidatesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/cron/exam-sms': {
+      id: '/api/public/cron/exam-sms'
+      path: '/api/public/cron/exam-sms'
+      fullPath: '/api/public/cron/exam-sms'
+      preLoaderRoute: typeof ApiPublicCronExamSmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/svp-results': {
       id: '/api/public/cron/svp-results'
       path: '/api/public/cron/svp-results'
@@ -546,6 +566,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ResultCheckRoute: ResultCheckRoute,
   AdminLoginRoute: AdminLoginRoute,
+  ApiPublicCronExamSmsRoute: ApiPublicCronExamSmsRoute,
   ApiPublicCronSvpResultsRoute: ApiPublicCronSvpResultsRoute,
 }
 export const routeTree = rootRouteImport

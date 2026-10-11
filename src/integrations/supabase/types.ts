@@ -577,6 +577,33 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_log: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          ok: boolean
+          phone: string
+          ref_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          ok?: boolean
+          phone: string
+          ref_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          ok?: boolean
+          phone?: string
+          ref_key?: string
+        }
+        Relationships: []
+      }
       ttc_centers: {
         Row: {
           active: boolean
