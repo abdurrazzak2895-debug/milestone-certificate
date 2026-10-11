@@ -12,9 +12,9 @@ import { homeForRoles } from "@/lib/roles";
 export const Route = createFileRoute("/result-check")({
   head: () => ({
     meta: [
-      { title: "রেজাল্ট চেক — পাসপোর্ট ও পেশা দিয়ে | Milestone Certificate" },
+      { title: "রেজাল্ট চেক — পাসপোর্ট ও পেশা দিয়ে | Milestone Certificate Institute" },
       { name: "description", content: "পাসপোর্ট নম্বর ও পেশা দিয়ে আপনার পরীক্ষার রেজাল্ট দেখুন।" },
-      { property: "og:title", content: "রেজাল্ট চেক | Milestone Certificate" },
+      { property: "og:title", content: "রেজাল্ট চেক | Milestone Certificate Institute" },
       { property: "og:description", content: "পাসপোর্ট নম্বর ও পেশা দিয়ে পরীক্ষার রেজাল্ট দেখুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

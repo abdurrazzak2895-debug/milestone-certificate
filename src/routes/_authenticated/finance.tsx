@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/_authenticated/finance")({
   head: () => ({
     meta: [
-      { title: "গোপন আর্থিক হিসাব — শুধু অ্যাডমিন | Milestone Certificate" },
+      { title: "গোপন আর্থিক হিসাব — শুধু অ্যাডমিন | Milestone Certificate Institute" },
       { name: "description", content: "এজেন্টভিত্তিক ফি, আদায়, বকেয়া ও আয়ের গোপন হিসাব, শুধু অ্যাডমিনের জন্য।" },
-      { property: "og:title", content: "গোপন আর্থিক হিসাব — শুধু অ্যাডমিন | Milestone Certificate" },
+      { property: "og:title", content: "গোপন আর্থিক হিসাব — শুধু অ্যাডমিন | Milestone Certificate Institute" },
       { property: "og:description", content: "এজেন্টভিত্তিক ফি, আদায়, বকেয়া ও আয়ের গোপন হিসাব।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

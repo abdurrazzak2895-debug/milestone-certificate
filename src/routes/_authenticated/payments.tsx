@@ -11,9 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 export const Route = createFileRoute("/_authenticated/payments")({
   head: () => ({
     meta: [
-      { title: "পেমেন্ট ব্যবস্থাপনা — অ্যাডমিন | Milestone Certificate" },
+      { title: "পেমেন্ট ব্যবস্থাপনা — অ্যাডমিন | Milestone Certificate Institute" },
       { name: "description", content: "পরীক্ষার্থীর ফি নির্ধারণ ও বিকাশ, নগদ, রকেট, ব্যাংক পেমেন্ট যাচাই।" },
-      { property: "og:title", content: "পেমেন্ট ব্যবস্থাপনা — অ্যাডমিন | Milestone Certificate" },
+      { property: "og:title", content: "পেমেন্ট ব্যবস্থাপনা — অ্যাডমিন | Milestone Certificate Institute" },
       { property: "og:description", content: "পরীক্ষার্থীর ফি নির্ধারণ ও পেমেন্ট যাচাই।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

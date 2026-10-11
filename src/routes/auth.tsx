@@ -4,7 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, KeyRound, Lock, LogIn, Smartphone } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, LogIn, Mail, ShieldCheck, Smartphone } from "lucide-react";
 import { checkDeviceSession, claimDeviceSession } from "@/lib/device-session";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import space1 from "@/assets/space-1.webp";
@@ -17,9 +17,9 @@ const mobileSchema = z.string().regex(/^01[3-9]\d{8}$/);
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { title: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { name: "description", content: "মোবাইল নম্বর ও পাসওয়ার্ড দিয়ে পরীক্ষা ব্যবস্থাপনা পোর্টালে প্রবেশ করুন।" },
-      { property: "og:title", content: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { property: "og:title", content: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { property: "og:description", content: "মোবাইল নম্বর ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -52,8 +52,11 @@ function AuthPage() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slide, setSlide] = useState(0);
+  const [remember, setRemember] = useState(true);
 
   useEffect(() => {
+    const saved = localStorage.getItem("remember_login");
+    if (saved) setMobile(saved);
     const timer = window.setInterval(() => setSlide((c) => (c + 1) % slides.length), 7000);
     return () => window.clearInterval(timer);
   }, []);
@@ -80,22 +83,29 @@ function AuthPage() {
     </button>
   );
 
+  const isEmail = mobile.includes("@");
+  const loginEmail = isEmail ? mobile.trim().toLowerCase() : `88${mobile}@phone.login.local`;
+
   const signIn = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: `88${mobile}@phone.login.local`, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (error || !data.user) return null;
     return data.user;
   };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!mobileSchema.safeParse(mobile).success) return toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
+    if (isEmail) {
+      if (!z.string().email().safeParse(mobile.trim()).success) return toast.error("সঠিক ইমেইল দিন");
+    } else if (!mobileSchema.safeParse(mobile).success) return toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
     if (!password) return;
     setBusy(true);
     const user = await signIn();
     if (!user) {
       setBusy(false);
-      return toast.error(mode === "login" ? "মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়" : "মোবাইল নম্বর বা বর্তমান পাসওয়ার্ড সঠিক নয়");
+      return toast.error(mode === "login" ? "লগইন তথ্য বা পাসওয়ার্ড সঠিক নয়" : "লগইন তথ্য বা বর্তমান পাসওয়ার্ড সঠিক নয়");
     }
+    if (remember) localStorage.setItem("remember_login", mobile.trim());
+    else localStorage.removeItem("remember_login");
     if (mode === "change") {
       if (newPass.length < 6) {
         setBusy(false);
@@ -120,7 +130,8 @@ function AuthPage() {
     navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
   };
 
-  const canSubmit = mobile.length === 11 && !!password && (mode === "login" || (newPass.length >= 6 && newPass === confirmPass));
+  const idOk = isEmail ? mobile.trim().length > 5 : mobile.length === 11;
+  const canSubmit = idOk && !!password && (mode === "login" || (newPass.length >= 6 && newPass === confirmPass));
 
   return (
     <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-8 sm:px-6">
@@ -145,10 +156,10 @@ function AuthPage() {
         <div className="mb-6 flex flex-col items-center gap-3">
           <div className="relative">
             <span className="absolute inset-0 -z-10 rounded-full bg-cyan-400/30 blur-2xl" aria-hidden="true" />
-            <img src={brandLogo.url} alt="Milestone Certificate" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
+            <img src={brandLogo.url} alt="Milestone Certificate Institute" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
           </div>
           <div className="text-center">
-            <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate</p>
+            <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate Institute</p>
             <p className="text-xs tracking-[0.3em] text-cyan-200/70">স্কিল ভেরিফিকেশন পোর্টাল</p>
           </div>
         </div>
@@ -174,17 +185,18 @@ function AuthPage() {
               </div>
 
               <GlowField
-                icon={<Smartphone className="h-5 w-5" />}
+                icon={isEmail ? <Mail className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
                 id="mobile"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                placeholder="01XXXXXXXXX"
+                type="text"
+                autoComplete="username"
+                placeholder="মোবাইল নম্বর বা ইমেইল"
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                maxLength={11}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMobile(/[a-zA-Z@]/.test(v) ? v.replace(/\s/g, "") : v.replace(/\D/g, "").slice(0, 11));
+                }}
                 required
-                style={{ letterSpacing: "0.2em" }}
+                style={{ letterSpacing: isEmail ? "0.02em" : "0.2em" }}
               />
               <GlowField
                 icon={<Lock className="h-5 w-5" />}
@@ -229,6 +241,10 @@ function AuthPage() {
                 <span className="relative">{busy ? "অপেক্ষা করুন..." : mode === "login" ? "লগইন করুন" : "পাসওয়ার্ড পরিবর্তন করুন"}</span>
               </button>
 
+              <label className="flex cursor-pointer items-center justify-center gap-2 text-sm text-white/70">
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-cyan-400" />
+                মোবাইল নম্বর / ইমেইল মনে রাখুন
+              </label>
               {mode === "login" && (
                 <button type="button" onClick={() => setMode("change")} className="block w-full text-center text-sm text-cyan-300/80 transition-colors hover:text-cyan-200">
                   পাসওয়ার্ড ভুলে গেছেন? এখান থেকেই বদলে নিন
@@ -243,6 +259,13 @@ function AuthPage() {
             <span key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === slide ? "w-6 bg-cyan-300" : "w-1.5 bg-white/30"}`} />
           ))}
         </div>
+
+        <div className="mt-5 flex justify-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-4 py-1.5 text-[11px] font-semibold text-emerald-200 shadow-[0_0_25px_-8px_rgba(52,211,153,0.8)] backdrop-blur">
+            <ShieldCheck className="h-3.5 w-3.5" /> 256-Bit SSL Encrypted &amp; Official Skill Verification Portal
+          </span>
+        </div>
+        <p className="mt-3 text-center text-[11px] text-white/45">© {new Date().getFullYear()} Milestone Certificate Institute · সর্বস্বত্ব সংরক্ষিত</p>
       </section>
     </main>
   );

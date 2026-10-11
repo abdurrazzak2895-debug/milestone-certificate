@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_authenticated/provider")({
   head: () => ({
     meta: [
-      { title: "সার্ভিস প্রোভাইডার — অনুমোদিত কাজ | Milestone Certificate" },
+      { title: "সার্ভিস প্রোভাইডার — অনুমোদিত কাজ | Milestone Certificate Institute" },
       { name: "description", content: "অ্যাডমিন অনুমোদিত কাজের তালিকা ও SVP রেজাল্ট।" },
-      { property: "og:title", content: "সার্ভিস প্রোভাইডার — অনুমোদিত কাজ | Milestone Certificate" },
+      { property: "og:title", content: "সার্ভিস প্রোভাইডার — অনুমোদিত কাজ | Milestone Certificate Institute" },
       { property: "og:description", content: "অ্যাডমিন অনুমোদিত কাজের তালিকা ও SVP রেজাল্ট।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

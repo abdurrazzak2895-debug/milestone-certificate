@@ -48,7 +48,7 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
       <TechBackground />
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar/85 p-4 backdrop-blur-md md:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
-          <img src={brandLogo.url} alt="Milestone Certificate" className="h-10 w-10 rounded-full object-cover ring-2 ring-primary/50" />
+          <img src={brandLogo.url} alt="Milestone Certificate Institute" className="h-10 w-10 rounded-full object-cover ring-2 ring-primary/50" />
           <div className="font-display text-base font-bold leading-tight">Milestone<br /><span className="text-xs font-medium text-muted-foreground">Certificate</span></div>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
@@ -69,7 +69,7 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
         </button>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8"><div className="mb-4 flex items-center gap-2 md:hidden"><img src={brandLogo.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-primary/50" /><span className="font-display text-base font-bold">Milestone Certificate</span></div>{roles.includes("agent") && <AgentNotice />}{children}</main>
+      <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8"><div className="mb-4 flex items-center gap-2 md:hidden"><img src={brandLogo.url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-primary/50" /><span className="font-display text-base font-bold">Milestone Certificate Institute</span></div>{roles.includes("agent") && <AgentNotice />}{children}</main>
 
        <nav className="fixed inset-x-0 bottom-0 z-40 overflow-x-auto border-t bg-card md:hidden">
         <div className="flex min-w-max items-stretch">
