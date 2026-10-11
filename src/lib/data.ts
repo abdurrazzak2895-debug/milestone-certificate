@@ -114,6 +114,10 @@ export function dayLabel(iso: string) {
   if (iso === addDays(t, 1)) return "আগামীকাল";
   return null;
 }
+export function fmtDhakaDate(d: Date | string) {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: "2-digit", month: "short", year: "numeric" });
+}
 
 // ---------- export ----------
 // Neutralize spreadsheet formulas in user-supplied text cells.
