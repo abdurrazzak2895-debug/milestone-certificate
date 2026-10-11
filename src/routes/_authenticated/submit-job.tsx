@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { WorkerLoader } from "@/components/app/WorkerLoader";
+import { PassportHistory, passportHistoryQ } from "@/components/app/PassportHistory";
 import { AlertTriangle, Camera, CheckCircle2, FileUp, SendHorizontal, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
@@ -108,9 +109,12 @@ function SubmitJob() {
     return Object.keys(errs).length === 0 && r.success ? r.data : null;
   };
 
-  const openConfirm = (e: React.FormEvent) => {
+  const openConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return toast.error("সব বাধ্যতামূলক তথ্য সঠিকভাবে দিন");
+    const hist = await qc.fetchQuery(passportHistoryQ(f.passport_no)).catch(() => []);
+    if (hist.some((r) => r.blocking)) return toast.error("এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না");
+    if (hist.length) toast.warning("এই পাসপোর্ট আগে জমা হয়েছিল (FAIL/বাতিল) — নিচের ইতিহাস যাচাই করুন");
     setAgree(false);
     setConfirmOpen(true);
   };
@@ -147,8 +151,8 @@ function SubmitJob() {
       }, 900);
       setF(empty); setFile(null); setCandidatePhoto(null);
       qc.invalidateQueries({ queryKey: ["works"] });
-    } catch {
-      toast.error("কাজ Submit করা যায়নি। আবার চেষ্টা করুন।");
+    } catch (err) {
+      toast.error(String((err as { message?: string })?.message ?? "").includes("DUPLICATE_PASSPORT") ? "এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না" : "কাজ Submit করা যায়নি। আবার চেষ্টা করুন।");
     } finally {
       setBusy(false);
     }
@@ -195,7 +199,7 @@ function SubmitJob() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value.toUpperCase())} maxLength={100} /><Err k="candidate_name" /></div>
-          <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value.toUpperCase())} maxLength={20} /><Err k="passport_no" /></div>
+          <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value.toUpperCase())} maxLength={20} /><Err k="passport_no" /><PassportHistory passport={f.passport_no} /></div>
           <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">⚠️ শুধুমাত্র পরীক্ষার্থীর নিজের মোবাইল নম্বর দিন — এজেন্ট/নিজের নম্বর দেবেন না।</p><Err k="mobile" /></div>
           <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={f.secondary_mobile} onChange={(e) => set("secondary_mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /></div>
           <div>
