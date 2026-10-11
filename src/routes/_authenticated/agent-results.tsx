@@ -6,10 +6,11 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { worksQ, fmtDhakaDateTime } from "@/lib/works";
-import { bn } from "@/lib/data";
+import { bn, occQ, ttcQ, lookup } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { SvpPill } from "@/components/app/WorkBits";
 import { ResultCheckButton } from "@/components/app/ResultCheckButton";
+import { ResultShareActions } from "@/components/app/ResultListShare";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/agent-results")({
@@ -32,6 +33,9 @@ function AgentResults() {
   const qc = useQueryClient();
   const check = useServerFn(checkSubmissionSvp);
   const { data: all = [] } = useQuery(worksQ);
+  const { data: occ } = useQuery(occQ);
+  const { data: ttc } = useQuery(ttcQ);
+  const occName = lookup(occ), ttcName = lookup(ttc);
   const [me, setMe] = useState<string | null>(null);
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setMe(data.user?.id ?? null)); }, []);
   const [date, setDate] = useState(() => dhakaDay(new Date()));
@@ -80,7 +84,7 @@ function AgentResults() {
                   <td className="px-3 py-2">{w.candidate_name}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{fmtDhakaDateTime(w.exam_at)}</td>
                   <td className="px-3 py-2"><SvpPill result={w.svp_result} work={w} checking={busy} /></td>
-                  <td className="px-3 py-2"><ResultCheckButton w={w} /></td>
+                  <td className="px-3 py-2"><div className="flex flex-wrap gap-1.5"><ResultCheckButton w={w} />{(w.svp_result === "PASS" || w.svp_result === "FAIL") && <ResultShareActions d={{ name: w.candidate_name, passport: w.passport_no, occupation: occName(w.occupation_id) ?? "—", ttc: ttcName(w.ttc_id) ?? "—", examAt: fmtDhakaDateTime(w.exam_at), result: w.svp_result, ref: w.ref_code }} />}</div></td>
                 </tr>
               ))}
             </tbody>
