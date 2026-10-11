@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
+- Managed-account avatars use the existing private candidate-photos path candidate-drafts/<userId>/agent-profile.jpg; admin uploads and owner uploads share it so every authorized view resolves the same image.
 - App data is read client-side via the browser data client + TanStack Query options in `src/lib/data.ts`; all pages live under the `_authenticated` layout — keeps one cached dataset so search/filters/stats update instantly.
 - Exam results live on the exam row; a DB trigger appends every non-pending result change to the results history table — history is never overwritten.
 - Official SVP result lookup goes only through `src/lib/svp.functions.ts`; manual non-SVP lookup remains isolated in `src/lib/result-checker.ts` — prevents duplicate external-result implementations.

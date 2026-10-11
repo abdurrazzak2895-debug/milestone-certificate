@@ -7,6 +7,7 @@ import { listAccounts, createAccount, resetAccountPassword, setAccountActive, de
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { AccountPhotoEditor } from "@/components/app/AccountPhotoEditor";
 
 export const Route = createFileRoute("/_authenticated/accounts")({
   head: () => ({
@@ -102,6 +103,7 @@ function Accounts() {
             <ul className="divide-y">
               {q.data.filter((a) => { const t = sq.trim().toLowerCase(); return !t || [a.name, a.mobile, a.agent_code].some((v) => v?.toLowerCase().includes(t)); }).map((a) => (
                 <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <AccountPhotoEditor id={a.id} name={a.name} />
                   <div>
                     <div className="font-medium">{a.name || "—"}</div>
                     <div className="text-sm text-muted-foreground">{a.agent_code ? `${a.agent_code} · ` : ""}{a.mobile} · {ROLE_LABEL[a.role] ?? a.role} · <span className={a.active ? "text-primary" : "text-destructive"}>{a.active ? "Active" : "Inactive"}</span></div>
