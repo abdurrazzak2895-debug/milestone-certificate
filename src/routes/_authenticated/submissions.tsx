@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Check, Copy, FileText, RefreshCw, X } from "lucide-react";
 import { AdminEditWorkDialog } from "@/components/app/AdminEditWorkDialog";
 import { worksQ, openTicket, fmtDhakaDateTime, type Work } from "@/lib/works";
-import { ttcQ, occQ, lookup, bn } from "@/lib/data";
+import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { listAccounts } from "@/lib/accounts.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
@@ -72,10 +72,10 @@ function Submissions() {
   const slotLabel = (t: string) => { const [h, m] = t.split(":").map(Number); const ap = h < 12 ? "AM" : "PM"; return `${String(((h + 11) % 12) + 1).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ap} (${h < 12 ? "MORNING" : "AFTERNOON"})`; };
   const copyText = async () => {
     const groups = new Map<string, Work[]>();
-    for (const w of list) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? dhakaTime(new Date(w.exam_at)) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
+    for (const w of list) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? fmtDhakaDate(w.exam_at) : "—"}|${w.exam_at ? dhakaTime(new Date(w.exam_at)) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
     const text = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ws]) => {
-      const [o, t] = k.split("|");
-      return [o, t === "—" ? t : slotLabel(t), "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
+      const [o, d, t] = k.split("|");
+      return [o, d, t === "—" ? t : slotLabel(t), "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
     }).join("\n").trim();
     if (!text) return toast.error("কপি করার মতো কিছু নেই");
     try { await navigator.clipboard.writeText(text); toast.success(`${bn(list.length)} জনের তালিকা কপি হয়েছে`); } catch { toast.error("কপি করা যায়নি"); }

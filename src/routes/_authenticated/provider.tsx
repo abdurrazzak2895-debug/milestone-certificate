@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Copy, RefreshCw } from "lucide-react";
 import { worksQ, fmtDhakaDateTime } from "@/lib/works";
-import { ttcQ, occQ, lookup, bn } from "@/lib/data";
+import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { checkSubmissionSvp } from "@/lib/svp.functions";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
@@ -36,10 +36,10 @@ function Provider() {
 
   const copyText = async () => {
     const groups = new Map<string, typeof works>();
-    for (const w of works) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? new Date(w.exam_at).toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
+    for (const w of works) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? fmtDhakaDate(w.exam_at) : "—"}|${w.exam_at ? new Date(w.exam_at).toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
     const text = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ws]) => {
-      const [o, t] = k.split("|");
-      return [o, t, "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
+      const [o, d, t] = k.split("|");
+      return [o, d, t, "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
     }).join("\n").trim();
     if (!text) return toast.error("কপি করার মতো কিছু নেই");
     try { await navigator.clipboard.writeText(text); toast.success(`${bn(works.length)} জনের তালিকা কপি হয়েছে`); } catch { toast.error("কপি করা যায়নি"); }
