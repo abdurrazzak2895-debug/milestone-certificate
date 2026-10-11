@@ -156,6 +156,38 @@ function msgText(d: Info) {
   return `*SVP Exam Result: ${d.result}*\nName: ${d.name}\nPassport: ${d.passport}\nOccupation: ${d.occupation}\nTTC: ${d.ttc}\nExam: ${d.examAt}\n— Milestone Certificate Institute`;
 }
 
+/** Reusable image download + WhatsApp share buttons for a declared (PASS/FAIL) result. */
+export function ResultShareActions({ d }: { d: ResultShareInfo }) {
+  const download = async () => {
+    const blob = await makeCard(d);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `Result-${d.passport}-${d.result}.png`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast.success("ছবি ডাউনলোড হয়েছে");
+  };
+  const share = async () => {
+    toast.info("ছবি তৈরি হচ্ছে…");
+    const blob = await makeCard(d);
+    const file = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
+    const nav = navigator as Navigator & { canShare?: (x: ShareData) => boolean };
+    if (nav.share && nav.canShare?.({ files: [file] })) {
+      try {
+        await nav.share({ files: [file], text: msgText(d), title: `SVP Result: ${d.result}` });
+        return;
+      } catch (err) {
+        if ((err as DOMException)?.name === "AbortError") return;
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(msgText(d))}`, "_blank");
+  };
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={download}><Download className="mr-1 h-4 w-4" />ছবি ডাউনলোড</Button>
+      <Button size="sm" onClick={share}><Share2 className="mr-1 h-4 w-4" />WhatsApp</Button>
+    </>
+  );
+}
+
 export function ResultListShare() {
   const { data: all = [] } = useQuery(worksQ);
   const { data: occ } = useQuery(occQ);
