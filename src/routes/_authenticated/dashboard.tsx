@@ -202,7 +202,8 @@ function bRange(r: BRange, t: string): [string, string] {
 function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam[]; ttc: Ttc[]; occName: (id: string | null | undefined) => string; candName: (id: string) => string; candPhoto: (id: string) => string | null }) {
   const { subs, agents } = useAgentOf();
   const bogura = ttc.find((x) => x.name.includes("বগুড়া") || /bogura/i.test(x.name));
-  const t = todayStr();
+  const [pick, setPick] = useState("");
+  const t = pick || todayStr();
   const subAgent = new Map(subs.map((s) => [s.id, s.submitted_by]));
   const agentName = new Map(agents.map((a) => [a.user_id, `${a.full_name}${a.agent_code ? ` (${a.agent_code})` : ""}`]));
   const list = exams
@@ -210,11 +211,13 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
     .sort((a, b) => (a.exam_time ?? "").localeCompare(b.exam_time ?? ""));
   return (
     <div className="card-surface p-4">
-      <h3 className="mb-3 flex items-center justify-between gap-2 text-base font-semibold">
-        <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> আজকের রিমাইন্ডার — বগুড়া</span>
-        <span className="flex items-center gap-2"><SmsButton /><span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span></span>
+      <h3 className="mb-3 flex flex-wrap items-center justify-between gap-2 text-base font-semibold">
+        <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> {pick ? `${fmtDate(pick)} — বগুড়া` : "আজকের রিমাইন্ডার — বগুড়া"}</span>
+        <span className="flex items-center gap-2">
+          <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm font-normal" />
+          {!pick && <SmsButton />}<span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span></span>
       </h3>
-      {list.length === 0 ? <Empty>আজ বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
+      {list.length === 0 ? <Empty>{pick ? "এই তারিখে" : "আজ"} বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
         <ul className="max-h-72 divide-y overflow-y-auto">
           {list.map((e) => {
             const sub = subs.find((s) => s.id === e.submission_id);
@@ -241,6 +244,7 @@ function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occ
   const { subs, agents } = useAgentOf();
   const [open, setOpen] = useState<string | null>(null);
   const [rk, setRk] = useState<BRange>("today");
+  const [pick, setPick] = useState("");
   const bogura = ttc.find((t) => t.name.includes("বগুড়া") || /bogura/i.test(t.name));
   const t = todayStr();
   const rows = useMemo(() => {
@@ -248,7 +252,7 @@ function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occ
     const agentName = new Map(agents.map((a) => [a.user_id, `${a.full_name}${a.agent_code ? ` (${a.agent_code})` : ""}`]));
     const m = new Map<string, { name: string; total: number; agents: Map<string, number> }>();
     for (const e of exams) {
-      const [lo, hi] = bRange(rk, t);
+      const [lo, hi] = pick ? [pick, pick] : bRange(rk, t);
       if (!bogura || e.ttc_id !== bogura.id || e.exam_date < lo || e.exam_date > hi || e.result !== "PENDING") continue;
       const key = e.occupation_id ?? "none";
       const g = m.get(key) ?? { name: occName(e.occupation_id), total: 0, agents: new Map<string, number>() };
@@ -258,7 +262,7 @@ function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occ
       m.set(key, g);
     }
     return [...m.entries()].sort((a, b) => b[1].total - a[1].total);
-  }, [exams, bogura, subs, agents, t, occName, rk]);
+  }, [exams, bogura, subs, agents, t, occName, rk, pick]);
   const total = rows.reduce((n, [, g]) => n + g.total, 0);
 
   return (
@@ -266,9 +270,10 @@ function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occ
       <h3 className="mb-3 flex items-center justify-between gap-2 text-base font-semibold">
         <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> বগুড়া সেন্টার — পেশাভিত্তিক আসন্ন পরীক্ষা</span>
         <span className="flex items-center gap-2">
-          <select value={rk} onChange={(e) => setRk(e.target.value as BRange)} className="h-8 rounded-md border bg-background px-2 text-sm">
+          <select value={rk} onChange={(e) => { setRk(e.target.value as BRange); setPick(""); }} className="h-8 rounded-md border bg-background px-2 text-sm">
             {(Object.keys(B_RANGES) as BRange[]).map((k) => <option key={k} value={k}>{B_RANGES[k]}</option>)}
           </select>
+          <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm" />
           <span className="rounded-full bg-primary/15 px-3 py-0.5 text-sm text-primary">মোট {bn(total)}</span>
         </span>
       </h3>

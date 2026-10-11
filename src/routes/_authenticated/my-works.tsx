@@ -65,8 +65,11 @@ function MyWorks() {
     }
   };
   const [q, setQ] = useState("");
+  const [pick, setPick] = useState("");
   const s = q.trim().toLowerCase().replace(/^#/, "");
-  const list = (s ? works : filterFor(tab)).filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
+  const list = (s || pick ? works : filterFor(tab))
+    .filter((w) => !pick || (!!w.exam_at && dhakaDay(new Date(w.exam_at)) === pick))
+    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)));
 
   const copyText = async () => {
     const groups = new Map<string, typeof list>();
@@ -85,6 +88,11 @@ function MyWorks() {
       <div className="flex gap-2">
         <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
         <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
+      </div>
+      <div className="flex items-center gap-2 text-sm">
+        <span className="shrink-0 text-muted-foreground">নির্দিষ্ট তারিখ:</span>
+        <input type="date" value={pick} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border bg-card px-2" />
+        {pick && <Button variant="ghost" size="sm" onClick={() => setPick("")}>মুছুন</Button>}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([k, l]) => (

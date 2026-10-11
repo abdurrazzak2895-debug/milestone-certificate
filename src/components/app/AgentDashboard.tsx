@@ -35,11 +35,13 @@ export function AgentDashboard() {
     { label: "বাতিল", value: count("rejected"), icon: XCircle, tab: "rejected" },
     { label: "SVP PASS", value: works.filter((w) => w.svp_result === "PASS").length, icon: Award, tab: "done" },
   ] as const;
-  const onDay = (n: number) =>
+  const [pick, setPick] = useState("");
+  const onDate = (d: string) =>
     works
-      .filter((w) => w.status !== "rejected" && !!w.exam_at && dhakaDay(new Date(w.exam_at)) === dayOffset(n))
+      .filter((w) => w.status !== "rejected" && !!w.exam_at && dhakaDay(new Date(w.exam_at)) === d)
       .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
-  const list = onDay(day);
+  const onDay = (n: number) => onDate(dayOffset(n));
+  const list = pick ? onDate(pick) : onDay(day);
 
   const qc = useQueryClient();
   const avatarPath = me ? `candidate-drafts/${me.user_id}/agent-profile.jpg` : null;
@@ -115,12 +117,13 @@ export function AgentDashboard() {
       <section className="rounded-2xl border bg-card p-4 shadow-sm">
         <h2 className="mb-3 flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> পরীক্ষার রিমাইন্ডার</h2>
 
-        <div className="mb-3 flex gap-2 overflow-x-auto">
+        <div className="mb-3 flex items-center gap-2 overflow-x-auto">
           {DAYS.map(([n, l]) => (
-            <button key={n} onClick={() => setDay(n)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${day === n ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
+            <button key={n} onClick={() => { setDay(n); setPick(""); }} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${!pick && day === n ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
               {l} ({bn(onDay(n).length)})
             </button>
           ))}
+          <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className={`h-9 shrink-0 rounded-full border px-3 text-sm ${pick ? "border-primary bg-primary/15" : "bg-card"}`} />
         </div>
         {list.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">এই দিনে কোনো পরীক্ষা নেই।</p>
