@@ -111,6 +111,7 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
       <div className="flex gap-2"><StatusPill status={work.status} /><StatusPill status={work.arrival_status} />{work.status === "approved" && <SvpPill result={work.svp_result} work={work} />}</div>
     </div>
     <p className="text-sm text-muted-foreground">{occ(work.occupation_id)} · {ttc(work.ttc_id)} · {fmtDhakaDateTime(work.exam_at)}</p>
+    {(() => { const d = workShareInfo(work, occ, ttc); return d ? <div className="flex flex-wrap gap-2"><ResultShareActions d={d} /></div> : null; })()}
     <AgentPhoto id={work.submitted_by} />
     <div className="grid gap-3 sm:grid-cols-2">
       <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))} /></div>

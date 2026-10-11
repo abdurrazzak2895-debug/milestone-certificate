@@ -87,7 +87,7 @@ function ExamsPage() {
                       </td>
                       <td className="whitespace-nowrap p-3">{fmtTime(e.exam_time)}</td>
                       <td className="p-3"><ResultBadge result={e.result} date={e.result_date} /></td>
-                      <td className="p-3 text-right"><Button size="sm" variant="outline" onClick={() => setResExam(e)}>রেজাল্ট</Button></td>
+                      <td className="p-3 text-right"><div className="flex flex-wrap justify-end gap-1.5"><Button size="sm" variant="outline" onClick={() => setResExam(e)}>রেজাল্ট</Button>{(e.result === "PASS" || e.result === "FAIL") && <ResultShareActions d={{ name: candMap.get(e.candidate_id)?.name ?? "—", passport: candMap.get(e.candidate_id)?.passport_no ?? "—", occupation: occName(e.occupation_id) ?? "—", ttc: ttcName(e.ttc_id) ?? "—", examAt: fmtDate(e.exam_date), result: e.result, ref: "—" }} />}</div></td>
                     </tr>
                   );
                 })}
