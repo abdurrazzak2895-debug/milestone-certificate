@@ -11,6 +11,8 @@ import { ResultDialog } from "@/components/app/forms";
 import { candidatesQ, examsQ, occQ, ttcQ, lookup, fmtDate, todayStr, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
 import { useServerFn } from "@tanstack/react-start";
 import { checkSvpResult, listSvpOccupations } from "@/lib/svp.functions";
+import { ResultShareActions } from "@/components/app/ResultListShare";
+import { fmtDhakaDateTime } from "@/lib/works";
 
 export const Route = createFileRoute("/_authenticated/results")({
   head: () => ({ meta: [{ title: "রেজাল্ট ব্যবস্থাপনা | Milestone Certificate Institute" }, { name: "description", content: "রেজাল্ট চেক ও আপডেট করুন।" }, { property: "og:title", content: "রেজাল্ট ব্যবস্থাপনা | Milestone Certificate Institute" }, { property: "og:description", content: "রেজাল্ট চেক ও আপডেট করুন।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
