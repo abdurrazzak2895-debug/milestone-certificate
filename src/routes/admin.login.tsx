@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimDeviceSession } from "@/lib/device-session";
-import { Eye, EyeOff, Lock, LogIn, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import space1 from "@/assets/space-1.webp";
 import space2 from "@/assets/space-2.webp";
@@ -115,16 +115,14 @@ function AdminLogin() {
           </div>
           <div className="text-center">
             <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate Institute</p>
-            <p className="text-xs tracking-[0.3em] text-cyan-200/70">অ্যাডমিন ও স্টাফ পোর্টাল</p>
+            <p className="text-xs tracking-[0.3em] text-cyan-200/70">Explore Global Opportunities</p>
           </div>
         </div>
 
         <div className="rounded-[2rem] bg-gradient-to-br from-cyan-400/50 via-white/10 to-indigo-500/50 p-px shadow-[0_0_90px_-25px_rgba(34,211,238,0.6)]">
           <form onSubmit={login} className="rounded-[calc(2rem-1px)] bg-black/70 p-7 backdrop-blur-2xl sm:p-9">
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-500">
-              <h1 className="flex items-center justify-center gap-2 text-center text-lg font-semibold text-white">
-                <LogIn className="h-5 w-5 text-cyan-300" /> অ্যাডমিন লগইন
-              </h1>
+              <h1 className="sr-only">Admin Login</h1>
 
               <GlowField
                 icon={<Mail className="h-5 w-5" />}

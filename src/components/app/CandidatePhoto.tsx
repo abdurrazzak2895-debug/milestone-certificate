@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const isImage = (p: string) => /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(p);
 
-/** Candidate photo from private storage (signed URL), falling back to initials. */
+/** Candidate photo from private storage (signed URL), falling back to initials. Click to enlarge. */
 export function CandidatePhoto({ path, name, size = 48 }: { path: string | null | undefined; name: string; size?: number }) {
+  const [open, setOpen] = useState(false);
   const usable = !!path && isImage(path);
   const { data: url } = useQuery({
     queryKey: ["photo", path],
@@ -14,8 +17,24 @@ export function CandidatePhoto({ path, name, size = 48 }: { path: string | null 
   });
   const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
   return (
-    <div style={{ width: size, height: size }} className="shrink-0 overflow-hidden rounded-xl border bg-muted ring-2 ring-primary/20">
-      {url ? <img src={url} alt={name} className="h-full w-full object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">{initials}</div>}
-    </div>
+    <>
+      <div
+        style={{ width: size, height: size }}
+        className={`shrink-0 overflow-hidden rounded-xl border bg-muted ring-2 ring-primary/20 ${url ? "cursor-zoom-in transition-transform hover:scale-105" : ""}`}
+        onClick={url ? (e) => { e.stopPropagation(); e.preventDefault(); setOpen(true); } : undefined}
+        role={url ? "button" : undefined}
+        title={url ? "বড় করে দেখুন" : undefined}
+      >
+        {url ? <img src={url} alt={name} className="h-full w-full object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">{initials}</div>}
+      </div>
+      {url && (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-lg p-3" onClick={(e) => e.stopPropagation()}>
+            <DialogTitle className="text-center uppercase">{name}</DialogTitle>
+            <img src={url} alt={name} className="max-h-[75vh] w-full rounded-xl object-contain" />
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
