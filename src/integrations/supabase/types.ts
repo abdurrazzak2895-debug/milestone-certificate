@@ -262,6 +262,8 @@ export type Database = {
           status: string
           submitted_by: string
           svp_checked_at: string | null
+          svp_exam_date: string | null
+          svp_old_result: string | null
           svp_result: string
           terms_accepted: boolean
           ticket_path: string
@@ -293,6 +295,8 @@ export type Database = {
           status?: string
           submitted_by?: string
           svp_checked_at?: string | null
+          svp_exam_date?: string | null
+          svp_old_result?: string | null
           svp_result?: string
           terms_accepted: boolean
           ticket_path: string
@@ -324,6 +328,8 @@ export type Database = {
           status?: string
           submitted_by?: string
           svp_checked_at?: string | null
+          svp_exam_date?: string | null
+          svp_old_result?: string | null
           svp_result?: string
           terms_accepted?: boolean
           ticket_path?: string

@@ -78,7 +78,7 @@ function Provider() {
                   <td className="px-3 py-2">{ttc(w.ttc_id)}</td>
                   <td className="px-3 py-2">{fmtDhakaDateTime(w.exam_at)}</td>
                    <td className="px-3 py-2"><StatusPill status={w.arrival_status} /></td>
-                  <td className="px-3 py-2"><SvpPill result={w.svp_result} /></td>
+                  <td className="px-3 py-2"><SvpPill result={w.svp_result} work={w} /></td>
                   <td className="px-3 py-2"><Button size="sm" variant="outline" disabled={busy === w.id} onClick={() => check(w.id)}><RefreshCw className="h-4 w-4" /></Button></td>
                 </tr>
               ))}

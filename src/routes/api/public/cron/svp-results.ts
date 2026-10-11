@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { querySvp } from "@/lib/svp.functions";
+import { querySvp, svpUpdate } from "@/lib/svp.functions";
 
 export const Route = createFileRoute("/api/public/cron/svp-results")({
   server: {
@@ -34,10 +34,9 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
           const { data: occupation } = await supabaseAdmin.from("occupations").select("svp_key").eq("id", work.occupation_id).maybeSingle();
           if (!occupation?.svp_key) continue;
           const result = await querySvp(work.passport_no, occupation.svp_key);
-          await supabaseAdmin.from("job_submissions").update({
-            svp_result: result.status === "found" && result.result !== "PENDING" ? result.result : work.svp_result,
-            svp_checked_at: new Date().toISOString(),
-          }).eq("id", work.id);
+          // Network/server errors only bump checked_at so the next run retries.
+          const upd = result.status === "error" ? { svp_checked_at: new Date().toISOString() } : svpUpdate(result, work.exam_at, work.svp_result);
+          await supabaseAdmin.from("job_submissions").update(upd).eq("id", work.id);
           checked++;
         }
         return Response.json({ ok: true, checked });
