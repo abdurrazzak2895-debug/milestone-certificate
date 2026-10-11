@@ -118,7 +118,7 @@ function MyWorks() {
                 <span>TTC: {w.ttc_id ? ttc(w.ttc_id) : "—"}</span>
                 <span>পরীক্ষা: {fmtDhakaDateTime(w.exam_at)}</span>
                 <span>রিসেপশন: {w.arrival_status === "received" ? "রিসিভ করা হয়েছে" : w.arrival_status === "absent" ? "অনুপস্থিত" : "এখনো আসেননি"}</span>
-                <div className="flex flex-wrap gap-2 sm:col-span-2"><ResultCheckButton w={w} /><ReceiveToggle w={w} /></div>
+                <div className="flex flex-wrap gap-2 sm:col-span-2"><ResultCheckButton w={w} /><ReceiveToggle w={w} />{(() => { const d = workShareInfo(w, occ, ttc); return d ? <ResultShareActions d={d} /> : null; })()}</div>
                 {w.svp_checked_at && <span>রেজাল্ট চেক: {fmtDhakaDateTime(w.svp_checked_at)}</span>}
               </div>
               {w.skill_details && <p className="mt-2 rounded-lg bg-muted p-2 text-sm">দক্ষতা: {w.skill_details}</p>}
