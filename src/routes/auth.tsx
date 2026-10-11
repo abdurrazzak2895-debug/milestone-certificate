@@ -4,8 +4,9 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { homeForRoles } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, LogIn, Smartphone } from "lucide-react";
 import { checkDeviceSession, claimDeviceSession } from "@/lib/device-session";
+import brandLogo from "@/assets/brand-logo.png.asset.json";
 import space1 from "@/assets/space-1.webp";
 import space2 from "@/assets/space-2.webp";
 import space3 from "@/assets/space-3.webp";
@@ -27,15 +28,27 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-const inputCls =
-  "h-14 w-full rounded-xl border border-white/15 bg-white/5 px-4 text-center text-lg text-white outline-none transition-all duration-300 focus:border-indigo-400/60 focus:bg-white/10 focus:shadow-[0_0_30px_-8px_rgba(129,140,248,0.6)]";
-const btnCls =
-  "w-full rounded-xl bg-indigo-500/90 py-3.5 text-base font-semibold text-white transition-all duration-300 hover:bg-indigo-400 hover:shadow-[0_0_35px_-8px_rgba(129,140,248,0.9)] disabled:cursor-not-allowed disabled:opacity-40";
+const fieldCls =
+  "peer h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-12 text-center text-lg text-white placeholder:text-white/25 outline-none backdrop-blur-sm transition-all duration-300 focus:border-cyan-300/60 focus:bg-white/[0.08] focus:shadow-[0_0_40px_-10px_rgba(34,211,238,0.55)]";
+
+function GlowField({ icon, right, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <div className="group relative">
+      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors duration-300 group-focus-within:text-cyan-300">{icon}</span>
+      <input {...props} className={fieldCls} />
+      {right && <span className="absolute right-3 top-1/2 -translate-y-1/2">{right}</span>}
+      <span className="pointer-events-none absolute inset-x-8 -bottom-px h-px bg-gradient-to-r from-transparent via-cyan-300/0 to-transparent transition-all duration-500 group-focus-within:via-cyan-300/80" />
+    </div>
+  );
+}
 
 function AuthPage() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<"login" | "change">("login");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slide, setSlide] = useState(0);
@@ -61,29 +74,53 @@ function AuthPage() {
     })();
   }, [navigate]);
 
+  const eye = (
+    <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"} className="text-white/50 transition-colors hover:text-white">
+      {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+    </button>
+  );
+
+  const signIn = async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: `88${mobile}@phone.login.local`, password });
+    if (error || !data.user) return null;
+    return data.user;
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!mobileSchema.safeParse(mobile).success) {
-      toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
-      return;
-    }
+    if (!mobileSchema.safeParse(mobile).success) return toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
     if (!password) return;
     setBusy(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: `88${mobile}@phone.login.local`,
-      password,
-    });
-    if (error || !data.user) {
+    const user = await signIn();
+    if (!user) {
       setBusy(false);
-      toast.error("মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়");
-      return;
+      return toast.error(mode === "login" ? "মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়" : "মোবাইল নম্বর বা বর্তমান পাসওয়ার্ড সঠিক নয়");
+    }
+    if (mode === "change") {
+      if (newPass.length < 6) {
+        setBusy(false);
+        return toast.error("নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে");
+      }
+      if (newPass !== confirmPass) {
+        setBusy(false);
+        return toast.error("নতুন পাসওয়ার্ড দুটি মিলছে না");
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPass });
+      if (error) {
+        setBusy(false);
+        return toast.error("পাসওয়ার্ড পরিবর্তন করা যায়নি");
+      }
+      toast.success("পাসওয়ার্ড পরিবর্তন হয়েছে — নতুন পাসওয়ার্ড দিয়ে লগইন হয়েছে");
+    } else {
+      toast.success("সফলভাবে লগইন হয়েছে");
     }
     await claimDeviceSession();
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
     setBusy(false);
-    toast.success("সফলভাবে লগইন হয়েছে");
     navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
   };
+
+  const canSubmit = mobile.length === 11 && !!password && (mode === "login" || (newPass.length >= 6 && newPass === confirmPass));
 
   return (
     <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-8 sm:px-6">
@@ -96,67 +133,116 @@ function AuthPage() {
             width={1920}
             height={1088}
             loading={index === 0 ? "eager" : "lazy"}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[2500ms] ease-in-out motion-reduce:transition-none ${index === slide ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 h-full w-full scale-105 object-cover transition-all duration-[2500ms] ease-in-out motion-reduce:transition-none ${index === slide ? "scale-100 opacity-100" : "opacity-0"}`}
           />
         ))}
       </div>
-      <div className="absolute inset-0 -z-10 bg-black/45" aria-hidden="true" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/70 via-black/45 to-black/80" aria-hidden="true" />
+      <div className="pointer-events-none absolute -left-32 top-1/4 -z-10 h-96 w-96 rounded-full bg-cyan-500/15 blur-[120px]" aria-hidden="true" />
+      <div className="pointer-events-none absolute -right-32 bottom-1/4 -z-10 h-96 w-96 rounded-full bg-indigo-500/20 blur-[120px]" aria-hidden="true" />
 
       <section className="w-full max-w-sm">
-        <form
-          onSubmit={submit}
-          className="rounded-3xl border border-white/10 bg-black/55 p-8 shadow-[0_0_80px_-20px_rgba(129,140,248,0.45)] backdrop-blur-2xl sm:p-10"
-        >
-          <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-500">
-            <h1 className="text-center text-xl font-semibold text-white">লগইন</h1>
-            <div className="space-y-2">
-              <label htmlFor="mobile" className="block text-sm text-white/70">মোবাইল নম্বর</label>
-              <input
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <div className="relative">
+            <span className="absolute inset-0 -z-10 rounded-full bg-cyan-400/30 blur-2xl" aria-hidden="true" />
+            <img src={brandLogo.url} alt="Milestone Certificate" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
+          </div>
+          <div className="text-center">
+            <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate</p>
+            <p className="text-xs tracking-[0.3em] text-cyan-200/70">স্কিল ভেরিফিকেশন পোর্টাল</p>
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] bg-gradient-to-br from-cyan-400/50 via-white/10 to-indigo-500/50 p-px shadow-[0_0_90px_-25px_rgba(34,211,238,0.6)]">
+          <form onSubmit={submit} className="rounded-[calc(2rem-1px)] bg-black/70 p-7 backdrop-blur-2xl sm:p-9">
+            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-500">
+              <div className="grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-white/5 p-1 text-sm font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setMode("login")}
+                  className={`flex items-center justify-center gap-1.5 rounded-full py-2 transition-all duration-300 ${mode === "login" ? "bg-cyan-400 text-black shadow-[0_0_25px_-6px_rgba(34,211,238,0.9)]" : "text-white/60 hover:text-white"}`}
+                >
+                  <LogIn className="h-4 w-4" /> লগইন
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("change")}
+                  className={`flex items-center justify-center gap-1.5 rounded-full py-2 transition-all duration-300 ${mode === "change" ? "bg-cyan-400 text-black shadow-[0_0_25px_-6px_rgba(34,211,238,0.9)]" : "text-white/60 hover:text-white"}`}
+                >
+                  <KeyRound className="h-4 w-4" /> পাসওয়ার্ড বদলান
+                </button>
+              </div>
+
+              <GlowField
+                icon={<Smartphone className="h-5 w-5" />}
                 id="mobile"
                 type="tel"
                 inputMode="numeric"
                 autoComplete="tel-national"
+                placeholder="01XXXXXXXXX"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))}
                 maxLength={11}
                 required
-                className={`${inputCls} tracking-[0.2em]`}
+                style={{ letterSpacing: "0.2em" }}
               />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm text-white/70">পাসওয়ার্ড</label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={show ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className={`${inputCls} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShow((v) => !v)}
-                  aria-label={show ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
-                >
-                  {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              <GlowField
+                icon={<Lock className="h-5 w-5" />}
+                id="password"
+                type={show ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder={mode === "login" ? "পাসওয়ার্ড" : "বর্তমান পাসওয়ার্ড"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                right={eye}
+              />
+              {mode === "change" && (
+                <div className="animate-in fade-in slide-in-from-top-2 space-y-4 duration-300">
+                  <GlowField
+                    icon={<KeyRound className="h-5 w-5" />}
+                    type={show ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="নতুন পাসওয়ার্ড (৬+ অক্ষর)"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    required
+                  />
+                  <GlowField
+                    icon={<KeyRound className="h-5 w-5" />}
+                    type={show ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="নতুন পাসওয়ার্ড আবার দিন"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy || !canSubmit}
+                className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 py-3.5 text-base font-bold text-black transition-all duration-300 hover:shadow-[0_0_45px_-8px_rgba(34,211,238,0.9)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" aria-hidden="true" />
+                <span className="relative">{busy ? "অপেক্ষা করুন..." : mode === "login" ? "লগইন করুন" : "পাসওয়ার্ড পরিবর্তন করুন"}</span>
+              </button>
+
+              {mode === "login" && (
+                <button type="button" onClick={() => setMode("change")} className="block w-full text-center text-sm text-cyan-300/80 transition-colors hover:text-cyan-200">
+                  পাসওয়ার্ড ভুলে গেছেন? এখান থেকেই বদলে নিন
                 </button>
-              </div>
+              )}
             </div>
-            <button type="submit" disabled={busy || mobile.length !== 11 || !password} className={btnCls}>
-              {busy ? "অপেক্ষা করুন..." : "লগইন"}
-            </button>
-            <button
-              type="button"
-              onClick={() => toast.info("পাসওয়ার্ড পুনরুদ্ধারের জন্য অ্যাডমিনের সঙ্গে যোগাযোগ করুন")}
-              className="block w-full text-center text-sm text-indigo-300 transition-colors hover:text-indigo-200"
-            >
-              পাসওয়ার্ড ভুলে গেছেন?
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        <div className="mt-6 flex justify-center gap-2" aria-hidden="true">
+          {slides.map((_, i) => (
+            <span key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i === slide ? "w-6 bg-cyan-300" : "w-1.5 bg-white/30"}`} />
+          ))}
+        </div>
       </section>
     </main>
   );
