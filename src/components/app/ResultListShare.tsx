@@ -8,6 +8,7 @@ import { SvpPill } from "@/components/app/WorkBits";
 import { ResultCheckButton } from "@/components/app/ResultCheckButton";
 import { Button } from "@/components/ui/button";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
+import cardBg from "@/assets/bg-cosmic-1.webp";
 
 const dhakaDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
@@ -21,34 +22,96 @@ function loadImg(src: string) {
   });
 }
 
+function cover(x: CanvasRenderingContext2D, img: HTMLImageElement, W: number, H: number) {
+  const s = Math.max(W / img.width, H / img.height);
+  const w = img.width * s, h = img.height * s;
+  x.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+}
+
 async function makeCard(d: Info): Promise<Blob> {
   const W = 1080, H = 1350, c = document.createElement("canvas");
   c.width = W; c.height = H;
   const x = c.getContext("2d")!;
   const pass = d.result === "PASS";
-  const accent = pass ? "#16a34a" : "#dc2626";
-  x.fillStyle = "#f8faf7"; x.fillRect(0, 0, W, H);
-  x.fillStyle = "#14532d"; x.fillRect(0, 0, W, 230);
+  const accent = pass ? "#22c55e" : "#ef4444";
+  const accentDark = pass ? "#14532d" : "#7f1d1d";
+
+  // Background photo + dark gradient veil
+  const bg = await loadImg(cardBg);
+  if (bg) cover(x, bg, W, H); else { x.fillStyle = "#0b1220"; x.fillRect(0, 0, W, H); }
+  const veil = x.createLinearGradient(0, 0, 0, H);
+  veil.addColorStop(0, "rgba(6,14,10,0.82)"); veil.addColorStop(0.5, "rgba(6,14,10,0.88)"); veil.addColorStop(1, "rgba(6,14,10,0.94)");
+  x.fillStyle = veil; x.fillRect(0, 0, W, H);
+
+  // Ambient glow orbs
+  const orb = (cx: number, cy: number, r: number, col: string) => {
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, col); g.addColorStop(1, "transparent");
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill();
+  };
+  orb(W - 120, 120, 380, pass ? "rgba(34,197,94,0.28)" : "rgba(239,68,68,0.25)");
+  orb(80, H - 140, 420, "rgba(56,189,248,0.16)");
+
+  // Outer frame
+  x.strokeStyle = "rgba(255,255,255,0.14)"; x.lineWidth = 3;
+  x.beginPath(); x.roundRect(34, 34, W - 68, H - 68, 36); x.stroke();
+  x.strokeStyle = accent; x.lineWidth = 2; x.globalAlpha = 0.5;
+  x.beginPath(); x.roundRect(46, 46, W - 92, H - 92, 30); x.stroke(); x.globalAlpha = 1;
+
+  // Glass header
+  x.fillStyle = "rgba(255,255,255,0.07)";
+  x.beginPath(); x.roundRect(70, 70, W - 140, 190, 28); x.fill();
+  x.strokeStyle = "rgba(255,255,255,0.16)"; x.lineWidth = 1.5; x.stroke();
+
   const logo = await loadImg(brandLogo.url);
-  if (logo) { x.save(); x.beginPath(); x.arc(130, 115, 75, 0, Math.PI * 2); x.clip(); x.drawImage(logo, 55, 40, 150, 150); x.restore(); }
-  x.fillStyle = "#ffffff"; x.font = "bold 52px sans-serif"; x.fillText("Milestone Certificate", 235, 105);
-  x.font = "34px sans-serif"; x.fillText("Institute · SVP Exam Result", 235, 160);
-  x.fillStyle = accent; x.beginPath(); x.roundRect(90, 290, W - 180, 200, 30); x.fill();
-  x.fillStyle = "#ffffff"; x.textAlign = "center"; x.font = "bold 120px sans-serif"; x.fillText(d.result, W / 2, 435);
-  x.textAlign = "left";
-  const rows: [string, string][] = [["Name", d.name], ["Passport", d.passport], ["Occupation", d.occupation], ["TTC", d.ttc], ["Exam", d.examAt], ["Reference", d.ref]];
-  let y = 600;
-  for (const [k, v] of rows) {
-    x.fillStyle = "#6b7280"; x.font = "32px sans-serif"; x.fillText(k, 110, y);
-    x.fillStyle = "#111827"; x.font = "bold 40px sans-serif";
-    let t = v || "—"; while (x.measureText(t).width > 560 && t.length > 3) t = t.slice(0, -2);
-    x.fillText(t, 400, y);
-    x.strokeStyle = "#e5e7eb"; x.lineWidth = 2; x.beginPath(); x.moveTo(110, y + 30); x.lineTo(W - 110, y + 30); x.stroke();
-    y += 105;
+  if (logo) {
+    x.save();
+    x.shadowColor = accent; x.shadowBlur = 40;
+    x.beginPath(); x.arc(185, 165, 72, 0, Math.PI * 2); x.fillStyle = "#0f172a"; x.fill();
+    x.shadowBlur = 0; x.clip(); x.drawImage(logo, 113, 93, 144, 144); x.restore();
+    x.strokeStyle = accent; x.lineWidth = 4; x.beginPath(); x.arc(185, 165, 72, 0, Math.PI * 2); x.stroke();
   }
-  x.fillStyle = "#6b7280"; x.font = "28px sans-serif"; x.textAlign = "center";
-  x.fillText("Source: Official SVP (svp-international.pacc.sa)", W / 2, H - 90);
-  x.fillText(`Generated: ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Dhaka" })}`, W / 2, H - 45);
+  x.textAlign = "left";
+  x.fillStyle = "#ffffff"; x.font = "bold 54px sans-serif"; x.fillText("Milestone Certificate", 290, 150);
+  x.fillStyle = "rgba(255,255,255,0.75)"; x.font = "32px sans-serif"; x.fillText("Institute · Official SVP Exam Result", 290, 200);
+
+  // Result badge with glow
+  const bx = W / 2, by = 445, br = 130;
+  const bgGlow = x.createRadialGradient(bx, by, br * 0.4, bx, by, br * 2.1);
+  bgGlow.addColorStop(0, pass ? "rgba(34,197,94,0.45)" : "rgba(239,68,68,0.45)"); bgGlow.addColorStop(1, "transparent");
+  x.fillStyle = bgGlow; x.beginPath(); x.arc(bx, by, br * 2.1, 0, Math.PI * 2); x.fill();
+  const badge = x.createLinearGradient(bx, by - br, bx, by + br);
+  badge.addColorStop(0, accent); badge.addColorStop(1, accentDark);
+  x.save(); x.shadowColor = accent; x.shadowBlur = 50;
+  x.fillStyle = badge; x.beginPath(); x.arc(bx, by, br, 0, Math.PI * 2); x.fill(); x.restore();
+  x.strokeStyle = "rgba(255,255,255,0.85)"; x.lineWidth = 6; x.beginPath(); x.arc(bx, by, br - 12, 0, Math.PI * 2); x.stroke();
+  x.textAlign = "center"; x.fillStyle = "#ffffff"; x.font = "bold 92px sans-serif"; x.fillText(d.result, bx, by + 32);
+  x.fillStyle = "rgba(255,255,255,0.8)"; x.font = "28px sans-serif"; x.fillText(pass ? "✓ VERIFIED RESULT" : "✕ RESULT DECLARED", bx, by + br + 48);
+
+  // Info glass panel
+  const px = 90, py = 660, pw = W - 180, ph = 470;
+  x.fillStyle = "rgba(255,255,255,0.06)";
+  x.beginPath(); x.roundRect(px, py, pw, ph, 26); x.fill();
+  x.strokeStyle = "rgba(255,255,255,0.14)"; x.lineWidth = 1.5; x.stroke();
+
+  const rows: [string, string][] = [["Name", d.name], ["Passport", d.passport], ["Occupation", d.occupation], ["TTC", d.ttc], ["Exam", d.examAt], ["Reference", d.ref]];
+  let y = py + 62;
+  for (const [k, v] of rows) {
+    x.textAlign = "left";
+    x.fillStyle = "rgba(255,255,255,0.55)"; x.font = "30px sans-serif"; x.fillText(k.toUpperCase(), px + 40, y);
+    x.fillStyle = "#ffffff"; x.font = "bold 38px sans-serif";
+    let t = v || "—"; while (x.measureText(t).width > 500 && t.length > 3) t = t.slice(0, -2);
+    x.textAlign = "right"; x.fillText(t, px + pw - 40, y);
+    if (k !== "Reference") { x.strokeStyle = "rgba(255,255,255,0.1)"; x.lineWidth = 1.5; x.beginPath(); x.moveTo(px + 40, y + 24); x.lineTo(px + pw - 40, y + 24); x.stroke(); }
+    y += 68;
+  }
+
+  // Footer
+  x.textAlign = "center";
+  x.fillStyle = "rgba(255,255,255,0.6)"; x.font = "27px sans-serif";
+  x.fillText("Source: Official SVP (svp-international.pacc.sa)", W / 2, H - 105);
+  x.fillStyle = "rgba(255,255,255,0.4)"; x.font = "24px sans-serif";
+  x.fillText(`Generated: ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Dhaka" })} · milestonecertificate.lovable.app`, W / 2, H - 68);
   return new Promise((r) => c.toBlob((b) => r(b!), "image/png"));
 }
 
