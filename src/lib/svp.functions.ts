@@ -61,12 +61,23 @@ export const checkSvpResult = createServerFn({ method: "POST" })
     return querySvp(data.passport, data.occupationKey);
   });
 
+/** Map an SVP lookup to submission columns. A result dated before this exam day is an older attempt — never shown as the current result. */
+export function svpUpdate(res: SvpCheck, examAt: string | null, prev: string) {
+  const now = new Date().toISOString();
+  if (res.status !== "found") return { svp_result: prev === "PASS" || prev === "FAIL" ? prev : "NOT_FOUND", svp_checked_at: now };
+  const examDay = examAt ? new Date(new Date(examAt).getTime() + 6 * 3600_000).toISOString().slice(0, 10) : null;
+  const old = !!(res.examDate && examDay && res.examDate < examDay);
+  if (old) return { svp_result: "NOT_FOUND", svp_old_result: res.result, svp_exam_date: res.examDate, svp_checked_at: now };
+  if (res.result === "PENDING") return { svp_result: "PENDING", svp_checked_at: now };
+  return { svp_result: res.result, svp_exam_date: res.examDate, svp_old_result: null, svp_checked_at: now };
+}
+
 /** Check SVP for one submitted work. Admin/staff or a service provider (approved works only, enforced by RLS). */
 export const checkSubmissionSvp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }): Promise<SvpCheck> => {
-    const { data: sub } = await context.supabase.from("job_submissions").select("id, passport_no, occupation_id").eq("id", data.id).maybeSingle();
+    const { data: sub } = await context.supabase.from("job_submissions").select("id, passport_no, occupation_id, exam_at, svp_result").eq("id", data.id).maybeSingle();
     if (!sub) return { status: "error", message: "অনুমতি নেই" };
     if (!sub.occupation_id) return { status: "error", message: "পেশা নির্বাচন করা নেই" };
     const { data: occ } = await context.supabase.from("occupations").select("svp_key").eq("id", sub.occupation_id).maybeSingle();
@@ -74,6 +85,8 @@ export const checkSubmissionSvp = createServerFn({ method: "POST" })
     const res = await querySvp(sub.passport_no, occ.svp_key);
     if (res.status === "error") return res;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("job_submissions").update({ svp_result: res.status === "found" ? res.result : "NOT_FOUND", svp_checked_at: new Date().toISOString() }).eq("id", sub.id);
+    const upd = svpUpdate(res, sub.exam_at, sub.svp_result);
+    await supabaseAdmin.from("job_submissions").update(upd).eq("id", sub.id);
+    if ("svp_old_result" in upd && upd.svp_old_result) return { status: "not_found", message: `পুরোনো রেজাল্ট (${upd.svp_exam_date}): ${upd.svp_old_result} — এই পরীক্ষার রেজাল্ট এখনো আসেনি` };
     return res;
   });
