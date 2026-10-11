@@ -57,7 +57,7 @@ const notices = [
   "Submit করার আগে সকল তথ্য ভালোভাবে যাচাই করতে হবে।",
 ];
 
-const empty = { passport_no: "", candidate_name: "", mobile: "", secondary_mobile: "", skill_details: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
+const empty = { passport_no: "", candidate_name: "", mobile: "", secondary_mobile: "", skill_details: "", result_email: "", result_password: "", other_info: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 function SubmitJob() {
@@ -135,7 +135,7 @@ function SubmitJob() {
       }
       const { data, error } = await supabase
         .from("job_submissions")
-        .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: rest.skill_details || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true })
+        .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: [rest.skill_details, f.result_email.trim() && `Result Email: ${f.result_email.trim()}`, f.result_password.trim() && `Result Password: ${f.result_password.trim()}`, f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`].filter(Boolean).join("\n").slice(0, 2000) || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true })
         .select("ref_code")
         .single();
       if (error) throw error;
@@ -196,7 +196,7 @@ function SubmitJob() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value.toUpperCase())} maxLength={100} /><Err k="candidate_name" /></div>
           <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value.toUpperCase())} maxLength={20} /><Err k="passport_no" /></div>
-          <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><Err k="mobile" /></div>
+          <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">⚠️ শুধুমাত্র পরীক্ষার্থীর নিজের মোবাইল নম্বর দিন — এজেন্ট/নিজের নম্বর দেবেন না।</p><Err k="mobile" /></div>
           <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={f.secondary_mobile} onChange={(e) => set("secondary_mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /></div>
           <div>
             <Label>TTC *</Label>
@@ -257,6 +257,12 @@ function SubmitJob() {
           </div>
         </div>
         <div><Label className="mb-2 block">নোট</Label><Textarea value={f.skill_details} onChange={(e) => set("skill_details", e.target.value)} maxLength={1000} rows={3} placeholder="কাজের বিবরণ লিখুন..." /></div>
+        <div className="grid gap-4 rounded-xl border border-dashed p-3 sm:grid-cols-2">
+          <p className="text-sm font-semibold sm:col-span-2">রেজাল্ট চেকের তথ্য (ঐচ্ছিক)</p>
+          <div><Label>Email</Label><Input type="email" value={f.result_email} onChange={(e) => set("result_email", e.target.value)} maxLength={120} placeholder="example@gmail.com" /></div>
+          <div><Label>Password</Label><Input value={f.result_password} onChange={(e) => set("result_password", e.target.value)} maxLength={100} placeholder="পাসওয়ার্ড" /></div>
+          <div className="sm:col-span-2"><Label>অন্যান্য</Label><Textarea value={f.other_info} onChange={(e) => set("other_info", e.target.value)} maxLength={500} rows={2} placeholder="অন্য কিছু লিখুন..." /></div>
+        </div>
         <div>
           <Label className="mb-2 block">Takamul Appointment Ticket (PDF / Image) *</Label>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm hover:bg-muted">
@@ -320,6 +326,9 @@ function SubmitJob() {
                 ["টিকেট", file?.name ?? ""],
                 ["ছবি", candidatePhoto ? "আছে" : "নেই"],
                 ...(f.skill_details ? [["নোট", f.skill_details]] : []),
+                ...(f.result_email ? [["Email", f.result_email]] : []),
+                ...(f.result_password ? [["Password", f.result_password]] : []),
+                ...(f.other_info ? [["অন্যান্য", f.other_info]] : []),
               ] as [string, string][]).map(([k, v]) => (
                 <div key={k} className="contents"><dt className="text-muted-foreground">{k}:</dt><dd className="break-words font-medium">{v || "—"}</dd></div>
               ))}
