@@ -49,6 +49,16 @@ function ManagementPage() {
     .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
     .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
   const ttc = lookup(useQuery(ttcQ).data);
+  const copyText = async () => {
+    const groups = new Map<string, typeof works>();
+    for (const w of works) { const k = `${occ(w.occupation_id) ?? "—"}|${w.exam_at ? dTime(w.exam_at) : "—"}`; groups.set(k, [...(groups.get(k) ?? []), w]); }
+    const text = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ws]) => {
+      const [o, t] = k.split("|");
+      return [o, t, "", ...ws.flatMap((w) => [w.candidate_name, w.passport_no, ""])].join("\n");
+    }).join("\n").trim();
+    if (!text) return toast.error("কপি করার মতো কিছু নেই");
+    try { await navigator.clipboard.writeText(text); toast.success(`${bn(works.length)} জনের তালিকা কপি হয়েছে`); } catch { toast.error("কপি করা যায়নি"); }
+  };
   const sel = "h-10 rounded-lg border bg-card px-2 text-sm";
   return <div className="mx-auto max-w-4xl space-y-4">
     <h1 className="font-display text-2xl font-bold">পরীক্ষার্থী রিসেপশন ({bn(works.length)})</h1>
