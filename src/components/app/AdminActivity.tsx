@@ -51,7 +51,7 @@ export function AdminActivity() {
   const exportCsv = () => {
     const head = ["Ref", "Name", "Passport", "Mobile", "Exam Date/Time", "Occupation", "TTC", "Status", "Result", "Reception"];
     const lines = filtered.map((r) => [r.ref_code, r.candidate_name, r.passport_no, r.mobile, new Date(r.exam_at).toLocaleString("en-GB", { timeZone: "Asia/Dhaka" }), occName(r.occupation_id ?? ""), ttcName(r.ttc_id ?? ""), r.status, r.svp_result, r.arrival_status]);
-    const csv = [head, ...lines].map((l) => l.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const csv = [head, ...lines].map((l) => l.map((v) => { let t = String(v ?? ""); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return `"${t.replace(/"/g, '""')}"`; }).join(",")).join("\r\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
