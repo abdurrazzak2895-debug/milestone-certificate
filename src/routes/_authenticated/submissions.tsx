@@ -1,3 +1,4 @@
+import { ReceiveToggle } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute } from "@tanstack/react-router";
@@ -164,6 +165,7 @@ function Submissions() {
                 {w.reviewed_at && <span>রিভিউ: {fmtDhakaDateTime(w.reviewed_at)}</span>}
                 {w.svp_checked_at && <span>SVP চেক: {fmtDhakaDateTime(w.svp_checked_at)}</span>}
                 <span>রিসেপশন: {w.arrival_status === "received" ? "রিসিভ করা হয়েছে" : w.arrival_status === "absent" ? "অনুপস্থিত" : "এখনো আসেননি"}</span>
+                <div className="sm:col-span-2"><ReceiveToggle w={w} /></div>
               </div>
               {w.skill_details && <p className="mt-2 rounded-lg bg-muted p-2 text-sm">দক্ষতা: {w.skill_details}</p>}
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}

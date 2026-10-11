@@ -1,3 +1,4 @@
+import { ReceiveToggle } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute } from "@tanstack/react-router";
@@ -77,7 +78,7 @@ function Provider() {
                   <td className="px-3 py-2">{occ(w.occupation_id)}</td>
                   <td className="px-3 py-2">{ttc(w.ttc_id)}</td>
                   <td className="px-3 py-2">{fmtDhakaDateTime(w.exam_at)}</td>
-                   <td className="px-3 py-2"><StatusPill status={w.arrival_status} /></td>
+                   <td className="px-3 py-2"><StatusPill status={w.arrival_status} /><div className="mt-1"><ReceiveToggle w={w} /></div></td>
                   <td className="px-3 py-2"><SvpPill result={w.svp_result} work={w} /></td>
                   <td className="px-3 py-2"><Button size="sm" variant="outline" disabled={busy === w.id} onClick={() => check(w.id)}><RefreshCw className="h-4 w-4" /></Button></td>
                 </tr>
