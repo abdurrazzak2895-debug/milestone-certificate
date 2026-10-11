@@ -20,6 +20,8 @@ export function ResultCheckButton({ w }: { w: Work }) {
       else if (r.status === "not_found") toast.warning(r.message ?? "রেজাল্ট এখনো আসেনি");
       else toast.success("রেজাল্ট আপডেট হয়েছে");
       qc.invalidateQueries({ queryKey: ["works"] });
+      qc.invalidateQueries({ queryKey: ["exams"] });
+      qc.invalidateQueries({ queryKey: ["candidates"] });
     } catch (e) { toast.error(e instanceof Error ? e.message : "রেজাল্ট চেক করা যায়নি"); }
     finally { setBusy(false); }
   };

@@ -18,6 +18,10 @@ export function useWorksRealtime() {
       .on("postgres_changes", { event: "*", schema: "public", table: "job_submissions" }, () => {
         qc.invalidateQueries({ queryKey: ["works"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "exams" }, () => {
+        qc.invalidateQueries({ queryKey: ["exams"] });
+        qc.invalidateQueries({ queryKey: ["works"] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
