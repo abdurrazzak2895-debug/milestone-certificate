@@ -53,8 +53,8 @@ export function OfficeAddress() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="col-span-2 flex items-center justify-center gap-2 rounded-2xl border border-primary bg-card p-3 font-semibold text-primary shadow-sm">
-          <MapPin className="h-5 w-5" /> অফিস ঠিকানা
+        <button className="flex items-center justify-center gap-1.5 rounded-xl border border-primary/60 bg-card px-2 py-2 text-xs font-semibold text-primary shadow-sm">
+          <MapPin className="h-4 w-4" /> অফিস ঠিকানা
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-lg p-0">
