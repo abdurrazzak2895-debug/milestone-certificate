@@ -4,7 +4,10 @@ import { isManager } from "@/lib/roles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Bell, Building2, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, Clock, Plus, Search, Users, XCircle, UserX } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, Building2, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, Clock, MessageSquare, Plus, Search, Users, XCircle, UserX } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { sendTodayExamSmsNow } from "@/lib/exam-sms.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatCard, PageHeader, ResultBadge, Empty } from "@/components/app/ui-bits";
@@ -156,6 +159,21 @@ function QuickBtn({ icon, label, onClick, to }: { icon: React.ReactNode; label: 
   return to ? <Link to={to} className={cls}>{icon}{label}</Link> : <button onClick={onClick} className={cls}>{icon}{label}</button>;
 }
 
+function SmsButton() {
+  const send = useServerFn(sendTodayExamSmsNow);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button size="sm" variant="outline" disabled={busy} onClick={async () => {
+      if (!confirm("আজকের বগুড়া পরীক্ষার্থী ও এজেন্টদের SMS পাঠাবেন? (আগে পাঠানো হলে আবার যাবে না)")) return;
+      setBusy(true);
+      try {
+        const r = await send();
+        toast.success(`SMS পাঠানো হয়েছে — পরীক্ষার্থী ${bn(r.candidates)}, এজেন্ট ${bn(r.agents)}${r.failed ? `, ব্যর্থ ${bn(r.failed)}` : ""}`);
+      } catch { toast.error("SMS পাঠানো যায়নি"); } finally { setBusy(false); }
+    }}><MessageSquare className="h-4 w-4" />{busy ? "পাঠানো হচ্ছে…" : "SMS পাঠান"}</Button>
+  );
+}
+
 function useAgentOf() {
   const { data: subs = [] } = useQuery({
     queryKey: ["dash-sub-agents-v2"],
@@ -192,7 +210,7 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
     <div className="card-surface p-4">
       <h3 className="mb-3 flex items-center justify-between gap-2 text-base font-semibold">
         <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> আজকের রিমাইন্ডার — বগুড়া</span>
-        <span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span>
+        <span className="flex items-center gap-2"><SmsButton /><span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span></span>
       </h3>
       {list.length === 0 ? <Empty>আজ বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
         <ul className="max-h-72 divide-y overflow-y-auto">
