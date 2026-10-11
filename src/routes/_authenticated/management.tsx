@@ -17,9 +17,9 @@ import { PhotoInput } from "@/components/app/PhotoInput";
 
 export const Route = createFileRoute("/_authenticated/management")({
   head: () => ({ meta: [
-    { title: "পরীক্ষার্থী রিসেপশন | Milestone Certificate" },
+    { title: "পরীক্ষার্থী রিসেপশন | Milestone Certificate Institute" },
     { name: "description", content: "অনুমোদিত পরীক্ষার্থীর উপস্থিতি, যোগাযোগ, ছবি ও দক্ষতার তথ্য পরিচালনা।" },
-    { property: "og:title", content: "পরীক্ষার্থী রিসেপশন | Milestone Certificate" },
+    { property: "og:title", content: "পরীক্ষার্থী রিসেপশন | Milestone Certificate Institute" },
     { property: "og:description", content: "অনুমোদিত পরীক্ষার্থীর উপস্থিতি ও তথ্য পরিচালনা।" },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },

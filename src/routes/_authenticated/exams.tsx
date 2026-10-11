@@ -9,7 +9,7 @@ import { ExamDialog, ResultDialog } from "@/components/app/forms";
 import { candidatesQ, examsQ, occQ, ttcQ, lookup, bn, fmtDate, fmtTime, todayStr, addDays, dayLabel, RESULTS, RESULT_LABEL, type Exam } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/exams")({
-  head: () => ({ meta: [{ title: "পরীক্ষার তালিকা | Milestone Certificate" }, { name: "description", content: "আজ, আগামীকাল ও আসন্ন পরীক্ষা।" }, { property: "og:title", content: "পরীক্ষার তালিকা | Milestone Certificate" }, { property: "og:description", content: "আজ, আগামীকাল ও আসন্ন পরীক্ষা।" }] }),
+  head: () => ({ meta: [{ title: "পরীক্ষার তালিকা | Milestone Certificate Institute" }, { name: "description", content: "আজ, আগামীকাল ও আসন্ন পরীক্ষা।" }, { property: "og:title", content: "পরীক্ষার তালিকা | Milestone Certificate Institute" }, { property: "og:description", content: "আজ, আগামীকাল ও আসন্ন পরীক্ষা।" }] }),
   component: ExamsPage,
 });
 

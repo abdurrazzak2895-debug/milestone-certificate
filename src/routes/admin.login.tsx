@@ -12,9 +12,9 @@ const slides = [space1, space2, space3];
 export const Route = createFileRoute("/admin/login")({
   head: () => ({
     meta: [
-      { title: "অ্যাডমিন লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { title: "অ্যাডমিন লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { name: "description", content: "অ্যাডমিন ও স্টাফদের জন্য ইমেইল ও পাসওয়ার্ড দিয়ে নিরাপদ লগইন।" },
-      { property: "og:title", content: "অ্যাডমিন লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { property: "og:title", content: "অ্যাডমিন লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { property: "og:description", content: "অ্যাডমিন ও স্টাফদের জন্য নিরাপদ লগইন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

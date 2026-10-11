@@ -17,9 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 export const Route = createFileRoute("/_authenticated/submit-job")({
   head: () => ({
     meta: [
-      { title: "কাজ Submit করুন — এজেন্ট | Milestone Certificate" },
+      { title: "কাজ Submit করুন — এজেন্ট | Milestone Certificate Institute" },
       { name: "description", content: "এজেন্টদের জন্য পরীক্ষার্থীর কাজ Submit করার ফর্ম।" },
-      { property: "og:title", content: "কাজ Submit করুন — এজেন্ট | Milestone Certificate" },
+      { property: "og:title", content: "কাজ Submit করুন — এজেন্ট | Milestone Certificate Institute" },
       { property: "og:description", content: "এজেন্টদের জন্য পরীক্ষার্থীর কাজ Submit করার ফর্ম।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

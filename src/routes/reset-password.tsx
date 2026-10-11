@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { title: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { name: "description", content: "অ্যাডমিন অ্যাকাউন্টের নতুন পাসওয়ার্ড সেট করুন।" },
-      { property: "og:title", content: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { property: "og:title", content: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { property: "og:description", content: "অ্যাডমিন অ্যাকাউন্টের নতুন পাসওয়ার্ড সেট করুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

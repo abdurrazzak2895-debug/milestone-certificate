@@ -17,9 +17,9 @@ const mobileSchema = z.string().regex(/^01[3-9]\d{8}$/);
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { title: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { name: "description", content: "মোবাইল নম্বর ও পাসওয়ার্ড দিয়ে পরীক্ষা ব্যবস্থাপনা পোর্টালে প্রবেশ করুন।" },
-      { property: "og:title", content: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate" },
+      { property: "og:title", content: "লগইন — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { property: "og:description", content: "মোবাইল নম্বর ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -145,10 +145,10 @@ function AuthPage() {
         <div className="mb-6 flex flex-col items-center gap-3">
           <div className="relative">
             <span className="absolute inset-0 -z-10 rounded-full bg-cyan-400/30 blur-2xl" aria-hidden="true" />
-            <img src={brandLogo.url} alt="Milestone Certificate" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
+            <img src={brandLogo.url} alt="Milestone Certificate Institute" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
           </div>
           <div className="text-center">
-            <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate</p>
+            <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate Institute</p>
             <p className="text-xs tracking-[0.3em] text-cyan-200/70">স্কিল ভেরিফিকেশন পোর্টাল</p>
           </div>
         </div>

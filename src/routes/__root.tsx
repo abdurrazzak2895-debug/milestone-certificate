@@ -81,7 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Milestone Certificate — পরীক্ষার্থী ও পরীক্ষা ব্যবস্থাপনা" },
+      { title: "Milestone Certificate Institute — পরীক্ষার্থী ও পরীক্ষা ব্যবস্থাপনা" },
       { name: "description", content: "পরীক্ষার্থী, পরীক্ষা, রেজাল্ট ও বিশ্লেষণ এক জায়গায়।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
