@@ -129,7 +129,7 @@ function ResultsPage() {
                     <Link to="/candidates/$id" params={{ id: e.candidate_id }} className="font-medium hover:text-primary">{candMap.get(e.candidate_id)?.name}</Link>
                     <div className="text-xs text-muted-foreground">{fmtDate(e.exam_date)} · {occName(e.occupation_id)} · {ttcName(e.ttc_id)}</div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5"><ResultBadge result={e.result} /><Button size="sm" variant="outline" disabled={busy} onClick={() => quickCheck(e)}>SVP চেক</Button><Button size="sm" disabled={busy} className="bg-success text-primary-foreground hover:bg-success/90" onClick={() => quickSet(e, "PASS")}>PASS</Button><Button size="sm" variant="destructive" disabled={busy} onClick={() => quickSet(e, "FAIL")}>FAIL</Button><Button size="sm" variant="secondary" disabled={busy} onClick={() => quickSet(e, "ABSENT")}>ABSENT</Button><Button size="sm" variant="ghost" onClick={() => setResExam(e)}>বিস্তারিত</Button></div>
+                  <div className="flex flex-wrap items-center gap-1.5"><ResultBadge result={e.result} date={e.result_date} /><Button size="sm" variant="outline" disabled={busy} onClick={() => quickCheck(e)}>SVP চেক</Button><Button size="sm" disabled={busy} className="bg-success text-primary-foreground hover:bg-success/90" onClick={() => quickSet(e, "PASS")}>PASS</Button><Button size="sm" variant="destructive" disabled={busy} onClick={() => quickSet(e, "FAIL")}>FAIL</Button><Button size="sm" variant="secondary" disabled={busy} onClick={() => quickSet(e, "ABSENT")}>ABSENT</Button><Button size="sm" variant="ghost" onClick={() => setResExam(e)}>বিস্তারিত</Button></div>
                 </li>
               ))}
             </ul>

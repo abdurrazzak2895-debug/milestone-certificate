@@ -86,7 +86,7 @@ function ExamsPage() {
                         {dl && e.result === "PENDING" ? <span className="inline-flex items-center gap-1 font-semibold text-danger"><span className="pulse-dot h-2 w-2 rounded-full bg-danger" />{dl}</span> : fmtDate(e.exam_date)}
                       </td>
                       <td className="whitespace-nowrap p-3">{fmtTime(e.exam_time)}</td>
-                      <td className="p-3"><ResultBadge result={e.result} /></td>
+                      <td className="p-3"><ResultBadge result={e.result} date={e.result_date} /></td>
                       <td className="p-3 text-right"><Button size="sm" variant="outline" onClick={() => setResExam(e)}>রেজাল্ট</Button></td>
                     </tr>
                   );
