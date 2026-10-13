@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,7 @@ function AgencyReport() {
                     const dec = r.pass + r.fail;
                     const due = Math.max(r.fee - r.paid, 0);
                     return (
-                      <>
+                      <Fragment key={r.id}>
                         <tr key={r.id} className="border-t">
                           <td className="p-2">{r.name} <span className="text-muted-foreground">({r.code})</span></td>
                           <td className="p-2 tabular-nums font-semibold">{n(r.total)}</td>
@@ -147,7 +147,7 @@ function AgencyReport() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                   {rows.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">কোনো তথ্য নেই</td></tr>}
@@ -163,7 +163,7 @@ function AgencyReport() {
                 <thead className="text-left text-muted-foreground"><tr><th className="p-2">তারিখ</th><th className="p-2">কাজ</th><th className="p-2">এজেন্সি</th><th className="p-2">PASS</th><th className="p-2">FAIL</th><th className="p-2"></th></tr></thead>
                 <tbody>
                   {view.days.map(([d, v]) => (
-                    <>
+                    <Fragment key={d}>
                       <tr key={d} className="border-t">
                         <td className="p-2">{d}</td><td className="p-2 font-semibold tabular-nums">{n(v.total)}</td><td className="p-2 tabular-nums">{n(v.agents.size)}</td>
                         <td className="p-2 tabular-nums text-primary">{n(v.pass)}</td><td className="p-2 tabular-nums text-destructive">{n(v.fail)}</td>
@@ -174,7 +174,7 @@ function AgencyReport() {
                           {[...v.agents.entries()].sort((a, b) => b[1] - a[1]).map(([name, c]) => <span key={name} className="mr-2 inline-block rounded-full border bg-card px-2 py-0.5">{name}: {n(c)}</span>)}
                         </td></tr>
                       )}
-                    </>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
