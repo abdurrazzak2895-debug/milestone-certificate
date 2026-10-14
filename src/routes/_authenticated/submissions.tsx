@@ -164,16 +164,18 @@ function Submissions() {
       {list.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">কোনো কাজ নেই।</p> : (
         <ul className="space-y-3">
           {list.map((w) => isOldApproved(w) && !openIds.includes(w.id) ? (
-            <li key={w.id} className="flex items-center gap-3 rounded-2xl border bg-card/80 px-3 py-2.5 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/50">
+            <li key={w.id} className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card/80 px-3 py-2.5 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/50">
               <span className="shrink-0 rounded-full border border-primary/40 bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">✓ Completed</span>
-              <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-0.5 text-sm sm:grid-cols-4">
-                <span className="truncate font-semibold">{w.candidate_name}</span>
-                <span className="truncate text-muted-foreground">{w.passport_no}</span>
-                <span className="truncate text-muted-foreground">👤 {agentName(w.submitted_by)}</span>
-                <span className="truncate text-muted-foreground">📅 {w.exam_at ? fmtDhakaDate(w.exam_at) : "—"}</span>
+              <div className="flex shrink-0 items-center gap-1">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${w.svp_result === "PASS" ? "bg-success-soft text-success" : w.svp_result === "FAIL" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>{w.svp_result || "Pending"}</span>
+                <Button size="icon" variant="ghost" className="rounded-full text-primary hover:bg-primary-soft" aria-label="বিস্তারিত দেখুন" onClick={() => setOpenIds((s) => [...s, w.id])}><Eye className="h-5 w-5" /></Button>
               </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${w.svp_result === "PASS" ? "bg-success-soft text-success" : w.svp_result === "FAIL" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>{w.svp_result || "Pending"}</span>
-              <Button size="icon" variant="ghost" className="shrink-0 rounded-full text-primary hover:bg-primary-soft" aria-label="বিস্তারিত দেখুন" onClick={() => setOpenIds((s) => [...s, w.id])}><Eye className="h-5 w-5" /></Button>
+              <div className="grid min-w-0 w-full grid-cols-1 gap-y-0.5 text-sm sm:w-auto sm:flex-1 sm:grid-cols-4 sm:gap-x-3">
+                <span className="break-words font-semibold">{w.candidate_name}</span>
+                <span className="break-words text-muted-foreground">{w.passport_no}</span>
+                <span className="break-words text-muted-foreground">👤 {agentName(w.submitted_by)}</span>
+                <span className="break-words text-muted-foreground">📅 {w.exam_at ? fmtDhakaDate(w.exam_at) : "—"}</span>
+              </div>
             </li>
           ) : (
             <li key={w.id} className={`rounded-2xl border border-l-4 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${w.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
