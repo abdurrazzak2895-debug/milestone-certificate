@@ -7,7 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, Copy, FileText, RefreshCw, X } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, FileText, RefreshCw, X } from "lucide-react";
 import { AdminEditWorkDialog } from "@/components/app/AdminEditWorkDialog";
 import { worksQ, openTicket, fmtDhakaDateTime, type Work } from "@/lib/works";
 import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
@@ -54,6 +54,7 @@ function Submissions() {
   const [rejecting, setRejecting] = useState<Work | null>(null);
   const [reason, setReason] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [openIds, setOpenIds] = useState<string[]>([]);
   const agentName = (id: string) => { const a = accounts.find((x) => x.id === id); return a ? `${a.name}${a.agent_code ? ` (${a.agent_code})` : ""}` : "—"; };
   const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
   const dhakaTime = (d: Date) => d.toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false });
@@ -162,8 +163,21 @@ function Submissions() {
       </div>
       {list.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">কোনো কাজ নেই।</p> : (
         <ul className="space-y-3">
-          {list.map((w) => (
+          {list.map((w) => isOldApproved(w) && !openIds.includes(w.id) ? (
+            <li key={w.id} className="flex items-center gap-3 rounded-2xl border bg-card/80 px-3 py-2.5 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/50">
+              <span className="shrink-0 rounded-full border border-primary/40 bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">✓ Completed</span>
+              <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-0.5 text-sm sm:grid-cols-4">
+                <span className="truncate font-semibold">{w.candidate_name}</span>
+                <span className="truncate text-muted-foreground">{w.passport_no}</span>
+                <span className="truncate text-muted-foreground">👤 {agentName(w.submitted_by)}</span>
+                <span className="truncate text-muted-foreground">📅 {w.exam_at ? fmtDhakaDate(w.exam_at) : "—"}</span>
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${w.svp_result === "PASS" ? "bg-success-soft text-success" : w.svp_result === "FAIL" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>{w.svp_result || "Pending"}</span>
+              <Button size="icon" variant="ghost" className="shrink-0 rounded-full text-primary hover:bg-primary-soft" aria-label="বিস্তারিত দেখুন" onClick={() => setOpenIds((s) => [...s, w.id])}><Eye className="h-5 w-5" /></Button>
+            </li>
+          ) : (
             <li key={w.id} className={`rounded-2xl border border-l-4 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${w.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
+              {isOldApproved(w) && <div className="mb-2 flex justify-end"><Button size="sm" variant="ghost" onClick={() => setOpenIds((s) => s.filter((x) => x !== w.id))}><EyeOff className="mr-1 h-4 w-4" /> সংক্ষিপ্ত করুন</Button></div>}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3 font-semibold"><CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={44} /><span>{w.candidate_name}</span> <span className="text-sm font-normal text-muted-foreground">#{w.ref_code}</span></div>
                 <div className="flex gap-2"><StatusPill status={w.status} />{w.status === "approved" && <SvpPill result={w.svp_result} work={w} />}</div>
