@@ -106,3 +106,16 @@ export const checkSubmissionSvp = createServerFn({ method: "POST" })
     if ("svp_old_result" in upd && upd.svp_old_result) return { status: "not_found", message: `পুরোনো রেজাল্ট (${upd.svp_exam_date}): ${upd.svp_old_result} — এই পরীক্ষার রেজাল্ট এখনো আসেনি` };
     return res;
   });
+
+// Public live lookup (same data the official public Qiwa page shows; returns only the queried passport's result).
+export const publicSvpLookup = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ passport: z.string().transform((s) => s.replace(/[^A-Za-z0-9]/g, "")).pipe(z.string().min(5).max(20)), occupationId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: o } = await supabaseAdmin.from("occupations").select("svp_key").eq("id", data.occupationId).eq("active", true).maybeSingle();
+    const key = (o as { svp_key?: string | null } | null)?.svp_key;
+    if (!key) return { status: "error", message: "এই পেশার SVP কোড সেট করা নেই" } as SvpCheck;
+    return querySvp(data.passport, key);
+  });
