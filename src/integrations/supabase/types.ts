@@ -47,6 +47,68 @@ export type Database = {
         }
         Relationships: []
       }
+      appointment_extractions: {
+        Row: {
+          confidence: number | null
+          correction_reason: string | null
+          created_at: string
+          created_by: string
+          error: string | null
+          extracted: Json
+          id: string
+          old_exam_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submission_id: string
+          verified_exam_at: string | null
+          verified_reporting_time: string | null
+          warnings: Json
+        }
+        Insert: {
+          confidence?: number | null
+          correction_reason?: string | null
+          created_at?: string
+          created_by: string
+          error?: string | null
+          extracted?: Json
+          id?: string
+          old_exam_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submission_id: string
+          verified_exam_at?: string | null
+          verified_reporting_time?: string | null
+          warnings?: Json
+        }
+        Update: {
+          confidence?: number | null
+          correction_reason?: string | null
+          created_at?: string
+          created_by?: string
+          error?: string | null
+          extracted?: Json
+          id?: string
+          old_exam_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submission_id?: string
+          verified_exam_at?: string | null
+          verified_reporting_time?: string | null
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_extractions_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "job_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           arrival_status: string
