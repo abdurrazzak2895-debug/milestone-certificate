@@ -27,7 +27,7 @@ export function AppointmentScan({ submissionId, examAt }: { submissionId: string
       if ("error" in r && r.error) return toast.error(r.error);
       const e = (r as { extraction: Ext }).extraction;
       setExt(e);
-      setF({ date: e.extracted.exam_date ?? "", time: e.extracted.exam_time ?? "", rep: e.extracted.reporting_time ?? "", reason: "" });
+      setF({ date: e.extracted.exam_date ?? "", time: e.extracted.exam_time ?? "", rep: "", reason: "" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -39,7 +39,7 @@ export function AppointmentScan({ submissionId, examAt }: { submissionId: string
     if (!ext || !f.date || !f.time) return toast.error("তারিখ ও সময় দিন");
     setBusy(true);
     try {
-      const r = await verify({ data: { extractionId: ext.id, examDate: f.date, examTime: f.time, reportingTime: f.rep || null, reason: f.reason || null } });
+      const r = await verify({ data: { extractionId: ext.id, examDate: f.date, examTime: f.time, reportingTime: null, reason: f.reason || null } });
       if ("error" in r && r.error) return toast.error(r.error);
       toast.success("পরীক্ষার সময় যাচাই করে আপডেট হয়েছে");
       setExt(null);
@@ -70,10 +70,9 @@ export function AppointmentScan({ submissionId, examAt }: { submissionId: string
               {warnings.map((w, i) => <li key={i} className="flex gap-1"><AlertTriangle className="h-4 w-4 shrink-0" />{w}</li>)}
             </ul>
           )}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <label className="text-xs">পরীক্ষার তারিখ<Input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
             <label className="text-xs">পরীক্ষার সময়<Input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></label>
-            <label className="text-xs">রিপোর্টিং সময়<Input type="time" value={f.rep} onChange={(e) => setF({ ...f, rep: e.target.value })} /></label>
           </div>
           <Textarea placeholder="সংশোধন করলে কারণ লিখুন" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />
           <Button disabled={busy} onClick={save}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}যাচাই করে সংরক্ষণ</Button>
