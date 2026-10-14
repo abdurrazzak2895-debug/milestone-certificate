@@ -87,9 +87,17 @@ function AuthPage() {
   const loginEmail = isEmail ? mobile.trim().toLowerCase() : `88${mobile}@phone.login.local`;
 
   const signIn = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
-    if (error || !data.user) return null;
-    return data.user;
+    try {
+      let { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+      // Retry once with trimmed password (mobile keyboards often add a trailing space).
+      if ((error || !data.user) && password.trim() !== password) {
+        ({ data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: password.trim() }));
+      }
+      if (error || !data.user) return null;
+      return data.user;
+    } catch {
+      return null;
+    }
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -124,10 +132,16 @@ function AuthPage() {
     } else {
       toast.success("সফলভাবে লগইন হয়েছে");
     }
-    await claimDeviceSession();
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-    setBusy(false);
-    navigate({ to: homeForRoles((roles ?? []).map((r) => r.role as string)), replace: true });
+    try {
+      const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+      const roles = (roleRows ?? []).map((r) => r.role as string);
+      await claimDeviceSession(roles.includes("admin"));
+      navigate({ to: homeForRoles(roles), replace: true });
+    } catch {
+      toast.error("নেটওয়ার্ক সমস্যা — আবার চেষ্টা করুন");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const idOk = isEmail ? mobile.trim().length > 5 : mobile.length === 11;
@@ -192,8 +206,12 @@ function AuthPage() {
                 placeholder="মোবাইল নম্বর বা ইমেইল"
                 value={mobile}
                 onChange={(e) => {
-                  const v = e.target.value;
-                  setMobile(/[a-zA-Z@]/.test(v) ? v.replace(/\s/g, "") : v.replace(/\D/g, "").slice(0, 11));
+                  // Bengali digits → English; strip +88/88 country code.
+                  const v = e.target.value.replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+                  if (/[a-zA-Z@]/.test(v)) return setMobile(v.replace(/\s/g, ""));
+                  let digits = v.replace(/\D/g, "");
+                  if (digits.startsWith("880")) digits = digits.slice(2);
+                  setMobile(digits.slice(0, 11));
                 }}
                 required
                 style={{ letterSpacing: isEmail ? "0.02em" : "0.2em" }}
