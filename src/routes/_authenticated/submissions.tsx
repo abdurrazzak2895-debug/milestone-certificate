@@ -1,4 +1,5 @@
 import { PassportHistory } from "@/components/app/PassportHistory";
+import { AppointmentScan } from "@/components/app/AppointmentScan";
 import { ReceiveToggle } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentPhoto } from "@/components/app/AgentPhoto";
@@ -187,6 +188,7 @@ function Submissions() {
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>
+                {roles.includes("admin") && <AppointmentScan submissionId={w.id} examAt={w.exam_at} />}
                 {(() => { const d = workShareInfo(w, occ, ttc); return d ? <ResultShareActions d={d} /> : null; })()}
                 {roles.includes("admin") && <AdminEditWorkDialog w={w} />}
                 {canReview && w.status !== "approved" && <Button size="sm" disabled={busyId === w.id} onClick={() => review(w, "approved")}><Check className="mr-1 h-4 w-4" /> Approve</Button>}
