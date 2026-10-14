@@ -14,17 +14,20 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
-    const reason = await checkDeviceSession();
+    const [reason, rolesRes, activeRes] = await Promise.all([
+      checkDeviceSession(),
+      supabase.from("user_roles").select("role").eq("user_id", data.user.id),
+      supabase.rpc("is_active_account", { _user_id: data.user.id }),
+    ]);
     if (reason) {
       await forceSignOut(reason);
       throw redirect({ to: "/auth" });
     }
-    const { data: rows } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
-    const roles = (rows ?? []).map((r) => r.role as string);
+    const roles = (rolesRes.data ?? []).map((r) => r.role as string);
     if (roles.length === 0) throw redirect({ to: "/portal" });
     if (ADMIN_ONLY_PATHS.includes(location.pathname) && !roles.includes("admin")) throw redirect({ to: homeForRoles(roles) });
     if (!isManager(roles)) {
-      const { data: active } = await supabase.rpc("is_active_account", { _user_id: data.user.id });
+      const active = activeRes.data;
       if (active === false) {
         await supabase.auth.signOut();
         throw redirect({ to: "/auth" });
