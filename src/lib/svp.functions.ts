@@ -4,8 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const API = "https://svp-international-api.pacc.sa/api/v1/visitor_space";
 const HEADERS = {
-  Origin: "https://svp-international.pacc.sa",
-  Referer: "https://svp-international.pacc.sa/",
+  Origin: "https://svp-international.qiwa.sa",
+  Referer: "https://svp-international.qiwa.sa/",
   Accept: "application/json",
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
 };
@@ -32,10 +32,26 @@ export const listSvpOccupations = createServerFn({ method: "GET" })
 
 const MAP: Record<string, "PASS" | "FAIL" | "PENDING"> = { passed: "PASS", failed: "FAIL", pending: "PENDING" };
 
+async function fetchRetry(url: string, tries = 3): Promise<Response> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 15000);
+    try {
+      const r = await fetch(url, { headers: HEADERS, signal: ac.signal });
+      if (r.status >= 500 && i < tries - 1) { last = new Error(`status ${r.status}`); continue; }
+      return r;
+    } catch (e) { last = e; await new Promise((s) => setTimeout(s, 700 * (i + 1))); }
+    finally { clearTimeout(t); }
+  }
+  throw last;
+}
+
 export async function querySvp(passport: string, occupationKey: string): Promise<SvpCheck> {
-  const qs = new URLSearchParams({ passport_number: passport.toUpperCase(), occupation_key: occupationKey, nationality_id: BANGLADESH_CODE, locale: "en" });
+  const pp = passport.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const qs = new URLSearchParams({ passport_number: pp, occupation_key: occupationKey.trim(), nationality_id: BANGLADESH_CODE, locale: "en" });
   try {
-    const r = await fetch(`${API}/labors?${qs}`, { headers: HEADERS });
+    const r = await fetchRetry(`${API}/labors?${qs}`);
     const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
     if (r.status === 404 || j.error) return { status: "not_found", message: "SVP-তে কোনো রেজাল্ট পাওয়া যায়নি" };
     if (!r.ok) return { status: "error", message: "SVP সার্ভারে সমস্যা, পরে চেষ্টা করুন" };
@@ -46,14 +62,14 @@ export async function querySvp(passport: string, occupationKey: string): Promise
     return { status: "found", result, examDate: rec.exam_date ? String(rec.exam_date).slice(0, 10) : null, applicantName: rec.applicant_name ? String(rec.applicant_name) : null, occupation: nameOf(rec.occupation) };
   } catch (e) {
     console.error("SVP check failed", e);
-    return { status: "error", message: "SVP সার্ভারে সংযোগ করা যায়নি" };
+    return { status: "error", message: "SVP সার্ভার এই মুহূর্তে সাড়া দিচ্ছে না — কিছুক্ষণ পর আবার চেষ্টা করুন" };
   }
 }
 
 export const checkSvpResult = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ passport: z.string().trim().min(5).max(20).regex(/^[A-Za-z0-9]+$/), occupationKey: z.string().regex(/^\d{4,8}$/) }).parse(d),
+    z.object({ passport: z.string().transform((s) => s.replace(/[^A-Za-z0-9]/g, "")).pipe(z.string().min(5).max(20)), occupationKey: z.string().trim().regex(/^\d{4,8}$/) }).parse(d),
   )
   .handler(async ({ data, context }): Promise<SvpCheck> => {
     const { data: staff } = await context.supabase.rpc("is_staff", { _user_id: context.userId });
