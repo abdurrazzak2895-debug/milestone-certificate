@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { PassportHistory } from "@/components/app/PassportHistory";
 import { AppointmentScan } from "@/components/app/AppointmentScan";
 import { ReceiveToggle } from "@/components/app/ReceiveStatus";
@@ -150,7 +151,7 @@ function Submissions() {
           <optgroup label="MORNING"><option value="10:00">10:00 AM</option><option value="11:00">11:00 AM</option></optgroup>
           <optgroup label="AFTERNOON"><option value="13:00">01:00 PM</option><option value="14:00">02:00 PM</option></optgroup>
         </select>
-        {day === "date" && <input type="date" className={sel} value={date} onChange={(e) => setDate(e.target.value)} />}
+        {day === "date" && <DateSelect className={sel} value={date} onChange={(e) => setDate(e.target.value)} />}
         <Button variant="ghost" size="sm" onClick={reset}>সব রিসেট</Button>
         <Button variant="secondary" size="sm" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
       </div>

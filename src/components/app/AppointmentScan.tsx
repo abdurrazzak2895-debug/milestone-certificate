@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -71,7 +72,7 @@ export function AppointmentScan({ submissionId, examAt }: { submissionId: string
             </ul>
           )}
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs">পরীক্ষার তারিখ<Input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
+            <label className="text-xs">পরীক্ষার তারিখ<DateSelect value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
             <label className="text-xs">পরীক্ষার সময়<Input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></label>
           </div>
           <Textarea placeholder="সংশোধন করলে কারণ লিখুন" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />

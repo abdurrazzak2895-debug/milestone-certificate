@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { ReceiveAnalyticsButton } from "@/components/app/ReceiveStatus";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { AgentDashboard } from "@/components/app/AgentDashboard";
@@ -84,9 +85,9 @@ function Dashboard() {
         ))}
         {range === "custom" && (
           <div className="flex items-center gap-2">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-40" />
+            <DateSelect value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-40" />
             <span>—</span>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-40" />
+            <DateSelect value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-40" />
           </div>
         )}
       </div>
@@ -216,7 +217,7 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
       <h3 className="mb-3 flex flex-wrap items-center justify-between gap-2 text-base font-semibold">
         <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> {pick ? `${fmtDate(pick)} — বগুড়া` : "আজকের রিমাইন্ডার — বগুড়া"}</span>
         <span className="flex items-center gap-2">
-          <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm font-normal" />
+          <DateSelect aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm font-normal" />
           {!pick && <SmsButton />}<span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span></span>
       </h3>
       {list.length === 0 ? <Empty>{pick ? "এই তারিখে" : "আজ"} বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
@@ -275,7 +276,7 @@ function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occ
           <select value={rk} onChange={(e) => { setRk(e.target.value as BRange); setPick(""); }} className="h-8 rounded-md border bg-background px-2 text-sm">
             {(Object.keys(B_RANGES) as BRange[]).map((k) => <option key={k} value={k}>{B_RANGES[k]}</option>)}
           </select>
-          <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm" />
+          <DateSelect aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm" />
           <span className="rounded-full bg-primary/15 px-3 py-0.5 text-sm text-primary">মোট {bn(total)}</span>
         </span>
       </h3>

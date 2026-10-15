@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { ReceiveAnalyticsButton, ReceiveBanner, ReceiveToggle } from "@/components/app/ReceiveStatus";
 import { ResultCheckButton } from "@/components/app/ResultCheckButton";
 import { EditWorkDialog } from "@/components/app/EditWorkDialog";
@@ -127,7 +128,7 @@ export function AgentDashboard() {
               {l} ({bn(onDay(n).length)})
             </button>
           ))}
-          <input type="date" aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className={`h-9 shrink-0 rounded-full border px-3 text-sm ${pick ? "border-primary bg-primary/15" : "bg-card"}`} />
+          <DateSelect aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className={`h-9 shrink-0 rounded-full border px-3 text-sm ${pick ? "border-primary bg-primary/15" : "bg-card"}`} />
         </div>
         {list.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">এই দিনে কোনো পরীক্ষার্থী নেই।</p>

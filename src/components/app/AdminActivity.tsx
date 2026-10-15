@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, MessageCircle } from "lucide-react";
@@ -71,7 +72,7 @@ export function AdminActivity() {
     <div className="mb-5 space-y-4 rounded-2xl border bg-card/90 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-bold">অ্যাক্টিভিটি সামারি</h2>
-        <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="w-44" />
+        <DateSelect value={day} onChange={(e) => setDay(e.target.value)} className="w-44" />
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[["নতুন সাবমিশন", summary.newSubs], ["অনুমোদিত", summary.approved], ["PASS (ঐ দিনের পরীক্ষা)", summary.pass], ["SMS পাঠানো", sms]].map(([l, v]) => (
@@ -82,9 +83,9 @@ export function AdminActivity() {
       <div className="rounded-xl border p-3">
         <div className="mb-2 text-sm font-semibold">পরীক্ষার্থী তালিকা Excel/CSV এক্সপোর্ট (পরীক্ষার তারিখ অনুযায়ী)</div>
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+          <DateSelect value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
           <span>—</span>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+          <DateSelect value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
             <option value="all">সব স্ট্যাটাস</option><option value="approved">অনুমোদিত</option><option value="pending_approval">অপেক্ষমান</option><option value="rejected">বাতিল</option>
           </select>

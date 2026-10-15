@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -117,7 +118,7 @@ export function CandidateDialog({ open, onOpenChange, candidate }: { open: boole
             </NativeSelect>
           </Field>
           <Field label="ছবি"><PhotoInput onFile={setPhoto} /></Field>
-          <Field label="পরীক্ষার তারিখ"><Input type="date" value={f.exam_date} onChange={set("exam_date")} /></Field>
+          <Field label="পরীক্ষার তারিখ"><DateSelect value={f.exam_date} onChange={set("exam_date")} /></Field>
           <Field label="ব্যাচ টাইম">
             <NativeSelect value={f.exam_time} onChange={set("exam_time")}>
               <option value="">— নির্বাচন করুন —</option>
@@ -191,7 +192,7 @@ export function ExamDialog({ open, onOpenChange, exam, candidateId }: { open: bo
               </NativeSelect>
             </Field>
           </div>
-          <Field label="পরীক্ষার তারিখ"><Input type="date" value={f.exam_date} onChange={set("exam_date")} /></Field>
+          <Field label="পরীক্ষার তারিখ"><DateSelect value={f.exam_date} onChange={set("exam_date")} /></Field>
           <Field label="সময়"><Input type="time" value={f.exam_time} onChange={set("exam_time")} /></Field>
           <Field label="টিটিসি">
             <NativeSelect value={f.ttc_id} onChange={set("ttc_id")}>
@@ -215,7 +216,7 @@ export function ExamDialog({ open, onOpenChange, exam, candidateId }: { open: bo
               {RESULTS.map((r) => <option key={r} value={r}>{RESULT_LABEL[r]}</option>)}
             </NativeSelect>
           </Field>
-          {f.result !== "PENDING" && <Field label="রেজাল্টের তারিখ"><Input type="date" value={f.result_date} onChange={set("result_date")} /></Field>}
+          {f.result !== "PENDING" && <Field label="রেজাল্টের তারিখ"><DateSelect value={f.result_date} onChange={set("result_date")} /></Field>}
           <Field label="স্কোর"><Input type="number" value={f.score} onChange={set("score")} /></Field>
           <div className="sm:col-span-2"><Field label="মন্তব্য"><Textarea value={f.remarks} onChange={set("remarks")} rows={2} /></Field></div>
         </div>
@@ -256,7 +257,7 @@ export function ResultDialog({ open, onOpenChange, exam }: { open: boolean; onOp
           ))}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="রেজাল্টের তারিখ"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="রেজাল্টের তারিখ"><DateSelect value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label="স্কোর"><Input type="number" value={score} onChange={(e) => setScore(e.target.value)} /></Field>
         </div>
         <DialogFooter><Button onClick={save}>সংরক্ষণ করুন</Button></DialogFooter>

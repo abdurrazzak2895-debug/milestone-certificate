@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
@@ -78,7 +79,7 @@ export function AdminEditWorkDialog({ w }: { w: Work }) {
             <div className="space-y-1 sm:col-span-2"><Label>TTC</Label>
               <select className={sel} value={f.ttc_id} onChange={(e) => set("ttc_id", e.target.value)}><option value="">—</option>{ttc.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
             </div>
-            <div className="space-y-1"><Label>পরীক্ষার তারিখ</Label><Input type="date" value={f.date} onChange={(e) => set("date", e.target.value)} /></div>
+            <div className="space-y-1"><Label>পরীক্ষার তারিখ</Label><DateSelect value={f.date} onChange={(e) => set("date", e.target.value)} /></div>
             <div className="space-y-1"><Label>ব্যাচ টাইম</Label>
               <select className={sel} value={f.time} onChange={(e) => set("time", e.target.value)}>
                 {!SLOTS.some(([v]) => v === f.time) && <option value={f.time}>{f.time}</option>}
