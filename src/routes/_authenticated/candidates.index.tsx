@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -71,7 +72,7 @@ function CandidatesPage() {
           <NativeSelect value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
             <option value="">সব অবস্থা</option><option value="upcoming">আসন্ন পরীক্ষা আছে</option><option value="waiting">রেজাল্টের অপেক্ষায়</option><option value="none">কোনো পরীক্ষা নেই</option>
           </NativeSelect>
-          <Input type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} title="পরীক্ষার তারিখ" />
+          <DateSelect value={fDate} onChange={(e) => setFDate(e.target.value)} title="পরীক্ষার তারিখ" />
         </div>
       </div>
 

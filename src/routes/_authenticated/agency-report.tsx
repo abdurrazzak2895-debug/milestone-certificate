@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
@@ -89,8 +90,8 @@ function AgencyReport() {
         <p className="text-sm text-muted-foreground">পরীক্ষার তারিখ অনুযায়ী। সাব-এজেন্টের কাজ মূল এজেন্সির হিসাবে যুক্ত। বাতিল কাজ ধরা হয়নি।</p>
       </div>
       <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">থেকে<Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="text-sm">পর্যন্ত<Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <label className="text-sm">থেকে<DateSelect value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label className="text-sm">পর্যন্ত<DateSelect value={to} onChange={(e) => setTo(e.target.value)} /></label>
         {(from || to) && <Button variant="outline" onClick={() => { setFrom(""); setTo(""); }}>সব তারিখ</Button>}
       </div>
       {(works.isLoading || extra.isLoading) && <p className="text-muted-foreground">লোড হচ্ছে...</p>}

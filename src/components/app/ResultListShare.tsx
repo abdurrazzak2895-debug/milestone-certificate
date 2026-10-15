@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Download, Share2 } from "lucide-react";
@@ -218,7 +219,7 @@ export function ResultListShare() {
       <h2 className="text-lg font-bold">পরীক্ষার্থীদের তালিকা</h2>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={() => shift(-1)}>‹</Button>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 rounded-lg border bg-card px-2 text-sm" />
+        <DateSelect value={date} onChange={(e) => setDate(e.target.value)} className="h-9 rounded-lg border bg-card px-2 text-sm" />
         <Button size="sm" variant="outline" onClick={() => shift(1)}>›</Button>
         <Button size="sm" variant="ghost" onClick={() => setDate(today())}>আজ</Button>
         <Button size="sm" variant="ghost" onClick={() => setDate("")}>সব তারিখ</Button>

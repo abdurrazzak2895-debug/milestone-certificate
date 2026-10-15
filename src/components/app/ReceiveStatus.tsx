@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -109,7 +110,7 @@ function ReceiveAnalytics() {
     <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-3">
         <select className={sel} value={agent} onChange={(e) => setAgent(e.target.value)}><option value="">সকল আইডি</option>{agentIds.map((id) => <option key={id} value={id}>{agentName(id)}</option>)}</select>
-        <input type="date" className={sel} value={date} onChange={(e) => setDate(e.target.value)} />
+        <DateSelect className={sel} value={date} onChange={(e) => setDate(e.target.value)} />
         <select className={sel} value={oc} onChange={(e) => setOc(e.target.value)}><option value="">সকল পেশা</option>{occIds.map((id) => <option key={id} value={id}>{occName(id)}</option>)}</select>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

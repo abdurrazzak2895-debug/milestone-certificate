@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -61,7 +62,7 @@ function FilterEditor({ f, setF, hideDay }: { f: MsgFilter; setF: (f: MsgFilter)
       <div className="grid gap-3 sm:grid-cols-3">
         {!hideDay && <div><Label>পরীক্ষার দিন</Label><select className={sel} value={f.day} onChange={(e) => setF({ ...f, day: e.target.value as MsgFilter["day"] })}>
           <option value="today">আজ</option><option value="tomorrow">আগামীকাল</option><option value="day_after">পরশু</option><option value="date">নির্দিষ্ট তারিখ</option><option value="any">সব তারিখ</option></select></div>}
-        {f.day === "date" && <div><Label>তারিখ</Label><Input type="date" value={f.date ?? ""} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>}
+        {f.day === "date" && <div><Label>তারিখ</Label><DateSelect value={f.date ?? ""} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>}
         <div><Label>এজেন্সি</Label><select className={sel} value={f.agent_id ?? ""} onChange={(e) => setF({ ...f, agent_id: e.target.value || null })}><option value="">সকল এজেন্সি</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.agent_code ? ` (${a.agent_code})` : ""}</option>)}</select></div>
         <div><Label>কেন্দ্র</Label><select className={sel} value={f.ttc_id ?? ""} onChange={(e) => setF({ ...f, ttc_id: e.target.value || null })}><option value="">সব কেন্দ্র</option>{ttcs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
         <div><Label>রিসিপশন</Label><select className={sel} value={f.receive} onChange={(e) => setF({ ...f, receive: e.target.value as MsgFilter["receive"] })}><option value="any">সবাই</option><option value="received">রিসিভ হয়েছে</option><option value="not_received">রিসিভ হয়নি</option></select></div>

@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -99,7 +100,7 @@ function Reminders() {
     <div className="card-surface max-w-3xl p-4">
       <div className="mb-4 grid gap-2 sm:grid-cols-4">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="যেমন: পুনঃপরীক্ষার তারিখ জানান" className="sm:col-span-2" />
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <DateSelect value={date} onChange={(e) => setDate(e.target.value)} />
         <NativeSelect value={cand} onChange={(e) => setCand(e.target.value)}><option value="">পরীক্ষার্থী (ঐচ্ছিক)</option>{cands.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>
         <Button onClick={add} className="sm:col-span-4">রিমাইন্ডার যোগ করুন</Button>
       </div>

@@ -1,3 +1,4 @@
+import { DateSelect } from "@/components/app/DateSelect";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -68,7 +69,7 @@ function AgentResults() {
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="font-display text-2xl font-bold">রেজাল্ট চেক</h1>
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3">
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-10 rounded-lg border bg-card px-2 text-sm" />
+        <DateSelect value={date} onChange={(e) => setDate(e.target.value)} className="h-10 rounded-lg border bg-card px-2 text-sm" />
         <Button variant="ghost" size="sm" onClick={() => setDate("")}>সব তারিখ</Button>
         <input className="h-10 min-w-0 flex-1 rounded-lg border bg-card px-3 text-sm" placeholder="পাসপোর্ট / নাম" value={q} onChange={(e) => setQ(e.target.value)} />
         <Button size="sm" disabled={busy || !list.length} onClick={checkAll}><RefreshCw className={`mr-1 h-4 w-4 ${busy ? "animate-spin" : ""}`} />{busy ? "চেক হচ্ছে..." : `এই তালিকার সবাই চেক (${bn(list.length)})`}</Button>
