@@ -314,6 +314,7 @@ export type Database = {
           id: string
           mobile: string
           occupation_id: string | null
+          ocr_meta: Json | null
           passport_no: string
           received_at: string | null
           received_by: string | null
@@ -347,6 +348,7 @@ export type Database = {
           id?: string
           mobile: string
           occupation_id?: string | null
+          ocr_meta?: Json | null
           passport_no: string
           received_at?: string | null
           received_by?: string | null
@@ -380,6 +382,7 @@ export type Database = {
           id?: string
           mobile?: string
           occupation_id?: string | null
+          ocr_meta?: Json | null
           passport_no?: string
           received_at?: string | null
           received_by?: string | null

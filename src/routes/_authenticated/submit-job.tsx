@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SmartTicketUpload, fieldStatus, type Stage, type FieldCheck } from "@/components/app/SmartTicketUpload";
+import type { TicketExtraction } from "@/lib/ticket-extract.functions";
 
 export const Route = createFileRoute("/_authenticated/submit-job")({
   head: () => ({
@@ -78,7 +80,27 @@ function SubmitJob() {
   const [ok, setOk] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [doneRef, setDoneRef] = useState<string | null>(null);
+  const [ocr, setOcr] = useState<TicketExtraction | null>(null);
+  const [stage, setStage] = useState<Stage>("idle");
+  const [critOk, setCritOk] = useState(false);
   const set = (k: keyof typeof empty, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const applyOcr = (x: TicketExtraction) => {
+    setOcr(x); setCritOk(false);
+    const lc = (v: string | null) => (v ?? "").toLowerCase();
+    const occ = x.occupation.value ? (occs ?? []).find((o) => lc(o.name).includes(lc(x.occupation.value)) || lc(x.occupation.value).includes(lc(o.name))) : undefined;
+    const ttc = x.center.value ? (ttcs ?? []).find((t) => lc(x.center.value).includes(lc(t.name).split(/\s+/)[0] ?? "~")) : undefined;
+    const time = x.exam_time.value && BATCH_VALUES.includes(x.exam_time.value) ? x.exam_time.value : "";
+    setF((p) => ({ ...p,
+      ...(x.candidate_name.value && { candidate_name: x.candidate_name.value.toUpperCase() }),
+      ...(x.passport_no.value && { passport_no: x.passport_no.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }),
+      ...(x.exam_date.value && /^\d{4}-\d{2}-\d{2}$/.test(x.exam_date.value) && { exam_date: x.exam_date.value }),
+      ...(time && { exam_time: time }),
+      ...(occ && { occupation_id: occ.id }),
+      ...(ttc && { ttc_id: ttc.id }),
+    }));
+    const low = Object.values(x).some((v) => typeof v === "object" && v && "confidence" in v && (v as { value: unknown }).value && (v as { confidence: number }).confidence < 0.9);
+    setStage(x.ambiguities.length || x.candidate_count > 1 || low ? "review" : "done");
+  };
   const occList = useMemo(() => {
     const q = occSearch.trim().toLowerCase();
     return occs.filter((o) => o.active && (!q || o.name.toLowerCase().includes(q))).slice(0, 300);
@@ -98,6 +120,20 @@ function SubmitJob() {
   }, [active, f.ttc_id]);
   const photoUrl = useMemo(() => (candidatePhoto ? URL.createObjectURL(candidatePhoto) : null), [candidatePhoto]);
 
+  const ocrWarnings = ocr ? [
+    ...ocr.ambiguities,
+    ...(ocr.candidate_count > 1 ? ["টিকিটে একাধিক পরীক্ষার্থী আছে — শুধু একজনের তথ্য নেওয়া হয়েছে"] : []),
+    ...(ocr.exam_time.value && !BATCH_VALUES.includes(ocr.exam_time.value) ? [`টিকিটের সময় ${ocr.exam_time.value} তালিকায় নেই — সময় নিজে বাছাই করুন`] : []),
+    ...(ocr.occupation.value && !occs?.some((o) => o.id === f.occupation_id && o.name.toLowerCase().includes(ocr.occupation.value!.toLowerCase())) ? [`টিকিটের পেশা: ${ocr.occupation.value} — মিলিয়ে নিন`] : []),
+  ] : [];
+  const checks: FieldCheck[] = ocr ? [
+    { label: "Candidate Name", extracted: ocr.candidate_name.value?.toUpperCase() ?? null, current: f.candidate_name, confidence: ocr.candidate_name.confidence },
+    { label: "Passport Number", extracted: ocr.passport_no.value?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? null, current: f.passport_no, confidence: ocr.passport_no.confidence },
+    { label: "Exam Date", extracted: ocr.exam_date.value, current: f.exam_date, confidence: ocr.exam_date.confidence },
+    { label: "Exam Time", extracted: ocr.exam_time.value, current: f.exam_time, confidence: ocr.exam_time.confidence },
+  ] : [];
+  const critical = checks.slice(0, 2).some((c) => fieldStatus(c) === "mismatch");
+
   const validate = () => {
     const r = schema.safeParse(f);
     const errs: Record<string, string> = {};
@@ -112,6 +148,7 @@ function SubmitJob() {
   const openConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return toast.error("সব বাধ্যতামূলক তথ্য সঠিকভাবে দিন");
+    if (critical && !critOk) return toast.error("নাম/পাসপোর্ট টিকিটের সাথে মিলছে না — ঠিক করুন অথবা নিশ্চিত করার বক্সে টিক দিন");
     const hist = await qc.fetchQuery(passportHistoryQ(f.passport_no)).catch(() => []);
     if (hist.some((r) => r.blocking)) return toast.error("এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না");
     if (hist.length) toast.warning("এই পাসপোর্ট আগে জমা হয়েছিল (FAIL/বাতিল) — নিচের ইতিহাস যাচাই করুন");
@@ -139,7 +176,7 @@ function SubmitJob() {
       }
       const { data, error } = await supabase
         .from("job_submissions")
-        .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: [rest.skill_details, f.result_email.trim() && `Result Email: ${f.result_email.trim()}`, f.result_password.trim() && `Result Password: ${f.result_password.trim()}`, f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`].filter(Boolean).join("\n").slice(0, 2000) || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true })
+        .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: [rest.skill_details, f.result_email.trim() && `Result Email: ${f.result_email.trim()}`, f.result_password.trim() && `Result Password: ${f.result_password.trim()}`, f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`].filter(Boolean).join("\n").slice(0, 2000) || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true, ocr_meta: ocr ? JSON.parse(JSON.stringify({ extracted: ocr, overall: checks.length ? checks.reduce((a, c) => a + (c.extracted ? c.confidence : 0), 0) / checks.length : 0, fields: checks.map((c) => ({ ...c, status: fieldStatus(c) })), warnings: ocrWarnings, confirmed_mismatch: critical && critOk, at: new Date().toISOString() })) : null })
         .select("ref_code")
         .single();
       if (error) throw error;
@@ -149,7 +186,7 @@ function SubmitJob() {
         setOk(false);
         setDoneRef(data.ref_code);
       }, 900);
-      setF(empty); setFile(null); setCandidatePhoto(null);
+      setF(empty); setFile(null); setCandidatePhoto(null); setOcr(null); setStage("idle");
       qc.invalidateQueries({ queryKey: ["works"] });
     } catch (err) {
       toast.error(String((err as { message?: string })?.message ?? "").includes("DUPLICATE_PASSPORT") ? "এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না" : "কাজ Submit করা যায়নি। আবার চেষ্টা করুন।");
@@ -188,6 +225,13 @@ function SubmitJob() {
   return (
     <form onSubmit={openConfirm} className="mx-auto max-w-2xl space-y-5">
       <h1 className="font-display text-2xl font-bold">📋 Submit Work</h1>
+      <SmartTicketUpload file={file} onFile={setFile} onExtract={applyOcr} checks={checks} warnings={ocrWarnings} stage={stage} setStage={setStage} />
+      {critical && (
+        <label className="flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          <input type="checkbox" className="mt-1" checked={critOk} onChange={(e) => setCritOk(e.target.checked)} />
+          নাম/পাসপোর্ট টিকিটের সাথে মিলছে না। আমি মূল PDF মিলিয়ে নিশ্চিত হয়েছি যে ফর্মের তথ্য সঠিক।
+        </label>
+      )}
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
         <div className="flex flex-col items-center gap-2">

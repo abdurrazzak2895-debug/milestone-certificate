@@ -203,6 +203,18 @@ function Submissions() {
               </div>
               {w.skill_details && <p className="mt-2 rounded-lg bg-muted p-2 text-sm">দক্ষতা: {w.skill_details}</p>}
               {w.rejection_reason && <p className="mt-2 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">কারণ: {w.rejection_reason}</p>}
+              {roles.includes("admin") && w.ocr_meta && (() => {
+                const m = w.ocr_meta as { overall: number; fields: { label: string; extracted: string | null; current: string; confidence: number; status: string }[]; warnings: string[]; confirmed_mismatch: boolean };
+                const st = m.fields.some((x) => x.status === "mismatch") ? ["Mismatch Detected", "text-destructive"] : m.fields.some((x) => x.status === "review") || m.warnings.length ? ["Review Required", "text-yellow-500"] : ["Verified", "text-primary"];
+                return (
+                  <div className="mt-2 space-y-1 rounded-lg border border-primary/30 bg-muted/50 p-2 text-sm">
+                    <p className="font-semibold">Smart PDF: Confidence {Math.round(m.overall * 100)}% · <span className={st[1]}>{st[0]}</span></p>
+                    {m.fields.map((x) => <p key={x.label} className={x.status === "mismatch" ? "text-destructive" : x.status === "review" ? "text-yellow-500" : ""}>{x.label}: {x.extracted ?? "—"} ({Math.round(x.confidence * 100)}%){x.status === "mismatch" && ` → জমা: ${x.current}`}</p>)}
+                    {m.warnings.map((x, i) => <p key={i} className="text-yellow-500">⚠️ {x}</p>)}
+                    {m.confirmed_mismatch && <p className="text-destructive">এজেন্ট অমিল জেনে নিশ্চিত করেছেন</p>}
+                  </div>
+                );
+              })()}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>
                 {roles.includes("admin") && <AppointmentScan submissionId={w.id} examAt={w.exam_at} />}
