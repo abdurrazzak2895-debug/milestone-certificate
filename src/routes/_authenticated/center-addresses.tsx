@@ -112,7 +112,6 @@ function MessagePreview({ ttcs }: { ttcs: Ttc[] }) {
   const accounts = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() }).data ?? [];
   const { data: works = [] } = useQuery(worksQ);
   const [body, setBody] = useState(DEFAULT_TEMPLATE);
-  const [phone, setPhone] = useState("");
   const [ttcId, setTtcId] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -126,11 +125,10 @@ function MessagePreview({ ttcs }: { ttcs: Ttc[] }) {
   const rendered = sample ? renderMessage(body, sample, ctx) : null;
 
   const test = async () => {
-    if (!/^01[3-9]\d{8}$/.test(phone)) return toast.error("সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন");
     if (!rendered || rendered.missing.length) return toast.error("প্রিভিউতে তথ্য missing — আগে ঠিকানা/তথ্য পূরণ করুন");
     setSending(true);
     try {
-      await sendTestSms({ data: { phone, body: rendered.text } });
+      await sendTestSms({ data: { body: rendered.text } });
       toast.success("টেস্ট SMS পাঠানো হয়েছে");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "পাঠানো যায়নি");
@@ -160,7 +158,6 @@ function MessagePreview({ ttcs }: { ttcs: Ttc[] }) {
         <p className="text-sm text-muted-foreground">প্রিভিউর জন্য অনুমোদিত কোনো কাজ পাওয়া যায়নি।</p>
       )}
       <div className="flex flex-wrap items-end gap-2">
-        <div className="flex-1"><Label>আপনার মোবাইল নম্বর (টেস্ট)</Label><Input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /></div>
         <Button size="sm" disabled={sending} onClick={test}><Send className="mr-1 h-4 w-4" /> {sending ? "পাঠানো হচ্ছে…" : "নিজের নম্বরে টেস্ট SMS"}</Button>
       </div>
       <p className="text-xs text-muted-foreground">বাল্ক SMS পাঠানোর আগে নিজের নম্বরে টেস্ট করে মেসেজ ঠিক আছে কিনা দেখে নিন। টেস্ট মেসেজ রিপোর্টে “টেস্ট (নিজের নম্বর)” হিসেবে দেখাবে।</p>
