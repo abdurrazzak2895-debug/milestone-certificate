@@ -139,6 +139,8 @@ function ResultCheck() {
             <Row k="অবস্থা" v="রেজাল্ট প্রকাশিত" />
           </div>
         )}
+        </>
+        )}
       </div>
     </div>
   );
