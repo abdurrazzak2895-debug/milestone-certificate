@@ -37,6 +37,10 @@ function ResultCheck() {
     queryKey: ["public-occ"],
     queryFn: async () => pinOcc((await supabase.from("occupations").select("id,name").eq("active", true).order("name")).data ?? []),
   });
+  const { data: session } = useQuery({
+    queryKey: ["result-check-session"],
+    queryFn: async () => (await supabase.auth.getSession()).data.session,
+  });
   const { data: home = "/auth" } = useQuery({
     queryKey: ["result-check-home"],
     queryFn: async () => {
