@@ -37,6 +37,10 @@ function ResultCheck() {
     queryKey: ["public-occ"],
     queryFn: async () => pinOcc((await supabase.from("occupations").select("id,name").eq("active", true).order("name")).data ?? []),
   });
+  const { data: session } = useQuery({
+    queryKey: ["result-check-session"],
+    queryFn: async () => (await supabase.auth.getSession()).data.session,
+  });
   const { data: home = "/auth" } = useQuery({
     queryKey: ["result-check-home"],
     queryFn: async () => {
@@ -87,6 +91,14 @@ function ResultCheck() {
         </div>
 
         <h1 className="text-center text-2xl font-bold text-primary">রেজাল্ট চেক</h1>
+        {session === null ? (
+          <div className="card-surface space-y-3 p-5 text-center">
+            <p className="font-semibold">রেজাল্ট দেখতে লগইন করুন</p>
+            <p className="text-sm text-muted-foreground">আপনার তথ্যের নিরাপত্তার জন্য রেজাল্ট শুধু নিজের অ্যাকাউন্টে লগইন করে দেখা যায়।</p>
+            <Link to="/auth"><Button className="w-full">লগইন করুন</Button></Link>
+          </div>
+        ) : (
+        <>
         {home !== "/auth" && home !== "/portal" && <ResultListShare />}
         <form onSubmit={check} className="card-surface space-y-3 p-5">
           <Field label="পাসপোর্ট নম্বর *"><Input value={pp} onChange={(e) => setPp(e.target.value)} /></Field>
@@ -126,6 +138,8 @@ function ResultCheck() {
             <Row k="রেজাল্ট" v={RESULT_LABEL[res.result] ?? res.result} />
             <Row k="অবস্থা" v="রেজাল্ট প্রকাশিত" />
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

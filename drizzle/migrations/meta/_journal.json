@@ -225,6 +225,13 @@
       "when": 1792039242525,
       "tag": "0031_own_read_requires_active_account",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792039506354,
+      "tag": "0032_restrict_result_lookup_and_passport_history",
+      "breakpoints": true
     }
   ]
 }

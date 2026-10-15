@@ -85,18 +85,21 @@ function SendTab() {
   const { data: works = [] } = useQuery(worksQ);
   const tpls = useQuery(tplQ).data ?? [];
   const [f, setF] = useState<MsgFilter>(DEFAULT_FILTER);
-  const [body, setBody] = useState(DEFAULT_TEMPLATE);
+  const [templateId, setTemplateId] = useState("");
   const [busy, setBusy] = useState(false);
+  const tpl = tpls.find((t) => t.id === templateId) ?? null;
+  const body = tpl?.body ?? "";
   const list = selectRecipients(works, f);
-  const rendered = list.map((w) => ({ w, ...renderMessage(body, w, ctx) }));
+  const rendered = tpl ? list.map((w) => ({ w, ...renderMessage(body, w, ctx) })) : [];
   const bad = rendered.filter((r) => r.missing.length);
   const ok = rendered.length - bad.length;
   const send = async () => {
+    if (!tpl) return toast.error("আগে একটি টেমপ্লেট বাছাই করুন");
     if (!ok) return toast.error("পাঠানোর মতো কোনো প্রাপক নেই");
     if (!window.confirm(`${ok} জনকে SMS পাঠাবেন?${bad.length ? `\n${bad.length} জনের তথ্য অসম্পূর্ণ — তাদের বাদ দেওয়া হবে।` : ""}`)) return;
     setBusy(true);
     try {
-      const r = await sendMessagesNow({ data: { filter: f, body } });
+      const r = await sendMessagesNow({ data: { filter: f, templateId: tpl.id } });
       toast.success(`পাঠানো: ${r.sent}, ব্যর্থ: ${r.failed}, আগেই পাঠানো: ${r.duplicates}`);
       qc.invalidateQueries({ queryKey: ["sms-messages"] });
     } catch { toast.error("পাঠানো যায়নি"); } finally { setBusy(false); }
@@ -105,10 +108,14 @@ function SendTab() {
     <div className="space-y-4">
       <FilterEditor f={f} setF={setF} />
       <div>
-        <div className="flex items-center justify-between"><Label>মেসেজ</Label>
-          {tpls.length > 0 && <select className="h-8 rounded border bg-card px-2 text-xs" value="" onChange={(e) => { const t = tpls.find((x) => x.id === e.target.value); if (t) setBody(t.body); }}><option value="">টেমপ্লেট বাছাই</option>{tpls.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}</div>
-        <Textarea rows={9} value={body} onChange={(e) => setBody(e.target.value)} />
-        <p className="mt-1 text-xs text-muted-foreground">{PLACEHOLDERS.map(([k, l]) => `${k} = ${l}`).join(" · ")}</p>
+        <Label>টেমপ্লেট *</Label>
+        <select className="h-10 w-full rounded-lg border bg-card px-2 text-sm" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+          <option value="">— টেমপ্লেট বাছাই করুন —</option>
+          {tpls.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        {!tpls.length && <p className="mt-1 text-xs text-destructive">আগে “টেমপ্লেট” ট্যাবে একটি টেমপ্লেট তৈরি করুন।</p>}
+        {tpl && <pre className="mt-2 whitespace-pre-wrap rounded-xl border bg-card p-3 text-sm">{tpl.body}</pre>}
+        <p className="mt-1 text-xs text-muted-foreground">নিরাপত্তার জন্য শুধু সংরক্ষিত টেমপ্লেট থেকে মেসেজ পাঠানো যায়। {PLACEHOLDERS.map(([k, l]) => `${k} = ${l}`).join(" · ")}</p>
       </div>
       <div className="rounded-xl border bg-muted/40 p-3 text-sm">
         নির্বাচিত: <b>{bn(rendered.length)}</b> জন · পাঠানো যাবে: <b className="text-primary">{bn(ok)}</b> · তথ্য অসম্পূর্ণ: <b className="text-destructive">{bn(bad.length)}</b>
