@@ -292,6 +292,7 @@ function BoguraSummary({ exams, ttc, occName, cands }: { exams: Exam[]; ttc: Ttc
                       <div className="min-w-0 select-text">
                         <Link to="/candidates/$id" params={{ id: r.e.candidate_id }} className="font-semibold uppercase hover:text-primary">{r.name}</Link>
                         <div className="text-xs text-muted-foreground">পাসপোর্ট: <span className="font-medium text-foreground">{r.passport}</span></div>
+                        <div className="text-xs text-muted-foreground">পেশা: <span className="font-medium text-foreground">{r.occ}</span></div>
                       </div>
                       <ResultBadge result={r.e.result} date={r.e.result_date} />
                     </li>
