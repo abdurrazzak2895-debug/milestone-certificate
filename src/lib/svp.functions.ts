@@ -109,6 +109,7 @@ export const checkSubmissionSvp = createServerFn({ method: "POST" })
 
 // Public live lookup (same data the official public Qiwa page shows; returns only the queried passport's result).
 export const publicSvpLookup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z.object({ passport: z.string().transform((s) => s.replace(/[^A-Za-z0-9]/g, "")).pipe(z.string().min(5).max(20)), occupationId: z.string().uuid() }).parse(d),
   )

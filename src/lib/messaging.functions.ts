@@ -27,28 +27,37 @@ const hash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = 
 
 export const sendMessagesNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ filter: filterSchema, body: safeBody }).parse(d))
+  .inputValidator((d: unknown) => z.object({ filter: filterSchema, templateId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: tpl } = await supabaseAdmin.from("sms_templates").select("body").eq("id", data.templateId).maybeSingle();
+    const body = (tpl as { body?: string } | null)?.body;
+    if (!body || body.trim().length < 5) throw new Error("টেমপ্লেট পাওয়া যায়নি");
+    const parsed = safeBody.safeParse(body);
+    if (!parsed.success) throw new Error("টেমপ্লেটের মেসেজটি নিরাপদ নয় — লিংক বা অতিরিক্ত দৈর্ঘ্য ঠিক করুন");
     const { enqueue, processPending } = await import("./messaging.server");
-    const q = await enqueue(data.filter, data.body, `manual:${hash(data.body)}`, { userId: context.userId });
+    const q = await enqueue(data.filter, parsed.data, `manual:${data.templateId}:${hash(parsed.data)}`, { userId: context.userId });
     const p = await processPending(150);
     return { ...q, ...p };
   });
 
-/** Sends one test SMS to the admin's own number before any bulk send. Logged with a unique key so it never dedupes. */
+/** Sends one test SMS to the admin's own registered account number before any bulk send. Logged with a unique key so it never dedupes. */
 export const sendTestSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ phone: z.string().regex(/^01[3-9]\d{8}$/, "সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন"), body: z.string().trim().min(5).max(1500) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ body: z.string().trim().min(5).max(1500) }).parse(d))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
+    const { data: acct } = await context.supabase.from("agent_accounts").select("mobile").eq("user_id", context.userId).maybeSingle();
+    const phone = (acct as { mobile?: string } | null)?.mobile?.replace(/\D/g, "") ?? "";
+    if (!/^01[3-9]\d{8}$/.test(phone)) throw new Error("আপনার অ্যাকাউন্টে সঠিক মোবাইল নম্বর সেট নেই");
     const { sendSms } = await import("./messaging.server");
-    const err = await sendSms(data.phone, data.body);
+    const err = await sendSms(phone, data.body);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin.from("sms_messages").insert({
       dedupe_key: `test:${context.userId}:${Date.now()}`,
       recipient_name: "টেস্ট (নিজের নম্বর)",
-      phone: data.phone,
+      phone,
       body: data.body,
       status: err ? "failed" : "sent",
       error: err,
