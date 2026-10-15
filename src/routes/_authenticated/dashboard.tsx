@@ -7,7 +7,7 @@ import { isManager } from "@/lib/roles";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Bell, Building2, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, Clock, MessageSquare, Plus, Search, Users, XCircle, UserX } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, Building2, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, Eye, EyeOff, Clock, MessageSquare, Plus, Search, Users, XCircle, UserX } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { sendTodayExamSmsNow } from "@/lib/exam-sms.functions";
@@ -103,7 +103,7 @@ function Dashboard() {
         <StatCard label="পাসের হার" value={`${bn(s.pass + s.fail ? Math.round((s.pass / (s.pass + s.fail)) * 100) : 0)}%`} icon={<BarChart3 className="h-5 w-5" />} tone="success" />
       </div>
 
-      <BoguraSummary exams={exams} ttc={ttc ?? []} occName={occName} />
+      <BoguraSummary exams={exams} ttc={ttc ?? []} occName={occName} cands={candMap} />
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <BoguraToday exams={exams} ttc={ttc ?? []} occName={occName} candName={(id) => candMap.get(id)?.name ?? "—"} candPhoto={(id) => candMap.get(id)?.photo_url ?? null} />
@@ -243,61 +243,82 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
   );
 }
 
-function BoguraSummary({ exams, ttc, occName }: { exams: Exam[]; ttc: Ttc[]; occName: (id: string | null | undefined) => string }) {
+function BoguraSummary({ exams, ttc, occName, cands }: { exams: Exam[]; ttc: Ttc[]; occName: (id: string | null | undefined) => string; cands: Map<string, { name: string; passport_no: string | null }> }) {
   const { subs, agents } = useAgentOf();
   const [open, setOpen] = useState<string | null>(null);
-  const [rk, setRk] = useState<BRange>("today");
-  const [pick, setPick] = useState("");
+  const [pick, setPick] = useState(todayStr());
   const bogura = ttc.find((t) => t.name.includes("বগুড়া") || /bogura/i.test(t.name));
-  const t = todayStr();
-  const rows = useMemo(() => {
-    const subAgent = new Map(subs.map((s) => [s.id, s.submitted_by]));
+  const { list, byOcc, byAgency } = useMemo(() => {
+    const subMap = new Map(subs.map((s) => [s.id, s]));
     const agentName = new Map(agents.map((a) => [a.user_id, `${a.full_name}${a.agent_code ? ` (${a.agent_code})` : ""}`]));
-    const m = new Map<string, { name: string; total: number; agents: Map<string, number> }>();
-    for (const e of exams) {
-      const [lo, hi] = pick ? [pick, pick] : bRange(rk, t);
-      if (!bogura || e.ttc_id !== bogura.id || e.exam_date < lo || e.exam_date > hi || e.result !== "PENDING") continue;
-      const key = e.occupation_id ?? "none";
-      const g = m.get(key) ?? { name: occName(e.occupation_id), total: 0, agents: new Map<string, number>() };
-      g.total++;
-      const ag = agentName.get(subAgent.get(e.submission_id ?? "") ?? "") ?? "সরাসরি এন্ট্রি";
-      g.agents.set(ag, (g.agents.get(ag) ?? 0) + 1);
-      m.set(key, g);
-    }
-    return [...m.entries()].sort((a, b) => b[1].total - a[1].total);
-  }, [exams, bogura, subs, agents, t, occName, rk, pick]);
-  const total = rows.reduce((n, [, g]) => n + g.total, 0);
+    const list = exams.filter((e) => bogura && e.ttc_id === bogura.id && e.exam_date === pick).map((e) => {
+      const sub = subMap.get(e.submission_id ?? "");
+      const c = cands.get(e.candidate_id);
+      return { e, name: c?.name ?? "—", passport: (sub?.passport_no ?? c?.passport_no ?? "—").toUpperCase(), occ: occName(e.occupation_id), agency: agentName.get(sub?.submitted_by ?? "") ?? "সরাসরি এন্ট্রি" };
+    });
+    const group = (k: "occ" | "agency") => {
+      const m = new Map<string, typeof list>();
+      for (const r of list) m.set(r[k], [...(m.get(r[k]) ?? []), r]);
+      return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
+    };
+    return { list, byOcc: group("occ"), byAgency: group("agency") };
+  }, [exams, bogura, subs, agents, pick, cands, occName]);
 
-  return (
-    <div className="card-surface mt-5 p-4">
-      <h3 className="mb-3 flex items-center justify-between gap-2 text-base font-semibold">
-        <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> বগুড়া সেন্টার — পেশাভিত্তিক আসন্ন পরীক্ষা</span>
-        <span className="flex items-center gap-2">
-          <select value={rk} onChange={(e) => { setRk(e.target.value as BRange); setPick(""); }} className="h-8 rounded-md border bg-background px-2 text-sm">
-            {(Object.keys(B_RANGES) as BRange[]).map((k) => <option key={k} value={k}>{B_RANGES[k]}</option>)}
-          </select>
-          <DateSelect aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm" />
-          <span className="rounded-full bg-primary/15 px-3 py-0.5 text-sm text-primary">মোট {bn(total)}</span>
-        </span>
-      </h3>
-      {rows.length === 0 ? <Empty>এই সময়ে বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
-        <ul className="max-h-96 space-y-2 overflow-y-auto">
-          {rows.map(([k, g]) => (
-            <li key={k} className="rounded-lg border bg-muted/40">
-              <button type="button" onClick={() => setOpen(open === k ? null : k)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium">
-                <span>{g.name}</span>
-                <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">{bn(g.total)}</span>
-              </button>
-              {open === k && (
-                <ul className="border-t px-3 py-2 text-sm">
-                  {[...g.agents.entries()].sort((a, b) => b[1] - a[1]).map(([a, n]) => (
-                    <li key={a} className="flex justify-between py-1 text-muted-foreground"><span>{a}</span><span className="font-semibold text-foreground">{bn(n)}</span></li>
+  const Section = ({ title, rows, prefix }: { title: string; rows: [string, typeof list][]; prefix: string }) => (
+    <div className="mt-3">
+      <h4 className="mb-2 text-sm font-semibold text-muted-foreground">{title}</h4>
+      <ul className="space-y-2">
+        {rows.map(([k, items]) => {
+          const id = prefix + k;
+          const pass = items.filter((r) => r.e.result === "PASS").length;
+          const fail = items.filter((r) => r.e.result === "FAIL").length;
+          return (
+            <li key={id} className="rounded-lg border bg-muted/40">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                <span className="min-w-0 font-medium">{k}</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-xs">
+                  <span className="rounded-full bg-success-soft px-2 py-0.5 font-semibold text-success">PASS {bn(pass)}</span>
+                  <span className="rounded-full bg-danger-soft px-2 py-0.5 font-semibold text-danger">FAIL {bn(fail)}</span>
+                  <span className="rounded-full bg-primary px-2.5 py-0.5 font-bold text-primary-foreground">{bn(items.length)}</span>
+                  <button type="button" aria-label="পরীক্ষার্থী দেখুন" onClick={() => setOpen(open === id ? null : id)} className="rounded-md p-1 hover:bg-primary/15 hover:text-primary">
+                    {open === id ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </span>
+              </div>
+              {open === id && (
+                <ul className="divide-y border-t px-3 py-1 text-sm">
+                  {items.map((r) => (
+                    <li key={r.e.id} className="flex items-center justify-between gap-2 py-1.5">
+                      <div className="min-w-0 select-text">
+                        <Link to="/candidates/$id" params={{ id: r.e.candidate_id }} className="font-semibold uppercase hover:text-primary">{r.name}</Link>
+                        <div className="text-xs text-muted-foreground">পাসপোর্ট: <span className="font-medium text-foreground">{r.passport}</span></div>
+                      </div>
+                      <ResultBadge result={r.e.result} date={r.e.result_date} />
+                    </li>
                   ))}
                 </ul>
               )}
             </li>
-          ))}
-        </ul>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
+  return (
+    <div className="card-surface mt-5 p-4">
+      <h3 className="mb-1 flex flex-wrap items-center justify-between gap-2 text-base font-semibold">
+        <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> বগুড়া সেন্টার — তারিখভিত্তিক পরীক্ষার রিপোর্ট</span>
+        <span className="flex items-center gap-2">
+          <DateSelect aria-label="তারিখ নির্বাচন" value={pick} onChange={(e) => setPick(e.target.value || todayStr())} className="h-8 rounded-md border bg-background px-2 text-sm" />
+          <span className="rounded-full bg-primary/15 px-3 py-0.5 text-sm text-primary">মোট {bn(list.length)}</span>
+        </span>
+      </h3>
+      {list.length === 0 ? <Empty>{fmtDate(pick)} তারিখে বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (
+        <div className="max-h-[32rem] overflow-y-auto">
+          <Section title="পেশাভিত্তিক রিপোর্ট" rows={byOcc} prefix="o:" />
+          <Section title="এজেন্সিভিত্তিক রিপোর্ট" rows={byAgency} prefix="a:" />
+        </div>
       )}
     </div>
   );
