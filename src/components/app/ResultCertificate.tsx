@@ -16,8 +16,7 @@ export const verifyUrl = (d: CertInfo) =>
   `${SITE}/result-check?passport=${encodeURIComponent(d.passport)}${d.occupationId ? `&occ=${encodeURIComponent(d.occupationId)}` : ""}`;
 
 async function buildHtml(d: CertInfo) {
-  const url = verifyUrl(d);
-  const qr = await QRCode.toDataURL(url, { margin: 1, width: 260, color: { dark: "#0f3d2e", light: "#ffffff" } });
+  const qr = await QRCode.toDataURL(OFFICIAL_URL, { margin: 1, width: 260, color: { dark: "#0f3d2e", light: "#ffffff" } });
   const pass = d.result === "PASS";
   const col = pass ? "#047857" : "#b91c1c";
   const logo = new URL(brandLogo.url, window.location.origin).href;
@@ -55,28 +54,28 @@ td{text-align:left;font-weight:700;padding:2.2mm 3mm;border-bottom:.3mm solid #e
 .wish{font-family:'Hind Siliguri',sans-serif;font-size:4mm;line-height:1.6;color:#0f3d2e;margin:5mm 6mm 2mm}
 .foot{font:700 4mm Cinzel,serif;color:#0f3d2e}.foot small{display:block;font:italic 3.2mm Montserrat;color:#a16207;margin-top:.5mm}
 @media screen{.page{box-shadow:0 4px 30px rgba(0,0,0,.2);margin:8mm auto}}
+.congrats{font:800 13mm/1.1 Cinzel,serif;color:#047857;letter-spacing:1mm;margin-top:2mm}
+.congrats-bn{font:600 7mm 'Hind Siliguri',sans-serif;color:#a16207;margin-top:1mm}
+.big{font:800 12mm/1.15 Cinzel,serif;color:#0f3d2e;margin:5mm 0 2mm;border-bottom:.5mm solid #c9a227;padding:0 6mm 2mm}
+.steps{font-family:'Hind Siliguri',sans-serif;font-size:3.5mm;line-height:1.55;margin:1mm 0 0;padding-left:5mm}
+.inst{position:absolute;bottom:18mm;left:0;right:0;text-align:center;font:600 3.2mm Cinzel,serif;color:#6b7280;letter-spacing:.6mm}
 </style></head><body><div class="page">
 <div class="b1"></div><div class="b2"></div><div class="b3"></div>
 <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
-<div class="wm">DEMO CERTIFICATE</div>
 <div class="in">
-<img class="logo" src="${logo}" alt="">
-<h1>MILESTONE CERTIFICATE INSTITUTE</h1><div class="tag">Build Skills, Build Your Future</div>
-<div class="title">Certificate of Exam Result</div><div class="rule"></div>
-<div class="demo">DEMO CERTIFICATE</div>
-<div class="sub">This is to certify that</div>
-<div class="name">${esc(d.name)}</div>
-<div class="sub">has appeared in the Skill Verification Program (SVP) examination with the following result</div>
+${pass ? `<div class="congrats">CONGRATULATIONS!</div><div class="congrats-bn">অভিনন্দন! আপনি সফলভাবে উত্তীর্ণ হয়েছেন</div>` : `<div class="title" style="margin-top:2mm">Exam Result Summary</div><div class="congrats-bn">পরীক্ষার ফলাফল বিবরণী</div>`}
+<div class="rule"></div>
+<div class="big">${esc(d.name)}</div>
+<div class="sub">Skill Verification Program (SVP) examination result</div>
 <table>${row("Passport No.", d.passport)}${row("Occupation", d.occupation)}${row("Exam Date", d.examAt)}${row("Reference", d.ref)}</table>
 <div class="res">${esc(d.result)}</div>
-<p class="wish">“আপনার আগামীর পথচলা হোক সাফল্য, দক্ষতা ও নতুন সম্ভাবনায় পরিপূর্ণ। আপনার উজ্জ্বল ভবিষ্যৎ ও কর্মজীবনের সর্বাঙ্গীণ সাফল্য কামনা করছে Milestone Certificate Institute।”</p>
-<div class="foot">Milestone Certificate Institute<small>Build Skills, Build Your Future</small></div>
+<p class="wish">“আপনার মেধা ও নিষ্ঠার মাধ্যমে অর্জিত এই ফলাফল আপনার আগামীর পথচলাকে আরও সুদৃঢ় ও সাফল্যমণ্ডিত করুক। আপনার ভবিষ্যৎ কর্মজীবন হোক সমৃদ্ধ ও উজ্জ্বল — আপনার সর্বাঙ্গীণ সাফল্য কামনা করি।”</p>
 <div class="ver"><img src="${qr}" alt="QR">
-<div><b>Result Verification</b><br>Scan the QR or visit:<br><a href="${url}">${esc(url)}</a><br><br>
-Official source: <a href="${OFFICIAL_URL}">${OFFICIAL_URL}</a><br>
-(Select Nationality: Bangladesh, Occupation and enter Passport No.)<br>
-<i>This is a demo document generated from our records, not an official SVP certificate.</i></div></div>
-</div></div></body></html>`;
+<div><b>অফিশিয়াল রেজাল্ট যাচাই (SVP Official)</b><br>QR স্ক্যান করুন অথবা যান: <a href="${OFFICIAL_URL}">${OFFICIAL_URL}</a>
+<ol class="steps"><li>Nationality: <b>Bangladesh</b> নির্বাচন করুন</li><li>Occupation: <b>${esc(d.occupation || "—")}</b> নির্বাচন করুন</li><li>Passport No: <b>${esc(d.passport)}</b> লিখে Search চাপুন</li></ol></div></div>
+</div>
+<div class="inst">Milestone Certificate Institute</div>
+</div></body></html>`;
 }
 
 /** Reception-only A4 demo result certificate with view, print and PDF save. */
