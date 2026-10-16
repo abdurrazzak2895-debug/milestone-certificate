@@ -58,6 +58,11 @@ function ResultCheck() {
   const [res, setRes] = useState<Res | null>(null);
   const [err, setErr] = useState("");
   useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const p = sp.get("passport"); if (p) setPp(p.slice(0, 20));
+    const o = sp.get("occ"); if (o) setOc(o);
+  }, []);
+  useEffect(() => {
     if (oc || !occ.length) return;
     const d = occ.find((o) => o.name.toLowerCase() === "load and unload worker");
     if (d) setOc(d.id);
