@@ -217,7 +217,7 @@ function BoguraToday({ exams, ttc, occName, candName, candPhoto }: { exams: Exam
       <h3 className="mb-3 flex flex-wrap items-center justify-between gap-2 text-base font-semibold">
         <span className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> {pick ? `${fmtDate(pick)} — বগুড়া` : "আজকের রিমাইন্ডার — বগুড়া"}</span>
         <span className="flex items-center gap-2">
-          <DateSelect aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm font-normal" />
+          <DateSelect autoToday={false} aria-label="নির্দিষ্ট তারিখ" value={pick} onChange={(e) => setPick(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm font-normal" />
           {!pick && <SmsButton />}<span className="rounded-full bg-danger-soft px-3 py-0.5 text-sm text-danger">{bn(list.length)} জন</span></span>
       </h3>
       {list.length === 0 ? <Empty>{pick ? "এই তারিখে" : "আজ"} বগুড়া সেন্টারে কোনো পরীক্ষা নেই</Empty> : (

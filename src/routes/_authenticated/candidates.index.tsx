@@ -72,7 +72,7 @@ function CandidatesPage() {
           <NativeSelect value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
             <option value="">সব অবস্থা</option><option value="upcoming">আসন্ন পরীক্ষা আছে</option><option value="waiting">রেজাল্টের অপেক্ষায়</option><option value="none">কোনো পরীক্ষা নেই</option>
           </NativeSelect>
-          <DateSelect value={fDate} onChange={(e) => setFDate(e.target.value)} title="পরীক্ষার তারিখ" />
+          <DateSelect autoToday={false} value={fDate} onChange={(e) => setFDate(e.target.value)} title="পরীক্ষার তারিখ" />
         </div>
       </div>
 
