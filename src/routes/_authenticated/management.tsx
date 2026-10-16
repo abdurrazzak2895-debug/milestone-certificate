@@ -48,7 +48,7 @@ function ManagementPage() {
     .filter((work) => work.status !== "rejected")
     .filter((w) => !target || dDay(w.exam_at) === target)
     .filter((w) => slot === "all" || dTime(w.exam_at) === slot)
-    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code.toLowerCase(), occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
+    .filter((w) => !s || [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s)))
     .sort((a, b) => a.exam_at.localeCompare(b.exam_at));
   const ttc = lookup(useQuery(ttcQ).data);
   const copyText = async () => {
@@ -65,7 +65,7 @@ function ManagementPage() {
   return <div className="mx-auto max-w-4xl space-y-4">
     <h1 className="font-display text-2xl font-bold">পরীক্ষার্থী রিসেপশন ({bn(works.length)})</h1>
     <div className="grid gap-2 rounded-2xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Input className="lg:col-span-2" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফ" value={q} onChange={(e) => setQ(e.target.value)} />
+      <Input className="lg:col-span-2" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা" value={q} onChange={(e) => setQ(e.target.value)} />
       <select className={sel} value={day} onChange={(e) => setDay(e.target.value)}>
         <option value="all">সব তারিখ</option><option value="today">আজ</option><option value="tomorrow">আগামীকাল</option><option value="day_after">পরশু</option><option value="date">নির্দিষ্ট তারিখ</option>
       </select>
@@ -108,7 +108,7 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
   };
   return <section className={`card-surface space-y-4 border-l-4 p-4 transition-all duration-300 hover:-translate-y-0.5 ${work.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div className="flex items-center gap-3"><CandidatePhoto path={work.candidate_photo_path} name={work.candidate_name} size={52} /><div><h2 className="font-semibold">{work.candidate_name} <span className="text-sm text-muted-foreground">#{work.ref_code}</span></h2><p className="text-sm text-muted-foreground">{work.passport_no} · {work.mobile}</p></div></div>
+      <div className="flex items-center gap-3"><CandidatePhoto path={work.candidate_photo_path} name={work.candidate_name} size={52} /><div><h2 className="font-semibold">{work.candidate_name}</h2><p className="text-sm text-muted-foreground">{work.passport_no} · {work.mobile}</p></div></div>
       <div className="flex gap-2"><StatusPill status={work.status} /><StatusPill status={work.arrival_status} />{work.status === "approved" && <SvpPill result={work.svp_result} work={work} />}</div>
     </div>
     <p className="text-sm text-muted-foreground">{occ(work.occupation_id)} · {ttc(work.ttc_id)} · {fmtDhakaDateTime(work.exam_at)}</p>
