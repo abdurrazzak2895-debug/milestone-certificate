@@ -93,7 +93,7 @@ function MyWorks() {
       </div>
       <div className="flex items-center gap-2 text-sm">
         <span className="shrink-0 text-muted-foreground">নির্দিষ্ট তারিখ:</span>
-        <DateSelect value={pick} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border bg-card px-2" />
+        <DateSelect autoToday={false} value={pick} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border bg-card px-2" />
         {pick && <Button variant="ghost" size="sm" onClick={() => setPick("")}>মুছুন</Button>}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
