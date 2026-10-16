@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { ResultShareActions, workShareInfo } from "@/components/app/ResultListShare";
+import { ResultCertificateButton } from "@/components/app/ResultCertificate";
+import { useRouteContext } from "@tanstack/react-router";
 import { PhotoInput } from "@/components/app/PhotoInput";
 
 export const Route = createFileRoute("/_authenticated/management")({
@@ -106,13 +108,15 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
     } catch { toast.error("তথ্য আপডেট করা যায়নি"); }
     finally { setBusy(false); }
   };
+  const { roles } = useRouteContext({ from: "/_authenticated" });
+  const receptionOnly = roles.includes("management") && !roles.some((r) => ["admin", "staff", "agent", "service_provider"].includes(r));
   return <section className={`card-surface space-y-4 border-l-4 p-4 transition-all duration-300 hover:-translate-y-0.5 ${work.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div className="flex items-center gap-3"><CandidatePhoto path={work.candidate_photo_path} name={work.candidate_name} size={52} /><div><h2 className="font-semibold">{work.candidate_name}</h2><p className="text-sm text-muted-foreground">{work.passport_no} · {work.mobile}</p></div></div>
       <div className="flex gap-2"><StatusPill status={work.status} /><StatusPill status={work.arrival_status} />{work.status === "approved" && <SvpPill result={work.svp_result} work={work} />}</div>
     </div>
     <p className="text-sm text-muted-foreground">{occ(work.occupation_id)} · {ttc(work.ttc_id)} · {fmtDhakaDateTime(work.exam_at)}</p>
-    {(() => { const d = workShareInfo(work, occ, ttc); return d ? <div className="flex flex-wrap gap-2"><ResultShareActions d={d} /></div> : null; })()}
+    {(() => { const d = workShareInfo(work, occ, ttc); return d ? <div className="flex flex-wrap gap-2">{receptionOnly ? <ResultCertificateButton d={{ name: d.name, passport: d.passport, occupation: d.occupation, occupationId: work.occupation_id, examAt: d.examAt, result: d.result, ref: d.ref }} /> : <ResultShareActions d={d} />}</div> : null; })()}
     <div className="grid gap-3 sm:grid-cols-2">
       <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))} /></div>
       <div><Label>পরীক্ষার্থীর ছবি</Label><PhotoInput onFile={setPhoto} /></div>
