@@ -1,6 +1,5 @@
 import { DateSelect } from "@/components/app/DateSelect";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
-import { AgentPhoto } from "@/components/app/AgentPhoto";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -114,7 +113,6 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
     </div>
     <p className="text-sm text-muted-foreground">{occ(work.occupation_id)} · {ttc(work.ttc_id)} · {fmtDhakaDateTime(work.exam_at)}</p>
     {(() => { const d = workShareInfo(work, occ, ttc); return d ? <div className="flex flex-wrap gap-2"><ResultShareActions d={d} /></div> : null; })()}
-    <AgentPhoto id={work.submitted_by} />
     <div className="grid gap-3 sm:grid-cols-2">
       <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 11))} /></div>
       <div><Label>পরীক্ষার্থীর ছবি</Label><PhotoInput onFile={setPhoto} /></div>
