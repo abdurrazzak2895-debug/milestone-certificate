@@ -52,20 +52,25 @@ export const myAccountQ = queryOptions({
 });
 
 export async function openTicket(path: string) {
-  const { data, error } = await supabase.storage.from("candidate-photos").createSignedUrl(path, 300, { download: path.split("/").pop() || "ticket.pdf" });
-  if (error || !data?.signedUrl) throw error ?? new Error("no signed url");
-  // Fetch to a blob so the file downloads reliably instead of being blocked as a popup.
-  const res = await fetch(data.signedUrl);
-  if (!res.ok) throw new Error("download failed");
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = path.split("/").pop() || "ticket.pdf";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  try {
+    const { data, error } = await supabase.storage.from("candidate-photos").createSignedUrl(path, 300, { download: path.split("/").pop() || "ticket.pdf" });
+    if (error || !data?.signedUrl) throw error ?? new Error("no signed url");
+    // Fetch to a blob so the file downloads reliably instead of being blocked as a popup.
+    const res = await fetch(data.signedUrl);
+    if (!res.ok) throw new Error("download failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = path.split("/").pop() || "ticket.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  } catch {
+    const { toast } = await import("sonner");
+    toast.error("PDF ডাউনলোড করা যায়নি — অনুমতি বা সংযোগ পরীক্ষা করুন");
+  }
 }
 
 export function fmtDhakaDateTime(iso: string | null) {
