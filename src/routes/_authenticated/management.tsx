@@ -5,9 +5,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Camera, CheckCircle2, Copy, UserCheck, UserX } from "lucide-react";
+import { Camera, CheckCircle2, Copy, FileText, UserCheck, UserX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { worksQ, fmtDhakaDateTime, type Work } from "@/lib/works";
+import { worksQ, openTicket, fmtDhakaDateTime, type Work } from "@/lib/works";
 import { receiveCandidate } from "@/lib/workflow.functions";
 import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { Button } from "@/components/ui/button";
@@ -131,6 +131,7 @@ function ReceptionCard({ work, ttc, occ, done }: { work: Work; ttc: (id: string 
       <Button disabled={busy} onClick={() => save("received")}><UserCheck className="h-4 w-4" /> রিসিভ করুন</Button>
       <Button disabled={busy} variant="destructive" onClick={() => save("absent")}><UserX className="h-4 w-4" /> অনুপস্থিত</Button>
       {work.arrival_status !== "not_arrived" && <Button disabled={busy} variant="outline" onClick={() => save("not_arrived")}><CheckCircle2 className="h-4 w-4" /> অপেক্ষমান করুন</Button>}
+      {work.ticket_path && <Button variant="outline" onClick={() => openTicket(work.ticket_path)}><FileText className="h-4 w-4" /> অ্যাপয়েন্টমেন্ট PDF</Button>}
       {photo && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Camera className="h-4 w-4" /> ছবি নির্বাচিত</span>}
     </div>
     <p className="text-xs text-muted-foreground">বর্তমান অবস্থা: {ARRIVAL[work.arrival_status] ?? work.arrival_status}</p>
