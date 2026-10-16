@@ -4,11 +4,10 @@ import { Award, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import brandLogo from "@/assets/brand-logo.png.asset.json";
 
 export type CertInfo = { name: string; passport: string; occupation: string; occupationId: string | null; examAt: string; result: string; ref: string };
 
-const OFFICIAL_URL = "https://svp-international.pacc.sa/applicant-result";
+const OFFICIAL_URL = "https://svp-international.qiwa.sa/applicant-result";
 const SITE = "https://milestonecertificate.lovable.app";
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -19,7 +18,6 @@ async function buildHtml(d: CertInfo) {
   const qr = await QRCode.toDataURL(OFFICIAL_URL, { margin: 1, width: 260, color: { dark: "#0f3d2e", light: "#ffffff" } });
   const pass = d.result === "PASS";
   const col = pass ? "#047857" : "#b91c1c";
-  const logo = new URL(brandLogo.url, window.location.origin).href;
   const row = (k: string, v: string) => `<tr><th>${k}</th><td>${esc(v || "—")}</td></tr>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>Result Certificate - ${esc(d.passport)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Hind+Siliguri:wght@400;600&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
@@ -93,10 +91,10 @@ export function ResultCertificateButton({ d }: { d: CertInfo }) {
   };
   return (
     <>
-      <Button size="sm" variant="outline" onClick={open}><Award className="mr-1 h-4 w-4" />A4 সার্টিফিকেট</Button>
+      <Button size="sm" variant="outline" onClick={open}><Award className="mr-1 h-4 w-4" />A4 রেজাল্ট পেপার</Button>
       <Dialog open={!!html} onOpenChange={(o) => !o && setHtml(null)}>
         <DialogContent className="max-w-3xl p-3">
-          <DialogHeader><DialogTitle>রেজাল্ট সার্টিফিকেট (A4)</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>রেজাল্ট পেপার (A4)</DialogTitle></DialogHeader>
           {html && <iframe id="cert-frame" title="certificate" srcDoc={html} className="h-[70vh] w-full rounded-lg border bg-muted" />}
           <div className="flex flex-wrap justify-end gap-2">
             <p className="mr-auto self-center text-xs text-muted-foreground">PDF পেতে প্রিন্ট উইন্ডোতে “Save as PDF” বেছে নিন।</p>
