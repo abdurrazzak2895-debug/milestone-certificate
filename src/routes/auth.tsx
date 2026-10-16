@@ -123,7 +123,7 @@ function AuthPage() {
         setBusy(false);
         return toast.error("নতুন পাসওয়ার্ড দুটি মিলছে না");
       }
-      const { error } = await supabase.auth.updateUser({ password: newPass });
+      const { error } = await supabase.auth.updateUser({ password: newPass, current_password: password } as { password: string; current_password?: string });
       if (error) {
         setBusy(false);
         return toast.error("পাসওয়ার্ড পরিবর্তন করা যায়নি");
