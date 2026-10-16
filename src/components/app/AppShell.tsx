@@ -48,9 +48,10 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
     qc.clear();
     navigate({ to: "/auth" });
   };
+  const receptionOnly = !manager && roles.includes("management") && !roles.includes("agent") && !roles.includes("service_provider");
   return (
-    <div className="relative isolate min-h-screen md:flex">
-      <TechBackground />
+    <div className={`relative isolate min-h-screen md:flex ${receptionOnly ? "reception-light bg-background" : ""}`}>
+      <TechBackground variant={receptionOnly ? "light" : "dark"} />
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar/85 p-4 backdrop-blur-md md:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
           <img src={brandLogo.url} alt="Milestone Certificate Institute" className="h-10 w-10 rounded-full object-cover ring-2 ring-primary/50" />
