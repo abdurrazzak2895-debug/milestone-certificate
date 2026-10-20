@@ -159,9 +159,6 @@ async function makeCard(d: Info): Promise<Blob> {
   return new Promise((r) => c.toBlob((b) => r(b!), "image/png"));
 }
 
-function msgText(d: Info) {
-  return `*SVP Exam Result: ${d.result}*\nName: ${d.name}\nPassport: ${d.passport}\nOccupation: ${d.occupation}\nTTC: ${d.ttc}\nExam: ${d.examAt}\n— Milestone Certificate Institute`;
-}
 
 /** Reusable image download + WhatsApp share buttons for a declared (PASS/FAIL) result. */
 export function ResultShareActions({ d }: { d: ResultShareInfo }) {
