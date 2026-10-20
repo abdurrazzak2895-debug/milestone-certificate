@@ -172,11 +172,24 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     toast.success("ছবি ডাউনলোড হয়েছে");
   };
-  // Mobile browsers cancel the share sheet if the image takes too long to build after the tap,
-  // so the first tap prepares the image and the second tap opens the phone's share sheet instantly.
+  // Mobile browsers cancel the share sheet if the image is built after the tap,
+  // so the image is generated in advance as soon as the result is shown/updated.
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const nav = (typeof navigator !== "undefined" ? navigator : undefined) as (Navigator & { canShare?: (x: ShareData) => boolean }) | undefined;
+  const key = `${d.passport}|${d.result}|${d.name}|${d.examDate ?? ""}`;
+  useEffect(() => {
+    let alive = true;
+    setFile(null);
+    const t = setTimeout(async () => {
+      try {
+        const blob = await makeCard(d);
+        if (alive) setFile(new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" }));
+      } catch { /* built on tap instead */ }
+    }, Math.random() * 1500);
+    return () => { alive = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
   const fallback = (f: File) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(f); a.download = f.name; a.click();
@@ -185,30 +198,31 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(msgText(d))}`, "_blank");
   };
   const share = async () => {
-    if (!file) {
+    let f = file;
+    if (!f) {
       setBusy(true);
       try {
         const blob = await makeCard(d);
-        const f = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
-        if (nav?.share && nav.canShare?.({ files: [f] })) {
-          setFile(f);
-          toast.success("ছবি প্রস্তুত — আবার “শেয়ার করুন” চাপুন");
-        } else fallback(f);
+        f = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
+        setFile(f);
       } finally { setBusy(false); }
-      return;
     }
-    try {
-      await nav!.share({ files: [file] });
-      try { await navigator.clipboard?.writeText(msgText(d)); } catch { /* ignore */ }
-      toast.success("ছবি শেয়ার হয়েছে");
-    } catch (err) {
-      if ((err as DOMException)?.name !== "AbortError") fallback(file);
-    }
+    try { navigator.clipboard?.writeText(msgText(d)).catch(() => {}); } catch { /* ignore */ }
+    if (nav?.share && nav.canShare?.({ files: [f] })) {
+      try {
+        await nav.share({ files: [f] });
+        toast.success("ছবি শেয়ার হয়েছে — লেখাটি কপি করা আছে");
+      } catch (err) {
+        const n = (err as DOMException)?.name;
+        if (n === "NotAllowedError") toast.info("আবার WhatsApp চাপুন");
+        else if (n !== "AbortError") fallback(f);
+      }
+    } else fallback(f);
   };
   return (
     <>
       <Button size="sm" variant="outline" onClick={download}><Download className="mr-1 h-4 w-4" />ছবি ডাউনলোড</Button>
-      <Button size="sm" disabled={busy} onClick={share}><Share2 className="mr-1 h-4 w-4" />{busy ? "তৈরি হচ্ছে…" : file ? "শেয়ার করুন" : "WhatsApp"}</Button>
+      <Button size="sm" disabled={busy} onClick={share}><Share2 className="mr-1 h-4 w-4" />{busy ? "তৈরি হচ্ছে…" : "WhatsApp"}</Button>
     </>
   );
 }
