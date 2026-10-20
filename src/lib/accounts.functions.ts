@@ -9,7 +9,7 @@ async function assertAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("শুধু অ্যাডমিন এই কাজ করতে পারবেন");
 }
 
-export type Account = { id: string; name: string; mobile: string; role: string; agent_code: string | null; active: boolean; created_at: string; parent_name: string | null };
+export type Account = { id: string; name: string; mobile: string; role: string; agent_code: string | null; active: boolean; has_unpaid: boolean; created_at: string; parent_name: string | null };
 
 export const listAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -19,7 +19,7 @@ export const listAccounts = createServerFn({ method: "GET" })
     const { data } = await context.supabase.from("agent_accounts").select("*").order("created_at", { ascending: false });
     const { data: rr } = await context.supabase.from("user_roles").select("user_id, role");
     const dual = new Set((rr ?? []).filter((r) => r.role === "agent" && (rr ?? []).some((x) => x.user_id === r.user_id && x.role === "management")).map((r) => r.user_id));
-    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: dual.has(a.user_id) ? "reception_agent" : a.role, agent_code: a.agent_code, active: a.active, created_at: a.created_at, parent_name: a.parent_agent_id ? (data ?? []).find((p) => p.user_id === a.parent_agent_id)?.full_name ?? "এজেন্ট" : null }));
+    return (data ?? []).map((a) => ({ id: a.user_id, name: a.full_name, mobile: a.mobile, role: dual.has(a.user_id) ? "reception_agent" : a.role, agent_code: a.agent_code, active: a.active, has_unpaid: !!a.has_unpaid, created_at: a.created_at, parent_name: a.parent_agent_id ? (data ?? []).find((p) => p.user_id === a.parent_agent_id)?.full_name ?? "এজেন্ট" : null }));
   });
 
 const createSchema = z.object({
@@ -81,6 +81,26 @@ export const setAccountActive = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("agent_accounts").update({ active: data.active }).eq("user_id", data.id);
     return { ok: !error };
+  });
+
+/** Admin manually flags an account as having unpaid dues; agents see a red warning on every work event. */
+export const setAccountUnpaid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), unpaid: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("agent_accounts").update({ has_unpaid: data.unpaid }).eq("user_id", data.id);
+    return { ok: !error };
+  });
+
+/** Any logged-in account reads only its own unpaid flag. */
+export const getMyUnpaidFlag = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin.from("agent_accounts").select("has_unpaid").eq("user_id", context.userId).maybeSingle();
+    return !!data?.has_unpaid;
   });
 
 export const changeMyAdminEmail = createServerFn({ method: "POST" })

@@ -20,6 +20,7 @@ export type Database = {
           agent_code: string | null
           created_at: string
           full_name: string
+          has_unpaid: boolean
           mobile: string
           parent_agent_id: string | null
           role: Database["public"]["Enums"]["app_role"]
@@ -30,6 +31,7 @@ export type Database = {
           agent_code?: string | null
           created_at?: string
           full_name: string
+          has_unpaid?: boolean
           mobile: string
           parent_agent_id?: string | null
           role: Database["public"]["Enums"]["app_role"]
@@ -40,6 +42,7 @@ export type Database = {
           agent_code?: string | null
           created_at?: string
           full_name?: string
+          has_unpaid?: boolean
           mobile?: string
           parent_agent_id?: string | null
           role?: Database["public"]["Enums"]["app_role"]
