@@ -164,23 +164,24 @@ function Submissions() {
       </div>
       {list.length === 0 ? <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">কোনো কাজ নেই।</p> : (
         <ul className="space-y-3">
-          {list.map((w) => isOldApproved(w) && !openIds.includes(w.id) ? (
+          {list.map((w) => !openIds.includes(w.id) ? (
             <li key={w.id} className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card/80 px-3 py-2.5 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/50">
-              <span className="shrink-0 rounded-full border border-primary/40 bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">✓ Completed</span>
+              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${isOldApproved(w) ? "border-primary/40 bg-primary-soft text-primary" : w.status === "approved" ? "border-success/40 bg-success-soft text-success" : w.status === "rejected" ? "border-danger/40 bg-danger-soft text-danger" : "border-warning/40 bg-warning-soft text-warning"}`}>{isOldApproved(w) ? "✓ Completed" : w.status === "approved" ? "অনুমোদিত" : w.status === "rejected" ? "বাতিল" : "অপেক্ষমাণ"}</span>
               <div className="flex shrink-0 items-center gap-1">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${w.svp_result === "PASS" ? "bg-success-soft text-success" : w.svp_result === "FAIL" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>{w.svp_result || "Pending"}</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${w.svp_result === "PASS" ? "bg-success-soft text-success" : w.svp_result === "FAIL" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning"}`}>{w.svp_result === "PASS" || w.svp_result === "FAIL" ? w.svp_result : "Pending"}</span>
                 <Button size="icon" variant="ghost" className="rounded-full text-primary hover:bg-primary-soft" aria-label="বিস্তারিত দেখুন" onClick={() => setOpenIds((s) => [...s, w.id])}><Eye className="h-5 w-5" /></Button>
               </div>
-              <div className="grid min-w-0 w-full grid-cols-1 gap-y-0.5 text-sm sm:w-auto sm:flex-1 sm:grid-cols-4 sm:gap-x-3">
+              <div className="grid min-w-0 w-full grid-cols-1 gap-y-0.5 text-sm sm:w-auto sm:flex-1 sm:grid-cols-5 sm:gap-x-3">
                 <span className="break-words font-semibold">{w.candidate_name}</span>
                 <span className="break-words text-muted-foreground">{w.passport_no}</span>
+                <span className="break-words text-muted-foreground">💼 {w.occupation_id ? occ(w.occupation_id) : "—"}</span>
                 <span className="break-words text-muted-foreground">👤 {agentName(w.submitted_by)}</span>
                 <span className="break-words text-muted-foreground">📅 {w.exam_at ? fmtDhakaDate(w.exam_at) : "—"}</span>
               </div>
             </li>
           ) : (
             <li key={w.id} className={`rounded-2xl border border-l-4 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 ${w.svp_result === "PASS" ? "border-l-emerald-500 shadow-[0_0_14px_-4px_rgb(16_185_129/0.6)] hover:shadow-[0_0_22px_-4px_rgb(16_185_129/0.8)]" : "border-l-amber-400 shadow-[0_0_14px_-4px_rgb(251_191_36/0.55)] hover:shadow-[0_0_22px_-4px_rgb(251_191_36/0.8)]"}`}>
-              {isOldApproved(w) && <div className="mb-2 flex justify-end"><Button size="sm" variant="ghost" onClick={() => setOpenIds((s) => s.filter((x) => x !== w.id))}><EyeOff className="mr-1 h-4 w-4" /> সংক্ষিপ্ত করুন</Button></div>}
+              <div className="mb-2 flex justify-end"><Button size="sm" variant="ghost" onClick={() => setOpenIds((s) => s.filter((x) => x !== w.id))}><EyeOff className="mr-1 h-4 w-4" /> সংক্ষিপ্ত করুন</Button></div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3 font-semibold"><CandidatePhoto path={w.candidate_photo_path} name={w.candidate_name} size={44} /><span>{w.candidate_name}</span> <span className="text-sm font-normal text-muted-foreground">#{w.ref_code}</span></div>
                 <div className="flex gap-2"><StatusPill status={w.status} />{w.status === "approved" && <SvpPill result={w.svp_result} work={w} />}</div>
