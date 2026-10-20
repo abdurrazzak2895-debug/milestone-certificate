@@ -177,14 +177,23 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
     const blob = await makeCard(d);
     const file = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
     const nav = navigator as Navigator & { canShare?: (x: ShareData) => boolean };
+    // WhatsApp drops the image when text is sent alongside it, so share the image alone
+    // and put the caption on the clipboard for pasting.
+    try { await navigator.clipboard?.writeText(msgText(d)); } catch { /* ignore */ }
     if (nav.share && nav.canShare?.({ files: [file] })) {
       try {
-        await nav.share({ files: [file], text: msgText(d), title: `SVP Result: ${d.result}` });
+        await nav.share({ files: [file] });
+        toast.success("ছবি শেয়ার হয়েছে — লেখাটি কপি করা আছে, চাইলে Paste করুন");
         return;
       } catch (err) {
         if ((err as DOMException)?.name === "AbortError") return;
       }
     }
+    // Fallback (desktop/unsupported): download image, then open WhatsApp with the text.
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast.info("ছবি ডাউনলোড হয়েছে — WhatsApp-এ ছবিটি সংযুক্ত করুন");
     window.open(`https://wa.me/?text=${encodeURIComponent(msgText(d))}`, "_blank");
   };
   return (
