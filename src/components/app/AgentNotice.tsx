@@ -42,5 +42,6 @@ export function UnpaidNotice() {
         <p className="font-bold text-destructive">⚠️ Payment বকেয়া সংক্রান্ত সতর্কতা</p>
         <p className="mt-1 text-foreground/90">আপনার এজেন্ট অ্যাকাউন্টে Payment বকেয়া রয়েছে। বকেয়া পরিশোধ না করা পর্যন্ত আপনার Submit করা কাজ গ্রহণযোগ্য নাও হতে পারে। কাজ Submit করার আগে অনুগ্রহ করে আপনার সব বকেয়া Payment পরিশোধ নিশ্চিত করুন।</p>
       </div>
+    </div>
   );
 }
