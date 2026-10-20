@@ -1,1 +1,0 @@
-ALTER TABLE public.agent_accounts ADD COLUMN IF NOT EXISTS has_unpaid boolean NOT NULL DEFAULT false;

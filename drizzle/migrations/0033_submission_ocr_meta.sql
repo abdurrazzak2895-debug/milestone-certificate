@@ -1,2 +1,0 @@
-ALTER TABLE public.job_submissions ADD COLUMN IF NOT EXISTS ocr_meta jsonb;
-COMMENT ON COLUMN public.job_submissions.ocr_meta IS 'Smart PDF extraction at agent submit: extracted values, field confidences, verification status, agent edits.';

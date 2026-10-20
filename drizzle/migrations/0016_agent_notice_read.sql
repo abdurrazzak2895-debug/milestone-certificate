@@ -1,1 +1,0 @@
-CREATE POLICY "authenticated read agent notice" ON public.settings FOR SELECT TO authenticated USING (key = 'agent_notice');
