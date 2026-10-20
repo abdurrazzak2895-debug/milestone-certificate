@@ -6,7 +6,7 @@ import { Copy, ExternalLink, Mail, Printer, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PageHeader, Empty, Field, NativeSelect } from "@/components/app/ui-bits";
+import { Empty, Field, NativeSelect } from "@/components/app/ui-bits";
 import { DateSelect } from "@/components/app/DateSelect";
 import { occQ, ttcQ, fmtDate } from "@/lib/data";
 
@@ -62,14 +62,18 @@ function SvpBooking() {
   const counts = { total: data.length, otp: data.filter((b) => b.status === "otp_pending").length, done: data.filter((b) => b.status === "slip_done").length };
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="SVP Takamol বুকিং" />
+    <div className="svp-portal space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="svp-logo flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-black">S</div>
+        <div><p className="text-xl font-bold leading-tight">SVP Takamol</p><p className="svp-muted text-sm">Booking Management Portal</p></div>
+      </div>
+      <h1 className="text-2xl font-black leading-tight sm:text-3xl">Seamless Exam <span className="svp-grad-text">Booking & Management</span></h1>
       <div className="grid grid-cols-3 gap-2">
         {[["মোট বুকিং", counts.total], ["OTP অপেক্ষমাণ", counts.otp], ["স্লিপ সংগ্রহ", counts.done]].map(([l, n]) => (
-          <div key={l} className="card-surface p-3 text-center"><div className="text-2xl font-bold text-primary">{n}</div><div className="text-xs text-muted-foreground">{l}</div></div>
+          <div key={l} className="svp-glass p-3 text-center"><div className="svp-grad-text text-2xl font-bold">{n}</div><div className="svp-muted text-xs">{l}</div></div>
         ))}
       </div>
-      <div className="card-surface grid gap-2 p-4 sm:grid-cols-3">
+      <div className="svp-glass grid gap-2 p-4 sm:grid-cols-3">
         <Field label="পরীক্ষার্থীর নাম"><Input value={f.candidate_name} onChange={set("candidate_name")} /></Field>
         <Field label="পাসপোর্ট"><Input value={f.passport} onChange={set("passport")} /></Field>
         <Field label="পেশা"><NativeSelect value={f.occupation} onChange={set("occupation")}><option value="">বাছাই করুন</option>{occ.map((o) => <option key={o.id}>{o.name}</option>)}</NativeSelect></Field>
@@ -79,7 +83,7 @@ function SvpBooking() {
         <Field label="এজেন্সি"><Input value={f.agency} onChange={set("agency")} /></Field>
         <Field label="SVP লগইন ইমেইল"><Input value={f.login_email} onChange={set("login_email")} placeholder="name@yopmail.com" /></Field>
         <Field label="নোট"><Input value={f.notes} onChange={set("notes")} /></Field>
-        <Button className="sm:col-span-3" onClick={add}>বুকিং যোগ করুন</Button>
+        <Button className="svp-btn sm:col-span-3" onClick={add}>বুকিং যোগ করুন →</Button>
       </div>
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="নাম, পাসপোর্ট, পেশা, এজেন্সি বা ইমেইল দিয়ে খুঁজুন" />
       {list.length === 0 ? <Empty>কোনো বুকিং নেই</Empty> : (
@@ -87,10 +91,10 @@ function SvpBooking() {
           {list.map((b) => {
             const inbox = yopmailInbox(b.login_email);
             return (
-              <li key={b.id} className="card-surface flex flex-wrap items-center gap-2 p-3 text-sm">
+              <li key={b.id} className="svp-glass flex flex-wrap items-center gap-2 p-3 text-sm">
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold">{b.candidate_name} <span className="text-muted-foreground">· {b.passport}</span></div>
-                  <div className="text-xs text-muted-foreground">{b.occupation ?? "-"} · {b.center ?? "-"} · {b.exam_date ? fmtDate(b.exam_date) : "-"} {b.exam_time ?? ""} · {b.agency ?? ""}</div>
+                  <div className="font-semibold">{b.candidate_name} <span className="svp-muted">· {b.passport}</span></div>
+                  <div className="text-xs svp-muted">{b.occupation ?? "-"} · {b.center ?? "-"} · {b.exam_date ? fmtDate(b.exam_date) : "-"} {b.exam_time ?? ""} · {b.agency ?? ""}</div>
                   {b.login_email && <div className="text-xs">{b.login_email}</div>}
                 </div>
                 <NativeSelect value={b.status} onChange={(e) => upd(b.id, e.target.value)} className="w-36">{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect>
