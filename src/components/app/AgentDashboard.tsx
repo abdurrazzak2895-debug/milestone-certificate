@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compress-image";
 import { OfficeAddress } from "@/components/app/OfficeAddress";
 import { AboutServices } from "@/components/app/AboutServices";
+import { AgentToAdminReminder } from "@/components/app/AgentToAdminReminder";
 import { Button } from "@/components/ui/button";
 
 const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
@@ -71,6 +72,7 @@ export function AgentDashboard() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       {unpaid && <UnpaidNotice />}
+      <AgentToAdminReminder agentName={me?.full_name ?? "এজেন্ট"} myId={me?.user_id} />
       <div className="flex justify-end"><ReceiveAnalyticsButton /></div>
       <section className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-2 shadow-sm">
         <div className="relative shrink-0">
