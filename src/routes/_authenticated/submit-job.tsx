@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { OccupationPicker } from "@/components/app/OccupationPicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +9,7 @@ import { PassportHistory, passportHistoryQ } from "@/components/app/PassportHist
 import { AlertTriangle, CheckCircle2, SendHorizontal, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
-import { getMyUnpaidFlag } from "@/lib/accounts.functions";
+import { UnpaidNotice, useMyUnpaid } from "@/components/app/AgentNotice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -62,16 +61,6 @@ const notices = [
 ];
 
 const empty = { passport_no: "", candidate_name: "", mobile: "", skill_details: "", result_email: "", result_password: "", other_info: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
-
-const UnpaidNotice = () => (
-  <div className="flex items-start gap-3 rounded-2xl border-2 border-destructive bg-destructive/10 p-4 text-sm shadow-sm">
-    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-destructive" />
-    <div>
-      <p className="font-bold text-destructive">বকেয়া পেমেন্ট সংক্রান্ত জরুরি নোটিশ</p>
-      <p className="mt-1 text-foreground/90">আপনার অ্যাকাউন্টে পূর্ববর্তী কাজের পেমেন্ট বকেয়া রয়েছে। আপনার কাজটি সিস্টেমে জমা করা হলেও, বকেয়া পরিশোধ ও নিষ্পত্তি না হওয়া পর্যন্ত Admin কর্তৃক এই কাজটি চূড়ান্ত অনুমোদন (Approve) স্থগিত বা বাতিল হতে পারে। জরুরি ভিত্তিতে পেমেন্ট ক্লিয়ার করার জন্য অনুরোধ করা যাচ্ছে।</p>
-    </div>
-  </div>
-);
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 function SubmitJob() {
@@ -93,8 +82,7 @@ function SubmitJob() {
   const [ocr, setOcr] = useState<TicketExtraction | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [critOk, setCritOk] = useState(false);
-  const getUnpaid = useServerFn(getMyUnpaidFlag);
-  const { data: unpaid = false } = useQuery({ queryKey: ["my_unpaid"], queryFn: () => getUnpaid(), staleTime: 60_000 });
+  const unpaid = useMyUnpaid();
   const locked = stage !== "done" && stage !== "review";
   const set = (k: keyof typeof empty, v: string) => setF((p) => ({ ...p, [k]: v }));
   const applyOcr = (x: TicketExtraction) => {
