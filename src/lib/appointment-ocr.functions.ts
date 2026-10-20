@@ -77,7 +77,7 @@ export const scanAppointment = createServerFn({ method: "POST" })
         store: false,
         reasoning: { effort: "medium" },
         instructions:
-          "You read Saudi SVP / Takamul exam appointment tickets (may be rotated or blurry). Extract only what is clearly printed; use null when missing or unreadable — never guess. Keep exam time and reporting/arrival time separate. Times are local center time (Bangladesh). If several dates/times compete, list each in ambiguities and lower confidence.",
+          "You read Saudi SVP / Takamul exam appointment tickets (may be rotated or blurry). Extract only what is clearly printed; use null when missing or unreadable — never guess. Keep exam time and reporting/arrival time separate. Times are local center time (Bangladesh). If several exam dates/times compete, list each in ambiguities and lower confidence. Never put arrival/reporting instructions (e.g. arrive N minutes early) in ambiguities.",
         text: { format: { type: "json_schema", name: "appointment", strict: true, schema: SCHEMA } },
         input: [{ role: "user", content: [{ type: "input_text", text: "Extract the appointment details from this ticket." }, part] }],
       }),
@@ -106,8 +106,10 @@ export const scanAppointment = createServerFn({ method: "POST" })
     let x: Extracted;
     try { x = JSON.parse(text); } catch { await save({ status: "failed", error: "unparseable output" }); return { error: "ডকুমেন্ট পড়া যায়নি — ম্যানুয়াল রিভিউ দরকার" }; }
 
-    const warnings = [...x.ambiguities];
+    // Arrival/reporting instructions (e.g. "arrive 15 minutes early") are not shown to admin.
+    const warnings = x.ambiguities.filter((a) => !/report|arriv|minute|early|before|মিনিট|উপস্থিত|আগে/i.test(a));
     if (x.passport_no && norm(x.passport_no) !== norm(w.passport_no)) warnings.push(`পাসপোর্ট মিলছে না (টিকিটে ${x.passport_no})`);
+    if (x.candidate_name && norm(x.candidate_name) !== norm(w.candidate_name)) warnings.push(`নাম মিলছে না (টিকিটে ${x.candidate_name})`);
     if (!x.exam_date || !x.exam_time) warnings.push("পরীক্ষার তারিখ/সময় পরিষ্কার নয়");
     if (x.confidence < 0.8) warnings.push("কম নির্ভরযোগ্যতা");
     if (x.booking_no) {
