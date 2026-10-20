@@ -172,34 +172,43 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     toast.success("ছবি ডাউনলোড হয়েছে");
   };
-  const share = async () => {
-    toast.info("ছবি তৈরি হচ্ছে…");
-    const blob = await makeCard(d);
-    const file = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
-    const nav = navigator as Navigator & { canShare?: (x: ShareData) => boolean };
-    // WhatsApp drops the image when text is sent alongside it, so share the image alone
-    // and put the caption on the clipboard for pasting.
-    try { await navigator.clipboard?.writeText(msgText(d)); } catch { /* ignore */ }
-    if (nav.share && nav.canShare?.({ files: [file] })) {
-      try {
-        await nav.share({ files: [file] });
-        toast.success("ছবি শেয়ার হয়েছে — লেখাটি কপি করা আছে, চাইলে Paste করুন");
-        return;
-      } catch (err) {
-        if ((err as DOMException)?.name === "AbortError") return;
-      }
-    }
-    // Fallback (desktop/unsupported): download image, then open WhatsApp with the text.
+  // Mobile browsers cancel the share sheet if the image takes too long to build after the tap,
+  // so the first tap prepares the image and the second tap opens the phone's share sheet instantly.
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const nav = (typeof navigator !== "undefined" ? navigator : undefined) as (Navigator & { canShare?: (x: ShareData) => boolean }) | undefined;
+  const fallback = (f: File) => {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+    a.href = URL.createObjectURL(f); a.download = f.name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast.info("ছবি ডাউনলোড হয়েছে — WhatsApp-এ ছবিটি সংযুক্ত করুন");
+    toast.info("ছবি ডাউনলোড হয়েছে — WhatsApp / WhatsApp Business-এ ছবিটি সংযুক্ত করুন");
     window.open(`https://wa.me/?text=${encodeURIComponent(msgText(d))}`, "_blank");
+  };
+  const share = async () => {
+    if (!file) {
+      setBusy(true);
+      try {
+        const blob = await makeCard(d);
+        const f = new File([blob], `Result-${d.passport}-${d.result}.png`, { type: "image/png" });
+        if (nav?.share && nav.canShare?.({ files: [f] })) {
+          setFile(f);
+          toast.success("ছবি প্রস্তুত — আবার “শেয়ার করুন” চাপুন");
+        } else fallback(f);
+      } finally { setBusy(false); }
+      return;
+    }
+    try {
+      await nav!.share({ files: [file] });
+      try { await navigator.clipboard?.writeText(msgText(d)); } catch { /* ignore */ }
+      toast.success("ছবি শেয়ার হয়েছে");
+    } catch (err) {
+      if ((err as DOMException)?.name !== "AbortError") fallback(file);
+    }
   };
   return (
     <>
       <Button size="sm" variant="outline" onClick={download}><Download className="mr-1 h-4 w-4" />ছবি ডাউনলোড</Button>
-      <Button size="sm" onClick={share}><Share2 className="mr-1 h-4 w-4" />WhatsApp</Button>
+      <Button size="sm" disabled={busy} onClick={share}><Share2 className="mr-1 h-4 w-4" />{busy ? "তৈরি হচ্ছে…" : file ? "শেয়ার করুন" : "WhatsApp"}</Button>
     </>
   );
 }
