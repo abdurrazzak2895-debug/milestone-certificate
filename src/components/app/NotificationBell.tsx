@@ -43,7 +43,13 @@ export function NotificationBell() {
     const ch = supabase.channel(`notif-${uid}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${uid}` }, (p) => {
       const n = p.new as Notif;
       beep();
+      try { navigator.vibrate?.([200, 100, 200]); } catch { /* ignore */ }
       toast.success(n.title, { description: n.body ?? undefined });
+      try {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(n.title, { body: n.body ?? undefined, icon: "/favicon.png", tag: n.id });
+        }
+      } catch { /* ignore */ }
       qc.invalidateQueries({ queryKey: ["notifications"] });
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -71,6 +77,19 @@ export function NotificationBell() {
             <span className="text-sm font-semibold">নোটিফিকেশন</span>
             {unread > 0 && <button onClick={markAll} className="text-xs text-primary">সব পড়া হয়েছে</button>}
           </div>
+          {typeof window !== "undefined" && "Notification" in window && Notification.permission !== "granted" && (
+            <button
+              onClick={async () => {
+                const r = await Notification.requestPermission();
+                if (r === "granted") { toast.success("ফোনে নোটিফিকেশন চালু হয়েছে"); new Notification("নোটিফিকেশন চালু হয়েছে", { icon: "/favicon.png" }); }
+                else toast.error("ব্রাউজার সেটিংস থেকে নোটিফিকেশন অনুমতি দিন");
+                setOpen(false);
+              }}
+              className="w-full border-b bg-primary/10 px-3 py-2 text-left text-xs font-semibold text-primary"
+            >
+              🔔 ফোনে নোটিফিকেশন চালু করুন
+            </button>
+          )}
           <div className="max-h-96 overflow-y-auto">
             {data.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">কোনো নোটিফিকেশন নেই</p>}
             {data.map((n) => (
