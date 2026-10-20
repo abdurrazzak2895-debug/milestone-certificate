@@ -35,6 +35,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSubAgentsRouteImport } from './routes/_authenticated/sub-agents'
 import { Route as AuthenticatedSubmissionsRouteImport } from './routes/_authenticated/submissions'
 import { Route as AuthenticatedSubmitJobRouteImport } from './routes/_authenticated/submit-job'
+import { Route as AuthenticatedSvpBookingRouteImport } from './routes/_authenticated/svp-booking'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
@@ -175,6 +176,11 @@ const AuthenticatedSubmitJobRoute = AuthenticatedSubmitJobRouteImport.update({
   path: '/submit-job',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSvpBookingRoute = AuthenticatedSvpBookingRouteImport.update({
+  id: '/svp-booking',
+  path: '/svp-booking',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/sub-agents': typeof AuthenticatedSubAgentsRoute
   '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
+  '/svp-booking': typeof AuthenticatedSvpBookingRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/': typeof AuthenticatedCandidatesIndexRoute
@@ -267,6 +274,7 @@ export interface FileRoutesByTo {
   '/sub-agents': typeof AuthenticatedSubAgentsRoute
   '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
+  '/svp-booking': typeof AuthenticatedSvpBookingRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates': typeof AuthenticatedCandidatesIndexRoute
@@ -302,6 +310,7 @@ export interface FileRoutesById {
   '/_authenticated/sub-agents': typeof AuthenticatedSubAgentsRoute
   '/_authenticated/submissions': typeof AuthenticatedSubmissionsRoute
   '/_authenticated/submit-job': typeof AuthenticatedSubmitJobRoute
+  '/_authenticated/svp-booking': typeof AuthenticatedSvpBookingRoute
   '/admin/login': typeof AdminLoginRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/': typeof AuthenticatedCandidatesIndexRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/sub-agents'
     | '/submissions'
     | '/submit-job'
+    | '/svp-booking'
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates/'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/sub-agents'
     | '/submissions'
     | '/submit-job'
+    | '/svp-booking'
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates'
@@ -404,6 +415,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sub-agents'
     | '/_authenticated/submissions'
     | '/_authenticated/submit-job'
+    | '/_authenticated/svp-booking'
     | '/admin/login'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/'
@@ -609,6 +621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSubmitJobRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/svp-booking': {
+      id: '/_authenticated/svp-booking'
+      path: '/svp-booking'
+      fullPath: '/svp-booking'
+      preLoaderRoute: typeof AuthenticatedSvpBookingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
@@ -675,6 +694,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSubAgentsRoute: typeof AuthenticatedSubAgentsRoute
   AuthenticatedSubmissionsRoute: typeof AuthenticatedSubmissionsRoute
   AuthenticatedSubmitJobRoute: typeof AuthenticatedSubmitJobRoute
+  AuthenticatedSvpBookingRoute: typeof AuthenticatedSvpBookingRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesIndexRoute: typeof AuthenticatedCandidatesIndexRoute
 }
@@ -700,6 +720,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSubAgentsRoute: AuthenticatedSubAgentsRoute,
   AuthenticatedSubmissionsRoute: AuthenticatedSubmissionsRoute,
   AuthenticatedSubmitJobRoute: AuthenticatedSubmitJobRoute,
+  AuthenticatedSvpBookingRoute: AuthenticatedSvpBookingRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesIndexRoute: AuthenticatedCandidatesIndexRoute,
 }
