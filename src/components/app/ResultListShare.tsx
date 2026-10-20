@@ -194,8 +194,7 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(f); a.download = f.name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast.info("ছবি ডাউনলোড হয়েছে — WhatsApp / WhatsApp Business-এ ছবিটি সংযুক্ত করুন");
-    window.open(`https://wa.me/?text=${encodeURIComponent(msgText(d))}`, "_blank");
+    toast.info("এই ডিভাইসে শেয়ার মেনু নেই — ছবি ডাউনলোড হয়েছে");
   };
   const share = async () => {
     let f = file;
@@ -207,14 +206,13 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
         setFile(f);
       } finally { setBusy(false); }
     }
-    try { navigator.clipboard?.writeText(msgText(d)).catch(() => {}); } catch { /* ignore */ }
+    // Image only — opens the phone's native share sheet (no text/caption).
     if (nav?.share && nav.canShare?.({ files: [f] })) {
       try {
         await nav.share({ files: [f] });
-        toast.success("ছবি শেয়ার হয়েছে — লেখাটি কপি করা আছে");
       } catch (err) {
         const n = (err as DOMException)?.name;
-        if (n === "NotAllowedError") toast.info("আবার WhatsApp চাপুন");
+        if (n === "NotAllowedError") toast.info("আবার শেয়ার চাপুন");
         else if (n !== "AbortError") fallback(f);
       }
     } else fallback(f);
@@ -222,7 +220,7 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
   return (
     <>
       <Button size="sm" variant="outline" onClick={download}><Download className="mr-1 h-4 w-4" />ছবি ডাউনলোড</Button>
-      <Button size="sm" disabled={busy} onClick={share}><Share2 className="mr-1 h-4 w-4" />{busy ? "তৈরি হচ্ছে…" : "WhatsApp"}</Button>
+      <Button size="sm" disabled={busy} onClick={share}><Share2 className="mr-1 h-4 w-4" />{busy ? "তৈরি হচ্ছে…" : "শেয়ার"}</Button>
     </>
   );
 }
