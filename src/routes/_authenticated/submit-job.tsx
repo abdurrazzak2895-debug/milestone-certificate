@@ -243,7 +243,15 @@ function SubmitJob() {
             <Label>TTC *</Label>
             <select value={f.ttc_id} onChange={(e) => set("ttc_id", e.target.value)} className={selectCls}>
               <option value="">নির্বাচন করুন</option>
-              {active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {(() => {
+                const isBog = (n: string) => n.includes("বগুড়া") || n.toLowerCase().includes("bogura");
+                const pinned = active.filter((t) => t.sort_order < 100).sort((a, b) => (isBog(b.name) ? 1 : 0) - (isBog(a.name) ? 1 : 0) || a.sort_order - b.sort_order);
+                const rest = active.filter((t) => t.sort_order >= 100).sort((a, b) => a.name.localeCompare(b.name, "bn"));
+                return (<>
+                  <optgroup label="📌 পিন করা কেন্দ্র">{pinned.map((t) => <option key={t.id} value={t.id}>{isBog(t.name) ? "📌 " : ""}{t.name}</option>)}</optgroup>
+                  <optgroup label="সকল জেলা">{rest.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+                </>);
+              })()}
             </select>
             <Err k="ttc_id" />
           </div>
