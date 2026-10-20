@@ -887,6 +887,54 @@ export type Database = {
           },
         ]
       }
+      svp_bookings: {
+        Row: {
+          agency: string | null
+          candidate_name: string
+          center: string | null
+          created_at: string
+          created_by: string | null
+          exam_date: string | null
+          exam_time: string | null
+          id: string
+          login_email: string | null
+          notes: string | null
+          occupation: string | null
+          passport: string
+          status: string
+        }
+        Insert: {
+          agency?: string | null
+          candidate_name: string
+          center?: string | null
+          created_at?: string
+          created_by?: string | null
+          exam_date?: string | null
+          exam_time?: string | null
+          id?: string
+          login_email?: string | null
+          notes?: string | null
+          occupation?: string | null
+          passport: string
+          status?: string
+        }
+        Update: {
+          agency?: string | null
+          candidate_name?: string
+          center?: string | null
+          created_at?: string
+          created_by?: string | null
+          exam_date?: string | null
+          exam_time?: string | null
+          id?: string
+          login_email?: string | null
+          notes?: string | null
+          occupation?: string | null
+          passport?: string
+          status?: string
+        }
+        Relationships: []
+      }
       ttc_centers: {
         Row: {
           active: boolean
