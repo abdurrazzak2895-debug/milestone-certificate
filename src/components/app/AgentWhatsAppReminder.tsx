@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, MessageCircle } from "lucide-react";
+import { Copy } from "lucide-react";
+import { ShareKit } from "@/components/app/ShareKit";
 import { worksQ } from "@/lib/works";
 import { occQ, todayStr, addDays } from "@/lib/data";
 import { listAccounts } from "@/lib/accounts.functions";
@@ -53,7 +54,12 @@ export function AgentWhatsAppReminder() {
                 <div><div className="font-semibold">{g.name}</div><div className="text-xs text-muted-foreground">{g.mobile || "মোবাইল নেই"} · {bnNum(g.list.length)} জন পরীক্ষার্থী</div></div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => copy(text)}><Copy className="mr-1 h-4 w-4" />কপি</Button>
-                  <Button size="sm" disabled={!wa} onClick={() => window.open(`https://wa.me/${wa}?text=${encodeURIComponent(text)}`, "_blank", "noopener")}><MessageCircle className="mr-1 h-4 w-4" />WhatsApp পাঠান</Button>
+                  <ShareKit
+                    title={`${g.name} — পরীক্ষার তালিকা`}
+                    text={text}
+                    wa={wa}
+                    spec={{ heading: "পরীক্ষার্থীদের তালিকা", sub: `${g.name} · ${date.split("-").reverse().join("/")} · মোট ${bnNum(g.list.length)} জন`, rows: g.list.map((c, i) => ({ title: `${bnNum(i + 1)}. ${c.name}`, lines: [`পাসপোর্ট: ${c.passport}`, `পেশা: ${c.occupation}`] })) }}
+                  />
                 </div>
               </div>
             );

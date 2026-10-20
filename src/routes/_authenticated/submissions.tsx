@@ -210,14 +210,14 @@ function Submissions() {
                   <div className="mt-2 space-y-1 rounded-lg border border-primary/30 bg-muted/50 p-2 text-sm">
                     <p className="font-semibold">Smart PDF: Confidence {Math.round(m.overall * 100)}% · <span className={st[1]}>{st[0]}</span></p>
                     {m.fields.map((x) => <p key={x.label} className={x.status === "mismatch" ? "text-destructive" : x.status === "review" ? "text-yellow-500" : ""}>{x.label}: {x.extracted ?? "—"} ({Math.round(x.confidence * 100)}%){x.status === "mismatch" && ` → জমা: ${x.current}`}</p>)}
-                    {m.warnings.map((x, i) => <p key={i} className="text-yellow-500">⚠️ {x}</p>)}
+                    {m.warnings.filter((x) => !/report|arriv|minute|early|মিনিট|উপস্থিত/i.test(x)).map((x, i) => <p key={i} className="text-yellow-500">⚠️ {x}</p>)}
                     {m.confirmed_mismatch && <p className="text-destructive">এজেন্ট অমিল জেনে নিশ্চিত করেছেন</p>}
                   </div>
                 );
               })()}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openTicket(w.ticket_path)}><FileText className="mr-1 h-4 w-4" /> Ticket</Button>
-                {roles.includes("admin") && <AppointmentScan submissionId={w.id} examAt={w.exam_at} />}
+                {roles.includes("admin") && <AppointmentScan submissionId={w.id} examAt={w.exam_at} saved={{ name: w.candidate_name, passport: w.passport_no, occupation: occ(w.occupation_id) ?? "" }} />}
                 {(() => { const d = workShareInfo(w, occ, ttc); return d ? <ResultShareActions d={d} /> : null; })()}
                 {roles.includes("admin") && <AdminEditWorkDialog w={w} />}
                 {canReview && w.status !== "approved" && <Button size="sm" disabled={busyId === w.id} onClick={() => review(w, "approved")}><Check className="mr-1 h-4 w-4" /> Approve</Button>}

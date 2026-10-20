@@ -3,23 +3,28 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ScanLine, Loader2, AlertTriangle } from "lucide-react";
+import { ScanLine, Loader2, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { scanAppointment, verifyAppointment } from "@/lib/appointment-ocr.functions";
-import { fmtDhakaDateTime } from "@/lib/works";
 
 type Ext = { id: string; extracted: any; confidence: number | null; warnings: any };
+type Saved = { name: string; passport: string; occupation: string };
 
-export function AppointmentScan({ submissionId, examAt }: { submissionId: string; examAt: string }) {
+const norm = (s?: string | null) => (s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const dDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
+const dTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false });
+const HIDE = /report|arriv|minute|early|before|মিনিট|উপস্থিত|আগে/i;
+
+export function AppointmentScan({ submissionId, examAt, saved }: { submissionId: string; examAt: string; saved?: Saved }) {
   const scan = useServerFn(scanAppointment);
   const verify = useServerFn(verifyAppointment);
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [ext, setExt] = useState<Ext | null>(null);
-  const [f, setF] = useState({ date: "", time: "", rep: "", reason: "" });
+  const [f, setF] = useState({ date: "", time: "", reason: "" });
 
   async function run() {
     setBusy(true);
@@ -28,7 +33,7 @@ export function AppointmentScan({ submissionId, examAt }: { submissionId: string
       if ("error" in r && r.error) return toast.error(r.error);
       const e = (r as { extraction: Ext }).extraction;
       setExt(e);
-      setF({ date: e.extracted.exam_date ?? "", time: e.extracted.exam_time ?? "", rep: "", reason: "" });
+      setF({ date: e.extracted.exam_date ?? "", time: e.extracted.exam_time ?? "", reason: "" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -51,21 +56,40 @@ export function AppointmentScan({ submissionId, examAt }: { submissionId: string
   }
 
   const x = ext?.extracted ?? {};
-  const warnings: string[] = Array.isArray(ext?.warnings) ? ext!.warnings : [];
+  const warnings: string[] = (Array.isArray(ext?.warnings) ? (ext!.warnings as string[]) : []).filter((w) => !HIDE.test(w));
+  const rows: [string, string, string | null][] = [
+    ["পরীক্ষার তারিখ", examAt ? dDate(examAt) : "", x.exam_date ?? null],
+    ["পরীক্ষার সময়", examAt ? dTime(examAt) : "", x.exam_time ?? null],
+    ["পরীক্ষার্থীর নাম", saved?.name ?? "", x.candidate_name ?? null],
+    ["পাসপোর্ট নম্বর", saved?.passport ?? "", x.passport_no ?? null],
+    ["পেশা", saved?.occupation ?? "", x.occupation ?? null],
+  ];
   return (
     <>
       <Button variant="outline" size="sm" disabled={busy} onClick={run}>
         {busy && !ext ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ScanLine className="mr-1 h-4 w-4" />} টিকিট স্ক্যান
       </Button>
       <Dialog open={!!ext} onOpenChange={(o) => !o && setExt(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>টিকিট থেকে পাওয়া তথ্য যাচাই</DialogTitle></DialogHeader>
-          <div className="space-y-1 text-sm">
-            <p>নাম: {x.candidate_name ?? "—"} · পাসপোর্ট: {x.passport_no ?? "—"}</p>
-            <p>বুকিং: {x.booking_no ?? "—"} · কেন্দ্র: {x.center ?? "—"}</p>
-            <p>বর্তমান সংরক্ষিত সময়: {fmtDhakaDateTime(examAt)}</p>
-            <p>নির্ভরযোগ্যতা: {Math.round((ext?.confidence ?? 0) * 100)}%</p>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>টিকিট যাচাই</DialogTitle></DialogHeader>
+          <div className="overflow-hidden rounded-xl border text-sm">
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 bg-muted px-2 py-1.5 text-xs font-semibold">
+              <span>বিষয়</span><span>জমা দেওয়া</span><span>টিকিটে</span><span />
+            </div>
+            {rows.map(([label, cur, tk]) => {
+              const ok = !!tk && !!cur && norm(cur) === norm(tk);
+              const bad = !!tk && !!cur && !ok;
+              return (
+                <div key={label} className={`grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 border-t px-2 py-1.5 ${bad ? "bg-destructive/10" : ""}`}>
+                  <span className="font-medium">{label}</span>
+                  <span className="break-all">{cur || "—"}</span>
+                  <span className={`break-all ${bad ? "font-semibold text-destructive" : ""}`}>{tk ?? "পাওয়া যায়নি"}</span>
+                  {ok ? <CheckCircle2 className="h-4 w-4 text-primary" /> : bad ? <XCircle className="h-4 w-4 text-destructive" /> : <AlertTriangle className="h-4 w-4 text-muted-foreground" />}
+                </div>
+              );
+            })}
           </div>
+          <p className="text-xs text-muted-foreground">নির্ভরযোগ্যতা: {Math.round((ext?.confidence ?? 0) * 100)}% · লাল চিহ্নিত ঘরে টিকিটের সাথে অমিল আছে।</p>
           {warnings.length > 0 && (
             <ul className="space-y-1 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">
               {warnings.map((w, i) => <li key={i} className="flex gap-1"><AlertTriangle className="h-4 w-4 shrink-0" />{w}</li>)}

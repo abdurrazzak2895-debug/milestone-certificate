@@ -2,6 +2,7 @@ import { Copy, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
 import office from "@/assets/office.jpg.asset.json";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ShareKit } from "@/components/app/ShareKit";
 
 const MAP = "https://maps.app.goo.gl/DTbfFjwWJdGFFQdY7";
 const PHONES = ["01787900267", "01540602292", "01827901646", "01707116176"];
@@ -42,6 +43,20 @@ export function OfficeAddressCard() {
           <div className="flex flex-wrap gap-2 pt-1">
             <button onClick={copy} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground"><Copy className="h-4 w-4" /> ঠিকানা কপি করুন</button>
             <a href={MAP} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"><MapPin className="h-4 w-4" /> গুগল ম্যাপ</a>
+            <ShareKit
+              title="অফিসের তথ্য শেয়ার"
+              text={TEXT}
+              spec={{
+                heading: "অফিসের ঠিকানা",
+                sub: "Milestone Certificate Institute",
+                photoUrl: office.url,
+                rows: [
+                  { title: "ভিশন শোরুমের ৪র্থ তলা", lines: ["ঘোড়াপট্টি, সাতমাথা থেকে ১০০ ফিট দক্ষিণে, বগুড়া"] },
+                  { title: "যোগাযোগ", lines: PHONES },
+                  { title: "গুগল ম্যাপ", lines: [MAP] },
+                ],
+              }}
+            />
           </div>
         </div>
       </div>
