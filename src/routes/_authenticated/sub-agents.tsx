@@ -11,6 +11,7 @@ import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { UnpaidNotice, useMyUnpaid } from "@/components/app/AgentNotice";
 
 export const Route = createFileRoute("/_authenticated/sub-agents")({
   head: () => ({
@@ -36,6 +37,7 @@ const subsQ = (me: string) => ({
 });
 
 function SubAgents() {
+  const unpaid = useMyUnpaid();
   const qc = useQueryClient();
   const { data: me } = useQuery(myAccountQ);
   const { data: works = [] } = useQuery(worksQ);
@@ -76,6 +78,7 @@ function SubAgents() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="font-display text-2xl font-bold">সাব-এজেন্ট</h1>
+      {unpaid && <UnpaidNotice />}
 
       <section className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
         <h2 className="font-semibold">অনুমোদনের অপেক্ষায় ({bn(pending.length)})</h2>

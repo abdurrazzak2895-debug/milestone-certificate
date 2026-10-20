@@ -13,7 +13,7 @@ import { Camera, CheckCircle2, Clock, FilePlus2, ListChecks, Megaphone, Search, 
 import { worksQ, myAccountQ, STATUS_LABEL } from "@/lib/works";
 import { bn, occQ, lookup } from "@/lib/data";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
-import { agentNoticeQ } from "@/components/app/AgentNotice";
+import { agentNoticeQ, UnpaidNotice, useMyUnpaid } from "@/components/app/AgentNotice";
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compress-image";
 import { OfficeAddress } from "@/components/app/OfficeAddress";
@@ -62,6 +62,7 @@ export function AgentDashboard() {
     } catch { toast.error("ছবি আপলোড করা যায়নি"); }
   };
   const { data: notice = "" } = useQuery(agentNoticeQ);
+  const unpaid = useMyUnpaid();
   const [q, setQ] = useState("");
   const s = q.trim().toLowerCase().replace(/^#/, "");
   const hits = s ? works.filter((w) => [w.candidate_name, w.passport_no, w.mobile, w.secondary_mobile, w.ref_code, occ(w.occupation_id)].some((v) => v?.toLowerCase().includes(s))).slice(0, 20) : [];
@@ -69,6 +70,7 @@ export function AgentDashboard() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {unpaid && <UnpaidNotice />}
       <div className="flex justify-end"><ReceiveAnalyticsButton /></div>
       <section className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-2 shadow-sm">
         <div className="relative shrink-0">

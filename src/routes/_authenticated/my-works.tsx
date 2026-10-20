@@ -17,6 +17,7 @@ import { ttcQ, occQ, lookup, bn, fmtDhakaDate } from "@/lib/data";
 import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
+import { UnpaidNotice, useMyUnpaid } from "@/components/app/AgentNotice";
 
 type Tab = "active" | "today" | "tomorrow" | "day_after" | "done" | "rejected" | "archive" | "all";
 
@@ -41,6 +42,7 @@ const dhakaDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Dh
 const dayOffset = (n: number) => dhakaDay(new Date(Date.now() + n * 86400000));
 
 function MyWorks() {
+  const unpaid = useMyUnpaid();
   const search = Route.useSearch();
   const [tab, setTab] = useState<Tab>(search.tab ?? "all");
   const { data: allWorks = [] } = useQuery(worksQ);
@@ -87,6 +89,7 @@ function MyWorks() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="font-display text-2xl font-bold">আমার জমা দেওয়া কাজ</h1>
+      {unpaid && <UnpaidNotice />}
       <div className="flex gap-2">
         <input className="h-10 w-full rounded-lg border bg-card px-3 text-sm" placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} />
         <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}><Copy className="mr-1 h-4 w-4" /> টেক্সট কপি</Button>
