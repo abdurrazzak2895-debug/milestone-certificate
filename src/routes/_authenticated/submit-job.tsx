@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { OccupationPicker } from "@/components/app/OccupationPicker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -6,9 +7,10 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { WorkerLoader } from "@/components/app/WorkerLoader";
 import { PassportHistory, passportHistoryQ } from "@/components/app/PassportHistory";
-import { AlertTriangle, Camera, CheckCircle2, FileUp, SendHorizontal, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, SendHorizontal, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ttcQ, occQ, dhakaInputToISO, bn } from "@/lib/data";
+import { getMyUnpaidFlag } from "@/lib/accounts.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -41,7 +43,6 @@ const schema = z.object({
   passport_no: z.string().trim().min(5, "সঠিক পাসপোর্ট নম্বর দিন").max(20).regex(/^[A-Za-z0-9]+$/, "সঠিক পাসপোর্ট নম্বর দিন"),
   candidate_name: z.string().trim().min(2, "প্রার্থীর নাম দিন").max(100),
   mobile: z.string().trim().regex(/^01[3-9]\d{8}$/, "১১ সংখ্যার সঠিক মোবাইল নম্বর দিন"),
-  secondary_mobile: z.union([z.literal(""), z.string().regex(/^01[3-9]\d{8}$/, "অতিরিক্ত মোবাইল নম্বরটি সঠিক নয়")]),
   skill_details: z.string().trim().max(1000),
   occupation_id: z.string().uuid("পেশা নির্বাচন করুন"),
   ttc_id: z.string().uuid("TTC নির্বাচন করুন"),
@@ -60,7 +61,17 @@ const notices = [
   "Submit করার আগে সকল তথ্য ভালোভাবে যাচাই করতে হবে।",
 ];
 
-const empty = { passport_no: "", candidate_name: "", mobile: "", secondary_mobile: "", skill_details: "", result_email: "", result_password: "", other_info: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
+const empty = { passport_no: "", candidate_name: "", mobile: "", skill_details: "", result_email: "", result_password: "", other_info: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
+
+const UnpaidNotice = () => (
+  <div className="flex items-start gap-3 rounded-2xl border-2 border-destructive bg-destructive/10 p-4 text-sm shadow-sm">
+    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-destructive" />
+    <div>
+      <p className="font-bold text-destructive">বকেয়া পেমেন্ট সংক্রান্ত জরুরি নোটিশ</p>
+      <p className="mt-1 text-foreground/90">আপনার অ্যাকাউন্টে পূর্ববর্তী কাজের পেমেন্ট বকেয়া রয়েছে। আপনার কাজটি সিস্টেমে জমা করা হলেও, বকেয়া পরিশোধ ও নিষ্পত্তি না হওয়া পর্যন্ত Admin কর্তৃক এই কাজটি চূড়ান্ত অনুমোদন (Approve) স্থগিত বা বাতিল হতে পারে। জরুরি ভিত্তিতে পেমেন্ট ক্লিয়ার করার জন্য অনুরোধ করা যাচ্ছে।</p>
+    </div>
+  </div>
+);
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 function SubmitJob() {
@@ -72,7 +83,6 @@ function SubmitJob() {
   const [walkKey, setWalkKey] = useState(0);
   const [occSearch, setOccSearch] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [candidatePhoto, setCandidatePhoto] = useState<File | null>(null);
   const [agree, setAgree] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -83,6 +93,9 @@ function SubmitJob() {
   const [ocr, setOcr] = useState<TicketExtraction | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [critOk, setCritOk] = useState(false);
+  const getUnpaid = useServerFn(getMyUnpaidFlag);
+  const { data: unpaid = false } = useQuery({ queryKey: ["my_unpaid"], queryFn: () => getUnpaid(), staleTime: 60_000 });
+  const locked = stage !== "done" && stage !== "review";
   const set = (k: keyof typeof empty, v: string) => setF((p) => ({ ...p, [k]: v }));
   const applyOcr = (x: TicketExtraction) => {
     setOcr(x); setCritOk(false);
@@ -118,7 +131,6 @@ function SubmitJob() {
       if (b) setF((p) => (p.ttc_id ? p : { ...p, ttc_id: b.id }));
     }
   }, [active, f.ttc_id]);
-  const photoUrl = useMemo(() => (candidatePhoto ? URL.createObjectURL(candidatePhoto) : null), [candidatePhoto]);
 
   const ocrWarnings = ocr ? [
     ...ocr.ambiguities,
@@ -168,15 +180,9 @@ function SubmitJob() {
       const up = await supabase.storage.from("candidate-photos").upload(path, file, { contentType: file.type });
       if (up.error) throw up.error;
       const { exam_date, exam_time, ...rest } = d;
-      let candidate_photo_path: string | null = null;
-      if (candidatePhoto) {
-        candidate_photo_path = `candidate-drafts/${u.user.id}/${crypto.randomUUID()}.${candidatePhoto.type.split("/")[1] ?? "jpg"}`;
-        const photoUpload = await supabase.storage.from("candidate-photos").upload(candidate_photo_path, candidatePhoto, { contentType: candidatePhoto.type });
-        if (photoUpload.error) throw photoUpload.error;
-      }
       const { data, error } = await supabase
         .from("job_submissions")
-        .insert({ ...rest, secondary_mobile: rest.secondary_mobile || null, skill_details: [rest.skill_details, f.result_email.trim() && `Result Email: ${f.result_email.trim()}`, f.result_password.trim() && `Result Password: ${f.result_password.trim()}`, f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`].filter(Boolean).join("\n").slice(0, 2000) || null, candidate_photo_path, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true, ocr_meta: ocr ? JSON.parse(JSON.stringify({ extracted: ocr, overall: checks.length ? checks.reduce((a, c) => a + (c.extracted ? c.confidence : 0), 0) / checks.length : 0, fields: checks.map((c) => ({ ...c, status: fieldStatus(c) })), warnings: ocrWarnings, confirmed_mismatch: critical && critOk, at: new Date().toISOString() })) : null })
+        .insert({ ...rest, secondary_mobile: null, skill_details: [rest.skill_details, f.result_email.trim() && `Result Email: ${f.result_email.trim()}`, f.result_password.trim() && `Result Password: ${f.result_password.trim()}`, f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`].filter(Boolean).join("\n").slice(0, 2000) || null, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true, ocr_meta: ocr ? JSON.parse(JSON.stringify({ extracted: ocr, overall: checks.length ? checks.reduce((a, c) => a + (c.extracted ? c.confidence : 0), 0) / checks.length : 0, fields: checks.map((c) => ({ ...c, status: fieldStatus(c) })), warnings: ocrWarnings, confirmed_mismatch: critical && critOk, at: new Date().toISOString() })) : null })
         .select("ref_code")
         .single();
       if (error) throw error;
@@ -186,7 +192,7 @@ function SubmitJob() {
         setOk(false);
         setDoneRef(data.ref_code);
       }, 900);
-      setF(empty); setFile(null); setCandidatePhoto(null); setOcr(null); setStage("idle");
+      setF(empty); setFile(null); setOcr(null); setStage("idle");
       qc.invalidateQueries({ queryKey: ["works"] });
     } catch (err) {
       toast.error(String((err as { message?: string })?.message ?? "").includes("DUPLICATE_PASSPORT") ? "এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না" : "কাজ Submit করা যায়নি। আবার চেষ্টা করুন।");
@@ -225,6 +231,7 @@ function SubmitJob() {
   return (
     <form onSubmit={openConfirm} className="mx-auto max-w-2xl space-y-5">
       <h1 className="font-display text-2xl font-bold">📋 Submit Work</h1>
+      {unpaid && <UnpaidNotice />}
       <SmartTicketUpload file={file} onFile={setFile} onExtract={applyOcr} checks={checks} warnings={ocrWarnings} stage={stage} setStage={setStage} />
       {critical && (
         <label className="flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
@@ -234,18 +241,16 @@ function SubmitJob() {
       )}
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
-        <div className="flex flex-col items-center gap-2">
-          <label className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-primary/60 bg-muted hover:border-primary">
-            {photoUrl ? <img src={photoUrl} alt="পরীক্ষার্থীর ছবি" className="h-full w-full object-cover" /> : <Camera className="h-8 w-8 text-muted-foreground" />}
-            <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const p = e.target.files?.[0]; setCandidatePhoto(p ? await (await import("@/lib/compress-image")).compressImage(p) : null); }} />
-          </label>
-          <span className="text-xs text-muted-foreground">পরীক্ষার্থীর ছবি (ঐচ্ছিক)</span>
-        </div>
+        {locked && (
+          <p className="rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
+            ⬆️ প্রথমে উপরে Takamul Appointment Ticket আপলোড করুন — প্রসেসিং শেষ হলে নিচের ঘরগুলো স্বয়ংক্রিয়ভাবে খুলে যাবে।
+          </p>
+        )}
+        <fieldset disabled={locked} className="min-w-0 space-y-4 disabled:opacity-60">
         <div className="grid gap-4 sm:grid-cols-2">
           <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value.toUpperCase())} maxLength={100} /><Err k="candidate_name" /></div>
           <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value.toUpperCase())} maxLength={20} /><Err k="passport_no" /><PassportHistory passport={f.passport_no} /></div>
           <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">⚠️ শুধুমাত্র পরীক্ষার্থীর নিজের মোবাইল নম্বর দিন — এজেন্ট/নিজের নম্বর দেবেন না।</p><Err k="mobile" /></div>
-          <div><Label>অতিরিক্ত যোগাযোগ নম্বর</Label><Input inputMode="numeric" value={f.secondary_mobile} onChange={(e) => set("secondary_mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /></div>
           <div>
             <Label>TTC *</Label>
             <select value={f.ttc_id} onChange={(e) => set("ttc_id", e.target.value)} className={selectCls}>
@@ -311,20 +316,13 @@ function SubmitJob() {
           <div><Label>Password</Label><Input value={f.result_password} onChange={(e) => set("result_password", e.target.value)} maxLength={100} placeholder="পাসওয়ার্ড" /></div>
           <div className="sm:col-span-2"><Label>অন্যান্য</Label><Textarea value={f.other_info} onChange={(e) => set("other_info", e.target.value)} maxLength={500} rows={2} placeholder="অন্য কিছু লিখুন..." /></div>
         </div>
-        <div>
-          <Label className="mb-2 block">Takamul Appointment Ticket (PDF / Image) *</Label>
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-4 text-sm hover:bg-muted">
-            <FileUp className="h-5 w-5 text-primary" />
-            <span className="truncate">{file ? file.name : "ফাইল নির্বাচন করুন"}</span>
-            <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; setFile(f ? await (await import("@/lib/compress-image")).compressImage(f) : null); }} />
-          </label>
-          <Err k="file" />
-        </div>
+        </fieldset>
       </section>
 
       <Button
         type="submit"
         size="lg"
+        disabled={locked}
         onClick={() => setWalkKey((k) => k + 1)}
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
@@ -360,19 +358,19 @@ function SubmitJob() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> জরুরি নির্দেশনা</DialogTitle>
           </DialogHeader>
+          {unpaid && <UnpaidNotice />}
           <div className="rounded-xl border bg-muted/50 p-3 text-sm">
             <p className="mb-2 font-semibold">তথ্য যাচাই করুন</p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
               {([
                 ["নাম", f.candidate_name],
                 ["পাসপোর্ট", f.passport_no.toUpperCase()],
-                ["মোবাইল", [f.mobile, f.secondary_mobile].filter(Boolean).join(", ")],
+                ["মোবাইল", f.mobile],
                 ["পেশা", occs.find((o) => o.id === f.occupation_id)?.name ?? ""],
                 ["TTC", ttcs.find((t) => t.id === f.ttc_id)?.name ?? ""],
                 ["তারিখ", f.exam_date],
                 ["সময়", BATCHES.flatMap((b) => b.times.map((t) => `${t.label} (${b.batch})`)).find((_, i) => BATCH_VALUES[i] === f.exam_time) ?? ""],
                 ["টিকেট", file?.name ?? ""],
-                ["ছবি", candidatePhoto ? "আছে" : "নেই"],
                 ...(f.skill_details ? [["নোট", f.skill_details]] : []),
                 ...(f.result_email ? [["Email", f.result_email]] : []),
                 ...(f.result_password ? [["Password", f.result_password]] : []),
