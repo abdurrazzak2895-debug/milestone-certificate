@@ -1,6 +1,6 @@
 import { DateSelect } from "@/components/app/DateSelect";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { worksQ, fmtDhakaDateTime, type Work } from "@/lib/works";
@@ -177,7 +177,7 @@ export function ResultShareActions({ d }: { d: ResultShareInfo }) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const nav = (typeof navigator !== "undefined" ? navigator : undefined) as (Navigator & { canShare?: (x: ShareData) => boolean }) | undefined;
-  const key = `${d.passport}|${d.result}|${d.name}|${d.examDate ?? ""}`;
+  const key = `${d.passport}|${d.result}|${d.name}|${d.examAt}|${d.occupation}|${d.ttc}`;
   useEffect(() => {
     let alive = true;
     setFile(null);
