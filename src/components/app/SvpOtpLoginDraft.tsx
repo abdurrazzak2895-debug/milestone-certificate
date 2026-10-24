@@ -177,6 +177,20 @@ export function SvpOtpLoginDraft() {
               <dd>{summary.responseKind}</dd>
             </div>
           </dl>
+          {summary.topLevelFieldNames.length > 0 && (
+            <div className="mt-3 border-t pt-3">
+              <h4 className="text-sm font-semibold">
+                Top-level response field names (values hidden)
+              </h4>
+              <ul className="mt-2 flex flex-wrap gap-2" aria-label="Top-level response field names">
+                {summary.topLevelFieldNames.map((fieldName) => (
+                  <li key={fieldName} className="rounded bg-muted px-2 py-1 font-mono text-xs">
+                    {fieldName}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </section>

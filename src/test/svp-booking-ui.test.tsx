@@ -16,7 +16,7 @@ const accepted = {
   ok: true,
   contentType: "application/json",
   responseKind: "json-object" as const,
-  topLevelFieldNames: ["message"],
+  topLevelFieldNames: ["access_token", "user", "message"],
 };
 
 describe("SVP login-only workspace draft", () => {
@@ -51,6 +51,9 @@ describe("SVP login-only workspace draft", () => {
     expect(await screen.findByLabelText("One-time password (OTP)")).toBeInTheDocument();
     expect(screen.queryByLabelText("fe_app")).not.toBeInTheDocument();
     expect(screen.getByText(/does not confirm an authenticated session/i)).toBeInTheDocument();
+    expect(screen.getByText("Top-level response field names (values hidden)")).toBeInTheDocument();
+    expect(screen.getByText("access_token")).toBeInTheDocument();
+    expect(screen.queryByText("SECRET_TOKEN_VALUE")).not.toBeInTheDocument();
   });
 
   it("submits the OTP attempt with the in-memory login fields and no provider response values", async () => {
