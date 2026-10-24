@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   LogOut,
   MapPin,
+  Plus,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -39,7 +40,13 @@ import {
   searchSvpOccupations,
   type SvpBookingResult,
 } from "@/lib/svp-booking.functions";
-import { getSvpSessionStatus, signOutSvpSession } from "@/lib/svp-session.functions";
+import {
+  getSvpSessionStatus,
+  listSvpAccounts,
+  removeSvpAccount,
+  signOutSvpSession,
+  switchSvpAccount,
+} from "@/lib/svp-session.functions";
 import { svpTicketFileName } from "@/lib/svp-api.shared";
 import type {
   SvpAvailableDate,
@@ -138,8 +145,15 @@ export function SvpBookingWizard() {
     retry: false,
   });
   const status = sessionQuery.data;
-  const [needsLogin, setNeedsLogin] = useState(false);
-  const signedIn = Boolean(status?.signedIn) && !needsLogin;
+  const accountsQuery = useQuery({
+    queryKey: ["svp-accounts"],
+    queryFn: () => listSvpAccounts(),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const accounts = accountsQuery.data?.accounts ?? [];
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
+  const signedIn = Boolean(status?.signedIn);
 
   const [stage, setStage] = useState<Stage>("select");
   const [occupationId, setOccupationId] = useState<number | null>(null);
@@ -164,9 +178,24 @@ export function SvpBookingWizard() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
-  const requireSignIn = () => {
-    setNeedsLogin(true);
+  const invalidateSvpData = useCallback(() => {
+    queryClient.removeQueries({
+      predicate: (query) => {
+        const key = query.queryKey[0];
+        return (
+          typeof key === "string" &&
+          key.startsWith("svp-") &&
+          key !== "svp-accounts" &&
+          key !== "svp-session-status"
+        );
+      },
+    });
     void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: ["svp-accounts"] });
+  }, [queryClient]);
+
+  const requireSignIn = () => {
+    invalidateSvpData();
   };
 
   const occupationsQuery = useQuery({
@@ -254,10 +283,15 @@ export function SvpBookingWizard() {
   useEffect(() => {
     const results = [occupationsQuery.data, citiesQuery.data, setupQuery.data, overviewQuery.data];
     if (results.some((result) => result && !result.ok && result.needsSignIn)) {
-      setNeedsLogin(true);
-      void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+      invalidateSvpData();
     }
-  }, [citiesQuery.data, occupationsQuery.data, overviewQuery.data, queryClient, setupQuery.data]);
+  }, [
+    citiesQuery.data,
+    invalidateSvpData,
+    occupationsQuery.data,
+    overviewQuery.data,
+    setupQuery.data,
+  ]);
 
   const categoryId = occupation?.categoryId ?? null;
   const datesQuery = useQuery({
@@ -604,18 +638,43 @@ export function SvpBookingWizard() {
   });
 
   const signOutMutation = useMutation({
-    mutationFn: () => signOutSvpSession(),
-    onSuccess: () => {
-      setNeedsLogin(false);
+    mutationFn: (all: boolean) => signOutSvpSession({ data: all ? { all: true } : {} }),
+    onSuccess: (_data, all) => {
       resetFlow();
-      queryClient.removeQueries({ queryKey: ["svp-occupations"] });
-      queryClient.removeQueries({ queryKey: ["svp-cities"] });
-      queryClient.removeQueries({ queryKey: ["svp-reservations"] });
-      void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-      toast.success("Signed out of SVP");
+      setAddAccountOpen(false);
+      invalidateSvpData();
+      toast.success(all ? "All SVP accounts removed" : "Active SVP account removed");
     },
     onError: () => toast.error("Could not sign out of SVP."),
   });
+
+  const switchMutation = useMutation({
+    mutationFn: (login: string) => switchSvpAccount({ data: { login } }),
+    onSuccess: () => {
+      resetFlow();
+      setAddAccountOpen(false);
+      invalidateSvpData();
+      toast.success("SVP account switched");
+    },
+    onError: () => toast.error("Could not switch the SVP account."),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (login: string) => removeSvpAccount({ data: { login } }),
+    onSuccess: () => {
+      resetFlow();
+      setAddAccountOpen(false);
+      invalidateSvpData();
+      toast.success("SVP account removed");
+    },
+    onError: () => toast.error("Could not remove the SVP account."),
+  });
+
+  const handleSignedIn = () => {
+    setAddAccountOpen(false);
+    resetFlow();
+    invalidateSvpData();
+  };
 
   const shownDateOptions = isTargeted ? dateOptions : siteDateOptions;
   const datesLoading = isTargeted ? datesQuery.isPending : sitesQuery.isPending;
@@ -692,23 +751,34 @@ export function SvpBookingWizard() {
             The SVP session could not be checked. Sign in again.
           </p>
         )}
-        {needsLogin && (
-          <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
-            Your SVP session expired. Sign in with the candidate&apos;s SVP username and password.
-          </p>
-        )}
-        <SvpLoginPanel
-          onSignedIn={() => {
-            setNeedsLogin(false);
-            void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
-          }}
-        />
+        <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
+          Sign in to an SVP account. You can keep up to 4 accounts and switch between them without
+          entering the password and OTP again.
+        </p>
+        <SvpLoginPanel onSignedIn={handleSignedIn} />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {addAccountOpen && (
+        <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold">Add another SVP account</h2>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setAddAccountOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+          <SvpLoginPanel onSignedIn={handleSignedIn} />
+        </section>
+      )}
+
       <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -757,12 +827,54 @@ export function SvpBookingWizard() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => signOutMutation.mutate()}
+              onClick={() => signOutMutation.mutate(false)}
               disabled={signOutMutation.isPending}
             >
-              <LogOut className="mr-1 h-4 w-4" /> Sign out of SVP
+              <LogOut className="mr-1 h-4 w-4" /> Remove active
             </Button>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-2 border-t pt-3">
+          <div className="min-w-[16rem] flex-1">
+            <Field label="Active SVP account">
+              <NativeSelect
+                value={status?.login ?? ""}
+                onChange={(event) => switchMutation.mutate(event.target.value)}
+                disabled={switchMutation.isPending || accounts.length < 2}
+              >
+                {(accounts.length > 0
+                  ? accounts
+                  : [{ login: status?.login ?? "", userName: status?.userName ?? null }]
+                ).map((account) => (
+                  <option key={account.login} value={account.login}>
+                    {account.userName ? `${account.userName} · ${account.login}` : account.login}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={() => setAddAccountOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" /> Add account
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => status?.login && removeMutation.mutate(status.login)}
+            disabled={!status?.login || removeMutation.isPending}
+          >
+            Remove
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => signOutMutation.mutate(true)}
+            disabled={signOutMutation.isPending}
+          >
+            Sign out all
+          </Button>
         </div>
 
         {overview && (
@@ -819,7 +931,7 @@ export function SvpBookingWizard() {
         />
       )}
 
-      {!rescheduleId && stage === "select" && (
+      {!addAccountOpen && !rescheduleId && stage === "select" && (
         <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div>
             <h2 className="text-xl font-bold">Step 1 · Occupation and test center</h2>
@@ -1082,7 +1194,7 @@ export function SvpBookingWizard() {
         </section>
       )}
 
-      {!rescheduleId && stage === "dates" && (
+      {!addAccountOpen && !rescheduleId && stage === "dates" && (
         <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div>
             <h2 className="text-xl font-bold">Step 2 · Choose the exam session</h2>
@@ -1211,7 +1323,7 @@ export function SvpBookingWizard() {
         </section>
       )}
 
-      {!rescheduleId && stage === "confirm" && selectedSession && occupation && (
+      {!addAccountOpen && !rescheduleId && stage === "confirm" && selectedSession && occupation && (
         <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div>
             <h2 className="text-xl font-bold">Step 3 · Confirm the booking</h2>
@@ -1326,7 +1438,7 @@ export function SvpBookingWizard() {
         </section>
       )}
 
-      {!rescheduleId && stage === "done" && result && (
+      {!addAccountOpen && !rescheduleId && stage === "done" && result && (
         <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">

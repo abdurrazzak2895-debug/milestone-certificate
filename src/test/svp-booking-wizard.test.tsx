@@ -21,11 +21,17 @@ const mocks = vi.hoisted(() => ({
   ticket: vi.fn(),
   insert: vi.fn(),
   signOut: vi.fn(),
+  accounts: vi.fn(),
+  switchAccount: vi.fn(),
+  removeAccount: vi.fn(),
 }));
 
 vi.mock("@/lib/svp-session.functions", () => ({
   getSvpSessionStatus: mocks.status,
   signOutSvpSession: mocks.signOut,
+  listSvpAccounts: mocks.accounts,
+  switchSvpAccount: mocks.switchAccount,
+  removeSvpAccount: mocks.removeAccount,
   submitSvpLogin: vi.fn(),
 }));
 
@@ -184,6 +190,29 @@ beforeEach(() => {
   });
   mocks.insert.mockResolvedValue({ error: null });
   mocks.signOut.mockResolvedValue({ ok: true });
+  mocks.accounts.mockResolvedValue({
+    accounts: [
+      {
+        login: "noor@example.com",
+        userName: "Noor Rahman",
+        expiresAt: 1_900_000_000,
+        active: true,
+      },
+    ],
+    activeLogin: "noor@example.com",
+  });
+  mocks.switchAccount.mockResolvedValue({
+    accounts: [
+      {
+        login: "noor@example.com",
+        userName: "Noor Rahman",
+        expiresAt: 1_900_000_000,
+        active: true,
+      },
+    ],
+    activeLogin: "noor@example.com",
+  });
+  mocks.removeAccount.mockResolvedValue({ accounts: [], activeLogin: null });
 });
 
 function renderWizard() {
@@ -322,6 +351,45 @@ describe("occupation auto-suggest", () => {
     fireEvent.click(suggestion);
 
     expect(screen.getByText(/Selected: Loading and Unloading Worker/)).toBeInTheDocument();
+  });
+});
+
+describe("SVP multi-account vault UI", () => {
+  it("switches the active SVP account from the account selector", async () => {
+    mocks.accounts.mockResolvedValue({
+      accounts: [
+        {
+          login: "noor@example.com",
+          userName: "Noor Rahman",
+          expiresAt: 1_900_000_000,
+          active: true,
+        },
+        {
+          login: "other@example.com",
+          userName: "Other Labor",
+          expiresAt: 1_900_000_000,
+          active: false,
+        },
+      ],
+      activeLogin: "noor@example.com",
+    });
+
+    renderWizard();
+    const select = await screen.findByLabelText("Active SVP account");
+    fireEvent.change(select, { target: { value: "other@example.com" } });
+
+    await waitFor(() =>
+      expect(mocks.switchAccount).toHaveBeenCalledWith({ data: { login: "other@example.com" } }),
+    );
+  });
+
+  it("opens the login panel to add another account without losing the active one", async () => {
+    renderWizard();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add account" }));
+
+    expect(await screen.findByText("SVPLOGINPANEL")).toBeInTheDocument();
+    expect(screen.getByText("Add another SVP account")).toBeInTheDocument();
   });
 });
 

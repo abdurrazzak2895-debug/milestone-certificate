@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildSvpLoginBody,
@@ -10,19 +11,24 @@ import {
 } from "@/lib/svp-session.shared";
 import {
   buildStoredSession,
+  clearAllSvpSessions,
   clearPendingSvpSession,
   clearStoredSvpSession,
+  listStoredSvpAccounts,
   mergeCookiePairs,
   readPendingSvpSession,
   readStoredSvpSession,
+  removeStoredSvpAccount,
   requireSvpAllowedRole,
   responseCookies,
+  setActiveStoredSvpAccount,
   SvpSessionMissingError,
   svpAuthedRequest,
   svpLoginRequest,
   writePendingSvpSession,
   writeStoredSvpSession,
 } from "@/lib/svp-session.server";
+import type { SvpAccountSummary } from "@/lib/svp-session.vault";
 
 // Fixed values from the real SVP portal login request. Server-managed, never form fields.
 const SVP_SYSTEM_CONFIG: SvpSystemConfig = {
@@ -35,6 +41,12 @@ export type SvpSessionStatus = {
   userName: string | null;
   login: string | null;
   expiresAt: number;
+  accountCount: number;
+};
+
+export type SvpAccountsResult = {
+  accounts: SvpAccountSummary[];
+  activeLogin: string | null;
 };
 
 function loginFailure(
@@ -191,13 +203,64 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
       userName: active?.userName ?? null,
       login: active?.login ?? null,
       expiresAt: active?.expiresAt ?? 0,
+      accountCount: listStoredSvpAccounts(context.userId).length,
     };
   });
 
 /** Forget the stored SVP session for this app user. */
+export const listSvpAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SvpAccountsResult> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    const accounts = listStoredSvpAccounts(context.userId);
+    return {
+      accounts,
+      activeLogin: accounts.find((account) => account.active)?.login ?? null,
+    };
+  });
+
+/** Switch the active SVP account without signing in again. */
+export const switchSvpAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ login: z.string().trim().min(1).max(254) }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpAccountsResult> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    const accounts = setActiveStoredSvpAccount(context.userId, data.login);
+    return {
+      accounts,
+      activeLogin: accounts.find((account) => account.active)?.login ?? null,
+    };
+  });
+
+/** Remove one saved SVP account. */
+export const removeSvpAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ login: z.string().trim().min(1).max(254) }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpAccountsResult> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    const accounts = removeStoredSvpAccount(context.userId, data.login);
+    return {
+      accounts,
+      activeLogin: accounts.find((account) => account.active)?.login ?? null,
+    };
+  });
+
+/** Forget the active SVP account, one account, or every saved account. */
 export const signOutSvpSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ ok: true }> => {
-    clearStoredSvpSession(context.userId);
+  .inputValidator((input: unknown) =>
+    z
+      .object({ all: z.boolean().optional(), login: z.string().trim().min(1).max(254).optional() })
+      .optional()
+      .parse(input ?? {}),
+  )
+  .handler(async ({ context, data }): Promise<{ ok: true }> => {
+    if (data?.all) clearAllSvpSessions(context.userId);
+    else if (data?.login) removeStoredSvpAccount(context.userId, data.login);
+    else clearStoredSvpSession(context.userId);
     return { ok: true };
   });

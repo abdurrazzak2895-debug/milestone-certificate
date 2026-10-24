@@ -9,13 +9,28 @@ import {
   svpErrorMessage,
   type SvpAuthPayload,
 } from "@/lib/svp-session.shared";
+import {
+  activeSession,
+  createVault,
+  isEmptyVault,
+  listAccounts,
+  parseVault,
+  removeAccount,
+  setActiveAccount,
+  upsertSession,
+  type SvpAccountSummary,
+  type SvpSessionVault,
+  type SvpStoredSession,
+} from "@/lib/svp-session.vault";
+
+export type { SvpStoredSession } from "@/lib/svp-session.vault";
 
 export const SVP_API_BASE = "https://svp-international-api.pacc.sa/api/v1";
 export const SVP_PORTAL_URL = "https://svp-international.qiwa.sa";
 
 const SESSION_COOKIE_PREFIX = "svp_session_";
 const PENDING_COOKIE_PREFIX = "svp_pending_";
-const SESSION_TTL_SECONDS = 60 * 60 * 8;
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const PENDING_TTL_SECONDS = 60 * 15;
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_BODY_BYTES = 512 * 1024;
@@ -32,12 +47,6 @@ export type SvpSessionInfo = {
   userName: string | null;
   svpUserId: string | null;
   expiresAt: number;
-};
-
-export type SvpStoredSession = SvpSessionInfo & {
-  access: string;
-  refreshCookies: string;
-  savedAt: number;
 };
 
 export type SvpPendingSession = {
@@ -76,26 +85,67 @@ function safeParse<T>(raw: string | undefined): T | null {
   }
 }
 
-export function readStoredSvpSession(appUserId: string): SvpStoredSession | null {
-  const parsed = safeParse<SvpStoredSession>(
-    getCookie(`${SESSION_COOKIE_PREFIX}${cookieSuffix(appUserId)}`),
+function readVault(appUserId: string): SvpSessionVault {
+  return parseVault(
+    safeParse<unknown>(getCookie(`${SESSION_COOKIE_PREFIX}${cookieSuffix(appUserId)}`)),
   );
-  if (!parsed?.access || !parsed.login) return null;
-  return parsed;
 }
 
-export function writeStoredSvpSession(appUserId: string, session: SvpStoredSession): void {
+function writeVault(appUserId: string, vault: SvpSessionVault): void {
+  const suffix = cookieSuffix(appUserId);
+  if (isEmptyVault(vault)) {
+    deleteCookie(`${SESSION_COOKIE_PREFIX}${suffix}`, { path: "/" });
+    return;
+  }
   setCookie(
-    `${SESSION_COOKIE_PREFIX}${cookieSuffix(appUserId)}`,
-    JSON.stringify(session),
+    `${SESSION_COOKIE_PREFIX}${suffix}`,
+    JSON.stringify(vault),
     cookieOptions(SESSION_TTL_SECONDS),
   );
 }
 
+/** Active SVP account for this app user. */
+export function readStoredSvpSession(appUserId: string): SvpStoredSession | null {
+  return activeSession(readVault(appUserId));
+}
+
+/** Add or update one SVP account and make it active. */
+export function writeStoredSvpSession(appUserId: string, session: SvpStoredSession): void {
+  writeVault(appUserId, upsertSession(readVault(appUserId), session));
+}
+
+export function listStoredSvpAccounts(appUserId: string): SvpAccountSummary[] {
+  return listAccounts(readVault(appUserId));
+}
+
+export function setActiveStoredSvpAccount(appUserId: string, login: string): SvpAccountSummary[] {
+  const vault = setActiveAccount(readVault(appUserId), login);
+  writeVault(appUserId, vault);
+  return listAccounts(vault);
+}
+
+export function removeStoredSvpAccount(appUserId: string, login: string): SvpAccountSummary[] {
+  const vault = removeAccount(readVault(appUserId), login);
+  writeVault(appUserId, vault);
+  return listAccounts(vault);
+}
+
+/** Drop the active account (used when SVP rejects its token) and fall back to the next one. */
 export function clearStoredSvpSession(appUserId: string): void {
-  const suffix = cookieSuffix(appUserId);
-  deleteCookie(`${SESSION_COOKIE_PREFIX}${suffix}`, { path: "/" });
-  deleteCookie(`${PENDING_COOKIE_PREFIX}${suffix}`, { path: "/" });
+  const vault = readVault(appUserId);
+  const active = activeSession(vault);
+  if (!active) {
+    writeVault(appUserId, createVault());
+  } else {
+    writeVault(appUserId, removeAccount(vault, active.login));
+  }
+  deleteCookie(`${PENDING_COOKIE_PREFIX}${cookieSuffix(appUserId)}`, { path: "/" });
+}
+
+/** Forget every saved SVP account for this app user. */
+export function clearAllSvpSessions(appUserId: string): void {
+  deleteCookie(`${SESSION_COOKIE_PREFIX}${cookieSuffix(appUserId)}`, { path: "/" });
+  deleteCookie(`${PENDING_COOKIE_PREFIX}${cookieSuffix(appUserId)}`, { path: "/" });
 }
 
 export function readPendingSvpSession(appUserId: string): SvpPendingSession | null {
