@@ -6,6 +6,7 @@ import { SvpBookingWizard } from "@/components/app/SvpBookingWizard";
 const mocks = vi.hoisted(() => ({
   status: vi.fn(),
   occupations: vi.fn(),
+  search: vi.fn(),
   cities: vi.fn(),
   setup: vi.fn(),
   dates: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock("@/lib/svp-session.functions", () => ({
 
 vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpBookingOccupations: mocks.occupations,
+  searchSvpOccupations: mocks.search,
   listSvpTestCenterCities: mocks.cities,
   getSvpBookingSetup: mocks.setup,
   listSvpAvailableDates: mocks.dates,
@@ -79,6 +81,7 @@ beforeEach(() => {
     expiresAt: 1_900_000_000,
   });
   mocks.occupations.mockResolvedValue({ ok: true, data: [occupation] });
+  mocks.search.mockResolvedValue({ ok: true, data: [occupation] });
   mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 4 }] });
   mocks.setup.mockResolvedValue({
     ok: true,
@@ -167,7 +170,8 @@ describe("SVP booking wizard", () => {
 
     expect(await screen.findByText(/Signed in to SVP as Noor Rahman/)).toBeInTheDocument();
 
-    fireEvent.change(await screen.findByLabelText("Occupation *"), { target: { value: "11" } });
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     fireEvent.change(screen.getByLabelText("Test center city *"), {
       target: { value: "Dhaka" },
     });
@@ -228,7 +232,8 @@ describe("SVP booking wizard", () => {
     renderWizard();
 
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
-    fireEvent.change(await screen.findByLabelText("Occupation *"), { target: { value: "11" } });
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     fireEvent.change(screen.getByLabelText("Test center city *"), {
       target: { value: "Dhaka" },
     });
@@ -238,6 +243,41 @@ describe("SVP booking wizard", () => {
       await screen.findByText(/An existing reservation already uses this category/),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Step 2/)).not.toBeInTheDocument();
+  });
+});
+
+describe("occupation auto-suggest", () => {
+  it("searches SVP for similar occupations while typing", async () => {
+    mocks.occupations.mockResolvedValue({
+      ok: true,
+      data: [{ ...occupation, id: 99, name: "Plumber", occupationKey: "713601" }],
+    });
+    mocks.search.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          ...occupation,
+          id: 77,
+          name: "Loading and Unloading Worker",
+          occupationKey: "933301",
+        },
+      ],
+    });
+
+    renderWizard();
+    const input = await screen.findByLabelText("Occupation *");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "load" } });
+
+    await waitFor(() => expect(mocks.search).toHaveBeenCalledWith({ data: { query: "load" } }), {
+      timeout: 3000,
+    });
+    const suggestion = await screen.findByRole("button", {
+      name: /Loading and Unloading Worker/,
+    });
+    fireEvent.click(suggestion);
+
+    expect(screen.getByText(/Selected: Loading and Unloading Worker/)).toBeInTheDocument();
   });
 });
 

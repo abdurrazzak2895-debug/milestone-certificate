@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
   CalendarDays,
+  Check,
   CheckCircle2,
   Download,
   ExternalLink,
@@ -11,7 +12,6 @@ import {
   LogOut,
   MapPin,
   RotateCcw,
-  Search,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -30,6 +30,7 @@ import {
   listSvpExamSessions,
   listSvpReservations,
   listSvpTestCenterCities,
+  searchSvpOccupations,
   type SvpBookingResult,
 } from "@/lib/svp-booking.functions";
 import { getSvpSessionStatus, signOutSvpSession } from "@/lib/svp-session.functions";
@@ -38,6 +39,7 @@ import type {
   SvpAvailableDate,
   SvpEligibility,
   SvpExamSession,
+  SvpOccupation,
   SvpReservation,
 } from "@/lib/svp-api.shared";
 import { normalizeSvpBookingForm, toSvpBookingInsert } from "@/lib/svp-booking.shared";
@@ -76,6 +78,15 @@ function statusTone(status: string | null): string {
 }
 
 type Stage = "select" | "dates" | "confirm" | "done";
+
+function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 function formatDateOnly(date: string): string {
   const parsed = new Date(`${date}T12:00:00`);
@@ -122,6 +133,8 @@ export function SvpBookingWizard() {
   const [languageCode, setLanguageCode] = useState("");
   const [city, setCity] = useState("");
   const [occupationSearch, setOccupationSearch] = useState("");
+  const [occupationOpen, setOccupationOpen] = useState(false);
+  const [selectedOccupation, setSelectedOccupation] = useState<SvpOccupation | null>(null);
   const [eligibility, setEligibility] = useState<SvpEligibility[] | null>(null);
   const [checked, setChecked] = useState(false);
   const [selectedDate, setSelectedDate] = useState<SvpAvailableDate | null>(null);
@@ -150,8 +163,8 @@ export function SvpBookingWizard() {
     [occupationsQuery.data],
   );
   const occupation = useMemo(
-    () => occupations.find((entry) => entry.id === occupationId) ?? null,
-    [occupationId, occupations],
+    () => selectedOccupation ?? occupations.find((entry) => entry.id === occupationId) ?? null,
+    [occupationId, occupations, selectedOccupation],
   );
   const filteredOccupations = useMemo(() => {
     const needle = occupationSearch.trim().toLowerCase();
@@ -164,6 +177,30 @@ export function SvpBookingWizard() {
       : occupations;
     return filtered.slice(0, 250);
   }, [occupationSearch, occupations]);
+
+  const debouncedOccupationSearch = useDebouncedValue(occupationSearch.trim(), 300);
+  const occupationSearchQuery = useQuery({
+    queryKey: ["svp-occupation-search", debouncedOccupationSearch],
+    queryFn: () => searchSvpOccupations({ data: { query: debouncedOccupationSearch } }),
+    enabled: signedIn && debouncedOccupationSearch.length >= 2,
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const searchResults = useMemo(
+    () => (occupationSearchQuery.data?.ok ? occupationSearchQuery.data.data : []),
+    [occupationSearchQuery.data],
+  );
+  const suggestions = useMemo(() => {
+    if (debouncedOccupationSearch.length < 2) return filteredOccupations.slice(0, 12);
+    const merged = new Map<number, SvpOccupation>();
+    for (const entry of [...searchResults, ...filteredOccupations]) {
+      if (!merged.has(entry.id)) merged.set(entry.id, entry);
+    }
+    return [...merged.values()].slice(0, 40);
+  }, [debouncedOccupationSearch, filteredOccupations, searchResults]);
+  const occupationSearchPending =
+    occupationSearch.trim() !== debouncedOccupationSearch || occupationSearchQuery.isFetching;
 
   const citiesQuery = useQuery({
     queryKey: ["svp-cities"],
@@ -234,12 +271,27 @@ export function SvpBookingWizard() {
     ? reservationsQuery.data.data
     : [];
 
+  const selectOccupation = (entry: SvpOccupation) => {
+    setSelectedOccupation(entry);
+    setOccupationId(entry.id);
+    setLanguageCode(entry.languages[0]?.code ?? "");
+    setOccupationSearch(entry.name);
+    setOccupationOpen(false);
+    setChecked(false);
+    setEligibility(null);
+    setSelectedDate(null);
+    setSelectedSession(null);
+    setStage("select");
+  };
+
   const resetFlow = () => {
     setStage("select");
     setOccupationId(null);
+    setSelectedOccupation(null);
     setLanguageCode("");
     setCity("");
     setOccupationSearch("");
+    setOccupationOpen(false);
     setEligibility(null);
     setChecked(false);
     setSelectedDate(null);
@@ -351,7 +403,6 @@ export function SvpBookingWizard() {
       setStage("done");
       await saveLocalRecord(booking);
       void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
-      void queryClient.invalidateQueries({ queryKey: ["svp_bookings", "manual-tracker"] });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "The SVP reservation failed."),
@@ -460,42 +511,79 @@ export function SvpBookingWizard() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Search occupation">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  value={occupationSearch}
-                  onChange={(event) => setOccupationSearch(event.target.value)}
-                  placeholder="Name, code, category"
-                />
-              </div>
-            </Field>
             <Field label="Occupation *">
-              <NativeSelect
-                value={occupationId ?? ""}
-                onChange={(event) => {
-                  const nextId = Number(event.target.value);
-                  const next = occupations.find((entry) => entry.id === nextId) ?? null;
-                  setOccupationId(Number.isFinite(nextId) && nextId > 0 ? nextId : null);
-                  setLanguageCode(next?.languages[0]?.code ?? "");
-                  setChecked(false);
-                  setEligibility(null);
-                  setSelectedDate(null);
-                  setSelectedSession(null);
-                  setStage("select");
-                }}
-                disabled={occupationsQuery.isPending}
-                required
-              >
-                <option value="">Select an occupation</option>
-                {filteredOccupations.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.name}
-                    {entry.occupationKey ? ` · ${entry.occupationKey}` : ""}
-                  </option>
-                ))}
-              </NativeSelect>
+              <div className="relative">
+                <Input
+                  value={occupationSearch}
+                  onChange={(event) => {
+                    setOccupationSearch(event.target.value);
+                    setOccupationOpen(true);
+                  }}
+                  onFocus={() => setOccupationOpen(true)}
+                  onBlur={() => window.setTimeout(() => setOccupationOpen(false), 180)}
+                  placeholder="Type a name, e.g. welder or loading"
+                  autoComplete="off"
+                  aria-autocomplete="list"
+                  required
+                  disabled={occupationsQuery.isPending}
+                />
+                {occupationOpen && (
+                  <div
+                    className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+                    aria-label="Similar occupations"
+                  >
+                    {occupationSearchPending && (
+                      <p
+                        className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"
+                        role="status"
+                      >
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Searching similar
+                        occupations…
+                      </p>
+                    )}
+                    {occupationSearchQuery.data && !occupationSearchQuery.data.ok && (
+                      <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
+                        {occupationSearchQuery.data.message}
+                      </p>
+                    )}
+                    {!occupationSearchPending &&
+                      debouncedOccupationSearch.length >= 2 &&
+                      suggestions.length === 0 &&
+                      occupationSearchQuery.data?.ok && (
+                        <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                          No similar occupation found for “{debouncedOccupationSearch}”.
+                        </p>
+                      )}
+                    {suggestions.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectOccupation(entry)}
+                        className="flex w-full items-start justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{entry.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {entry.occupationKey ? `${entry.occupationKey} · ` : ""}
+                            {entry.categoryName ?? "No SVP category"}
+                          </span>
+                        </span>
+                        {occupationId === entry.id && (
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {occupation && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Selected: {occupation.name}
+                  {occupation.occupationKey ? ` · ${occupation.occupationKey}` : ""}
+                  {occupation.categoryId ? ` · category ${occupation.categoryId}` : ""}
+                </p>
+              )}
             </Field>
             <Field label="Test center city *">
               {cities.length > 0 ? (

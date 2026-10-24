@@ -129,6 +129,29 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
     }
   });
 
+/** Server-side similar-occupation search using the SVP `name` filter. */
+export const searchSvpOccupations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ query: z.string().trim().max(120) }).parse(input))
+  .handler(async ({ context, data }): Promise<SvpResult<SvpOccupation[]>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    if (!data.query) return { ok: true, data: [] };
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/occupations",
+        { query: { ...LOCALE_QUERY, per_page: 60, page: 1, name: data.query } },
+      );
+      if (!response.ok) {
+        return failure(apiFailure(response.payload, "Similar occupations could not be loaded."));
+      }
+      return { ok: true, data: parseSvpOccupations(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("Similar occupations could not be loaded.");
+    }
+  });
+
 /** Test-center cities for the signed-in labor's country. */
 export const listSvpTestCenterCities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

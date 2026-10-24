@@ -3,7 +3,6 @@ import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/ui-bits";
 import { SvpBookingWizard } from "@/components/app/SvpBookingWizard";
-import { SvpManualRecordPanel } from "@/components/app/SvpManualRecordPanel";
 
 export const Route = createFileRoute("/_authenticated/svp-booking")({
   head: () => ({
@@ -36,7 +35,6 @@ function SvpBookingWorkspace() {
         }
       />
       <SvpBookingWizard />
-      <SvpManualRecordPanel />
     </div>
   );
 }
