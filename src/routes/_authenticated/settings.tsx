@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Empty, Field, NativeSelect } from "@/components/app/ui-bits";
 import { changeMyAdminEmail } from "@/lib/accounts.functions";
+import { TakamolAvailabilityPanel } from "@/components/app/TakamolAvailabilityPanel";
 import {
   occQ,
   ttcQ,
@@ -47,6 +48,7 @@ function SettingsPage() {
           <TabsTrigger value="rem">রিমাইন্ডার</TabsTrigger>
           <TabsTrigger value="users">ব্যবহারকারী</TabsTrigger>
           <TabsTrigger value="gen">সাধারণ</TabsTrigger>
+          <TabsTrigger value="takamol">Takamol API</TabsTrigger>
           <TabsTrigger value="email">অ্যাডমিন ইমেইল</TabsTrigger>
         </TabsList>
         <TabsContent value="notice">
@@ -69,6 +71,9 @@ function SettingsPage() {
         </TabsContent>
         <TabsContent value="email">
           <AdminEmail />
+        </TabsContent>
+        <TabsContent value="takamol">
+          <TakamolAvailabilityPanel />
         </TabsContent>
       </Tabs>
     </div>
