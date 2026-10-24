@@ -155,6 +155,7 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
         context.userId,
         "/individual_labor_space/occupations",
         { query: { locale: "en", per_page: 1, page: 1, name: "" } },
+        session,
       );
       verificationStatus = verification.status;
     } catch (error) {

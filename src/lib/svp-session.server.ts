@@ -346,8 +346,9 @@ async function performAuthedResponse(
   appUserId: string,
   path: string,
   options: AuthedOptions,
+  sessionOverride?: SvpStoredSession,
 ): Promise<Response> {
-  let session = readStoredSvpSession(appUserId);
+  let session = sessionOverride ?? readStoredSvpSession(appUserId);
   if (!session) throw new SvpSessionMissingError();
 
   const send = async (active: SvpStoredSession) => {
@@ -401,8 +402,9 @@ export async function svpAuthedRequest(
   appUserId: string,
   path: string,
   options: AuthedOptions = {},
+  sessionOverride?: SvpStoredSession,
 ): Promise<SvpApiResponse> {
-  const response = await performAuthedResponse(appUserId, path, options);
+  const response = await performAuthedResponse(appUserId, path, options, sessionOverride);
   const payload = await readBoundedBody(response);
   return {
     ok: response.ok,
