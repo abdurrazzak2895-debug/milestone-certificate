@@ -435,12 +435,17 @@ export function SvpBookingWizard() {
     refetchOnWindowFocus: false,
   });
   const overview = overviewQuery.data?.ok ? overviewQuery.data.data : null;
-  const isTargeted = overview
-    ? overview.permissions.targeted
-    : (setup?.permissions.targeted ?? true);
-  const isLoadBalancer = overview
-    ? overview.permissions.loadBalancer
-    : (setup?.permissions.loadBalancer ?? false);
+  // Session country flags come straight from the OTP user and are the most reliable source.
+  const isTargeted =
+    status?.countryTargeted ??
+    overview?.permissions.targeted ??
+    setup?.permissions.targeted ??
+    true;
+  const isLoadBalancer =
+    status?.countryLoadBalancer ??
+    overview?.permissions.loadBalancer ??
+    setup?.permissions.loadBalancer ??
+    false;
   const languageOptions = useMemo(() => {
     const all = occupation?.languages ?? [];
     const filtered = all.filter((entry) => entry.nonTargeted === !isTargeted);

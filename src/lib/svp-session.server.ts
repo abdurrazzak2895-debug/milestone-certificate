@@ -46,6 +46,8 @@ export type SvpSessionInfo = {
   login: string;
   userName: string | null;
   svpUserId: string | null;
+  countryTargeted: boolean | null;
+  countryLoadBalancer: boolean | null;
   expiresAt: number;
 };
 
@@ -234,7 +236,7 @@ export function apiUrl(path: string, query?: Record<string, SvpQueryValue>) {
   const url = new URL(path.replace(/^\//, ""), `${SVP_API_BASE}/`);
   url.searchParams.set("locale", "en");
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value === null || value === undefined || value === "") continue;
+    if (value === null || value === undefined) continue;
     if (Array.isArray(value)) {
       for (const item of value) url.searchParams.append(`${key}[]`, String(item));
       continue;
@@ -311,6 +313,8 @@ export function buildStoredSession(
   refreshCookies: string,
   userName: string | null,
   svpUserId: string | null,
+  countryTargeted: boolean | null = null,
+  countryLoadBalancer: boolean | null = null,
 ): SvpStoredSession | null {
   const auth = authFromPayload(payload);
   if (!auth) return null;
@@ -318,6 +322,8 @@ export function buildStoredSession(
     login,
     userName,
     svpUserId,
+    countryTargeted,
+    countryLoadBalancer,
     access: auth.access,
     expiresAt: auth.accessExpiresAt,
     refreshCookies,

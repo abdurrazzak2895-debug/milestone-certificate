@@ -142,7 +142,20 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
           apiFailure(response.payload, "Occupations could not be loaded.", response.status),
         );
       }
-      return { ok: true, data: parseSvpOccupations(response.payload) };
+      let occupations = parseSvpOccupations(response.payload);
+      if (occupations.length === 0) {
+        // Some deployments expect the name filter to be absent for the full list.
+        const fallback = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/occupations",
+          { query: { ...LOCALE_QUERY, per_page: 194, page: 1 } },
+        );
+        if (fallback.ok) {
+          const retry = parseSvpOccupations(fallback.payload);
+          if (retry.length > 0) occupations = retry;
+        }
+      }
+      return { ok: true, data: occupations };
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("Occupations could not be loaded.");

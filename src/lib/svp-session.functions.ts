@@ -30,6 +30,7 @@ import {
   writeStoredSvpSession,
 } from "@/lib/svp-session.server";
 import type { SvpAccountSummary } from "@/lib/svp-session.vault";
+import { parseSvpPermissions } from "@/lib/svp-api.shared";
 
 // Fixed values from the real SVP portal login request. Server-managed, never form fields.
 const SVP_SYSTEM_CONFIG: SvpSystemConfig = {
@@ -41,6 +42,8 @@ export type SvpSessionStatus = {
   signedIn: boolean;
   userName: string | null;
   login: string | null;
+  countryTargeted: boolean | null;
+  countryLoadBalancer: boolean | null;
   expiresAt: number;
   accountCount: number;
 };
@@ -197,13 +200,39 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<SvpSessionStatus> => {
     const session = readStoredSvpSession(context.userId);
     const now = Math.floor(Date.now() / 1000);
-    const active =
+    let active =
       session && (session.expiresAt > now || Boolean(session.refreshCookies)) ? session : null;
     if (session && !active) clearStoredSvpSession(context.userId);
+
+    // Older sessions predate the country flags; fetch them once from permissions.
+    if (active && (active.countryTargeted === null || active.countryLoadBalancer === null)) {
+      try {
+        const permissionsResponse = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/permissions",
+          { query: { locale: "en" } },
+          active,
+        );
+        if (permissionsResponse.ok) {
+          const permissions = parseSvpPermissions(permissionsResponse.payload);
+          active = {
+            ...active,
+            countryTargeted: permissions.targeted,
+            countryLoadBalancer: permissions.loadBalancer,
+          };
+          writeStoredSvpSession(context.userId, active);
+        }
+      } catch (error) {
+        // If SVP rejected the token, the helper already cleared it.
+        if (error instanceof SvpSessionMissingError) active = null;
+      }
+    }
     return {
       signedIn: Boolean(active),
       userName: active?.userName ?? null,
       login: active?.login ?? null,
+      countryTargeted: active?.countryTargeted ?? null,
+      countryLoadBalancer: active?.countryLoadBalancer ?? null,
       expiresAt: active?.expiresAt ?? 0,
       accountCount: listStoredSvpAccounts(context.userId).length,
     };

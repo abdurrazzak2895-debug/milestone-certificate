@@ -213,7 +213,12 @@ describe("SVP OTP session extraction", () => {
       access: "ACCESS_TOKEN",
       accessExpiresAt: Math.floor(Date.parse("2026-11-05T10:00:00Z") / 1000),
     });
-    expect(extractSvpSessionUser(payload)).toEqual({ id: "969955", name: "Noor Rahman" });
+    expect(extractSvpSessionUser(payload)).toEqual({
+      id: "969955",
+      name: "Noor Rahman",
+      countryTargeted: true,
+      countryLoadBalancer: null,
+    });
   });
 
   it("also accepts a refresh-style body without the data envelope", () => {

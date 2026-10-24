@@ -4,6 +4,8 @@ export type SvpStoredSession = {
   userName: string | null;
   svpUserId: string | null;
   access: string;
+  countryTargeted: boolean | null;
+  countryLoadBalancer: boolean | null;
   /** Epoch seconds when the bearer token expires. */
   expiresAt: number;
   refreshCookies: string;
@@ -54,6 +56,14 @@ function sanitizeSession(value: unknown): SvpStoredSession | null {
     userName: text(record["userName"], 120),
     svpUserId: text(record["svpUserId"], 40),
     access,
+    countryTargeted:
+      typeof record["countryTargeted"] === "boolean"
+        ? (record["countryTargeted"] as boolean)
+        : null,
+    countryLoadBalancer:
+      typeof record["countryLoadBalancer"] === "boolean"
+        ? (record["countryLoadBalancer"] as boolean)
+        : null,
     expiresAt: number(record["expiresAt"]) ?? 0,
     refreshCookies:
       typeof record["refreshCookies"] === "string" ? record["refreshCookies"].slice(0, 1200) : "",

@@ -21,6 +21,8 @@ function session(
     userName: login.toUpperCase(),
     svpUserId: "969955",
     access: `token-${login}`,
+    countryTargeted: null,
+    countryLoadBalancer: null,
     expiresAt: 1_900_000_000,
     refreshCookies: "",
     savedAt,

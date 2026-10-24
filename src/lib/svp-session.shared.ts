@@ -285,6 +285,8 @@ export type SvpAuthPayload = {
 export type SvpSessionUser = {
   id: string | null;
   name: string | null;
+  countryTargeted: boolean | null;
+  countryLoadBalancer: boolean | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -344,12 +346,19 @@ export function extractSvpSessionUser(payload: unknown): SvpSessionUser {
   const data = asRecord(root?.["data"]) ?? root;
   const user = asRecord(data?.["user"]);
   const profile = asRecord(user?.["profile"]);
+  const country = asRecord(user?.["country"]) ?? asRecord(data?.["country"]);
   const idValue = user?.["id"] ?? data?.["user_id"] ?? profile?.["id"];
   const nameValue =
     user?.["full_name"] ?? user?.["name"] ?? profile?.["full_name"] ?? profile?.["name"];
   return {
     id: idValue === undefined || idValue === null ? null : String(idValue),
     name: typeof nameValue === "string" && nameValue.trim() ? nameValue.trim() : null,
+    countryTargeted:
+      typeof country?.["targeted"] === "boolean" ? (country["targeted"] as boolean) : null,
+    countryLoadBalancer:
+      typeof country?.["load_balancer"] === "boolean"
+        ? (country["load_balancer"] as boolean)
+        : null,
   };
 }
 
