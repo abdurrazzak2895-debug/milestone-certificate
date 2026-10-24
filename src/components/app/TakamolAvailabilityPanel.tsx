@@ -12,7 +12,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Field } from "@/components/app/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { lookupTakamolAvailability } from "@/lib/takamol-availability.functions";
-import type { TakamolLookupRequest } from "@/lib/takamol-availability.shared";
+import type { TakamolJsonValue, TakamolLookupRequest } from "@/lib/takamol-availability.shared";
 import {
   parseAvailableDates,
   parseCities,
@@ -38,7 +38,7 @@ import {
 const SESSION_REQUEST = "sessions" as const;
 type SessionRequest = Extract<TakamolLookupRequest, { endpoint: typeof SESSION_REQUEST }>;
 
-async function getLookupData(request: TakamolLookupRequest): Promise<unknown> {
+async function getLookupData(request: TakamolLookupRequest): Promise<TakamolJsonValue> {
   const result = await lookupTakamolAvailability({ data: request });
   if (!result.success) throw new Error(result.message);
   return result.data;
@@ -98,7 +98,7 @@ function StepHeading({
   );
 }
 
-function InlineState({ children, error = false }: { children: string; error?: boolean }) {
+function InlineState({ children, error = false }: { children: ReactNode; error?: boolean }) {
   return (
     <div
       role={error ? "alert" : "status"}

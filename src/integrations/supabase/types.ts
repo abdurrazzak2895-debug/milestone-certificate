@@ -895,7 +895,9 @@ export type Database = {
           notes: string | null;
           occupation: string | null;
           passport: string;
+          reference_no: string | null;
           status: string;
+          updated_at: string;
         };
         Insert: {
           agency?: string | null;
@@ -910,7 +912,9 @@ export type Database = {
           notes?: string | null;
           occupation?: string | null;
           passport: string;
+          reference_no?: string | null;
           status?: string;
+          updated_at?: string;
         };
         Update: {
           agency?: string | null;
@@ -925,7 +929,9 @@ export type Database = {
           notes?: string | null;
           occupation?: string | null;
           passport?: string;
+          reference_no?: string | null;
           status?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

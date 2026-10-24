@@ -1,27 +1,8 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
-import { homeForRoles, isManager } from "@/lib/roles";
+import { canAccessPath, homeForRoles, isManager } from "@/lib/roles";
 import { checkDeviceSession, forceSignOut } from "@/lib/device-session";
-
-const AGENT_PATHS = [
-  "/dashboard",
-  "/submit-job",
-  "/my-works",
-  "/sub-agents",
-  "/office",
-  "/about",
-  "/agent-results",
-];
-const PROVIDER_PATHS = ["/provider"];
-const ADMIN_ONLY_PATHS = [
-  "/finance",
-  "/agency-report",
-  "/messages",
-  "/center-addresses",
-  "/svp-booking",
-];
-const MANAGEMENT_PATHS = ["/management", "/submissions"];
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -37,22 +18,19 @@ export const Route = createFileRoute("/_authenticated")({
       await forceSignOut(reason);
       throw redirect({ to: "/auth" });
     }
+    if (rolesRes.error) {
+      await forceSignOut("অ্যাক্সেস যাচাই করা যায়নি। আবার লগইন করুন।");
+      throw redirect({ to: "/auth" });
+    }
     const roles = (rolesRes.data ?? []).map((r) => r.role as string);
     if (roles.length === 0) throw redirect({ to: "/portal" });
-    if (ADMIN_ONLY_PATHS.includes(location.pathname) && !roles.includes("admin"))
-      throw redirect({ to: homeForRoles(roles) });
+    if (!canAccessPath(location.pathname, roles)) throw redirect({ to: homeForRoles(roles) });
     if (!isManager(roles)) {
       const active = activeRes.data;
       if (active === false) {
         await supabase.auth.signOut();
         throw redirect({ to: "/auth" });
       }
-      const allowed = [
-        ...(roles.includes("agent") ? AGENT_PATHS : []),
-        ...(roles.includes("service_provider") ? PROVIDER_PATHS : []),
-        ...(roles.includes("management") ? MANAGEMENT_PATHS : []),
-      ];
-      if (!allowed.includes(location.pathname)) throw redirect({ to: homeForRoles(roles) });
     }
     return { user: data.user, roles };
   },

@@ -1,8 +1,10 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimDeviceSession } from "@/lib/device-session";
+import { isManager } from "@/lib/roles";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import space1 from "@/assets/space-1.webp";
@@ -57,6 +59,8 @@ function GlowField({
 
 function AdminLogin() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -80,17 +84,24 @@ function AdminLogin() {
       toast.error("ইমেইল বা পাসওয়ার্ড সঠিক নয়");
       return;
     }
-    const { data: roles } = await supabase
+    const { data: roles, error: rolesError } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", data.user.id);
-    if (!roles || roles.length === 0) {
+    const roleNames = (roles ?? []).map((row) => row.role as string);
+    if (rolesError || !isManager(roleNames)) {
       await supabase.auth.signOut();
       setBusy(false);
-      toast.error("এই অ্যাকাউন্টের অ্যাডমিন অ্যাক্সেস নেই");
+      toast.error(
+        rolesError
+          ? "অ্যাক্সেস যাচাই করা যায়নি — আবার চেষ্টা করুন"
+          : "এই অ্যাকাউন্টের অ্যাডমিন অ্যাক্সেস নেই",
+      );
       return;
     }
-    await claimDeviceSession();
+    queryClient.clear();
+    await claimDeviceSession(roleNames.includes("admin"));
+    await router.invalidate();
     navigate({ to: "/dashboard", replace: true });
   };
 

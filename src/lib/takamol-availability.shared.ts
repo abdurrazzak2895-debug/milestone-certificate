@@ -36,8 +36,18 @@ export const takamolLookupSchema = z.discriminatedUnion("endpoint", [
 
 export type TakamolLookupRequest = z.infer<typeof takamolLookupSchema>;
 
+export type TakamolJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | TakamolJsonValue[]
+  | {
+      [key: string]: TakamolJsonValue;
+    };
+
 export type TakamolLookupResult =
-  { success: true; data: unknown } | { success: false; status: number; message: string };
+  { success: true; data: TakamolJsonValue } | { success: false; status: number; message: string };
 
 export function buildTakamolUrl(request: TakamolLookupRequest): URL {
   const url = new URL(`${API_BASE}/${request.endpoint}`);
@@ -82,13 +92,38 @@ export function takamolErrorMessage(status: number): string {
   }
 }
 
-export function unwrapTakamolResponse(payload: unknown): { success: true; data: unknown } | null {
+function isTakamolJsonValue(value: unknown): value is TakamolJsonValue {
+  if (value === null) return true;
+
+  switch (typeof value) {
+    case "string":
+    case "boolean":
+      return true;
+    case "number":
+      return Number.isFinite(value);
+    case "object": {
+      if (Array.isArray(value)) return value.every(isTakamolJsonValue);
+      const prototype = Object.getPrototypeOf(value);
+      return (
+        (prototype === Object.prototype || prototype === null) &&
+        Object.values(value).every(isTakamolJsonValue)
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+export function unwrapTakamolResponse(
+  payload: unknown,
+): { success: true; data: TakamolJsonValue } | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
 
   const response = payload as Record<string, unknown>;
   if (response.success !== true || !Object.prototype.hasOwnProperty.call(response, "data")) {
     return null;
   }
+  if (!isTakamolJsonValue(response.data)) return null;
 
   return { success: true, data: response.data };
 }

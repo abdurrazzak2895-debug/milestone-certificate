@@ -92,6 +92,11 @@ describe("Takamol response handling", () => {
     expect(unwrapTakamolResponse(null)).toBeNull();
   });
 
+  it("rejects successful envelopes with non-JSON data", () => {
+    expect(unwrapTakamolResponse({ success: true, data: { missing: undefined } })).toBeNull();
+    expect(unwrapTakamolResponse({ success: true, data: new Date() })).toBeNull();
+  });
+
   it("maps documented HTTP errors without exposing upstream bodies", () => {
     expect(takamolErrorMessage(401)).toContain("API key");
     expect(takamolErrorMessage(422)).toContain("query parameters");
