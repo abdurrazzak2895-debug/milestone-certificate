@@ -56,7 +56,9 @@ export type SvpEligibility = {
 export type SvpReservation = {
   id: string;
   status: string | null;
+  laborName: string | null;
   occupationName: string | null;
+  occupationEnglishName: string | null;
   city: string | null;
   centerName: string | null;
   startAt: string | null;
@@ -282,12 +284,15 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
       const id = record?.["id"];
       if (!record || id === undefined || id === null) return null;
       const occupation = asRecord(record["occupation"]);
+      const labor = asRecord(record["labor"]) ?? asRecord(record["individual_labor"]);
       const session = asRecord(record["exam_session"]);
       const center = asRecord(session?.["test_center"]);
       return {
         id: String(id),
         status: text(record["reservation_status"]) ?? text(record["status"]),
+        laborName: text(labor?.["full_name"]) ?? text(labor?.["name"]),
         occupationName: text(occupation?.["name"]) ?? text(occupation?.["english_name"]),
+        occupationEnglishName: text(occupation?.["english_name"]),
         city: text(center?.["city"]),
         centerName: text(center?.["name"]),
         startAt: text(session?.["start_at_in_tc_time_zone"]) ?? text(session?.["start_at"]),
@@ -300,4 +305,22 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
 /** Provider message for a failed response, never leaking values. */
 export function parseSvpError(payload: unknown): string | null {
   return svpErrorMessage(payload);
+}
+
+/** Safe download name: `<Candidate>_<Occupation English>_SVP_Ticket.pdf`. */
+export function svpTicketFileName(
+  name: string | null | undefined,
+  occupationEnglishName: string | null | undefined,
+): string {
+  const slug = (value: string | null | undefined, fallback: string) => {
+    const cleaned = (value ?? "")
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\s/g, "_")
+      .slice(0, 80);
+    return cleaned || fallback;
+  };
+  return `${slug(name, "Candidate")}_${slug(occupationEnglishName, "Occupation")}_SVP_Ticket.pdf`;
 }

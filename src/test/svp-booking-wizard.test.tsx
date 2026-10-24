@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   reservations: vi.fn(),
   eligibility: vi.fn(),
   create: vi.fn(),
+  ticket: vi.fn(),
   insert: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -32,6 +33,7 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpReservations: mocks.reservations,
   checkSvpBookingEligibility: mocks.eligibility,
   createSvpBooking: mocks.create,
+  downloadSvpTicket: mocks.ticket,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -129,6 +131,10 @@ beforeEach(() => {
       credits: 0,
       message: "Reservation confirmed by SVP.",
     },
+  });
+  mocks.ticket.mockResolvedValue({
+    ok: true,
+    data: { base64: globalThis.btoa("%PDF-1.4 ticket"), contentType: "application/pdf" },
   });
   mocks.insert.mockResolvedValue({ error: null });
   mocks.signOut.mockResolvedValue({ ok: true });
@@ -232,5 +238,50 @@ describe("SVP booking wizard", () => {
       await screen.findByText(/An existing reservation already uses this category/),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Step 2/)).not.toBeInTheDocument();
+  });
+});
+
+describe("SVP ticket download", () => {
+  it("saves the PDF as Candidate_Occupation_SVP_Ticket.pdf", async () => {
+    mocks.reservations.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "987",
+          status: "reserved",
+          laborName: "Noor Rahman",
+          occupationName: "Welder",
+          occupationEnglishName: "Welder",
+          city: "Dhaka",
+          centerName: "Dhaka Center",
+          startAt: "2026-11-05 09:30:00",
+          methodology: null,
+        },
+      ],
+    });
+
+    let downloadedName = "";
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      downloadedName = this.download;
+    });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:svp-ticket"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    renderWizard();
+    fireEvent.click(await screen.findByRole("button", { name: "Ticket PDF" }));
+
+    await waitFor(() =>
+      expect(mocks.ticket).toHaveBeenCalledWith({ data: { reservationId: "987" } }),
+    );
+    expect(downloadedName).toBe("Noor_Rahman_Welder_SVP_Ticket.pdf");
+    clickSpy.mockRestore();
   });
 });

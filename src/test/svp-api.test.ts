@@ -9,6 +9,7 @@ import {
   parseSvpPermissions,
   parseSvpReservation,
   parseSvpReservations,
+  svpTicketFileName,
 } from "@/lib/svp-api.shared";
 import { extractSvpAuthPayload, extractSvpSessionUser } from "@/lib/svp-session.shared";
 
@@ -157,7 +158,8 @@ describe("SVP response parsers", () => {
           {
             id: 987,
             reservation_status: "reserved",
-            occupation: { name: "Welder" },
+            occupation: { name: "Welder", english_name: "Welder" },
+            labor: { full_name: "Noor Rahman" },
             exam_session: {
               start_at: "2026-11-05 09:30:00",
               test_center: { city: "Dhaka", name: "Dhaka Center" },
@@ -169,7 +171,9 @@ describe("SVP response parsers", () => {
       {
         id: "987",
         status: "reserved",
+        laborName: "Noor Rahman",
         occupationName: "Welder",
+        occupationEnglishName: "Welder",
         city: "Dhaka",
         centerName: "Dhaka Center",
         startAt: "2026-11-05 09:30:00",
@@ -200,5 +204,19 @@ describe("SVP OTP session extraction", () => {
       access: "NEW_TOKEN",
       accessExpiresAt: 1800000000,
     });
+  });
+});
+
+describe("SVP ticket file name", () => {
+  it("uses the candidate name and occupation English name", () => {
+    expect(svpTicketFileName("Noor Rahman", "Welder")).toBe("Noor_Rahman_Welder_SVP_Ticket.pdf");
+    expect(svpTicketFileName("  md. sojib / hossain ", "Heavy Equipment Operator")).toBe(
+      "md_sojib_hossain_Heavy_Equipment_Operator_SVP_Ticket.pdf",
+    );
+  });
+
+  it("falls back safely when a value is missing or not Latin text", () => {
+    expect(svpTicketFileName(null, undefined)).toBe("Candidate_Occupation_SVP_Ticket.pdf");
+    expect(svpTicketFileName("  ", "")).toBe("Candidate_Occupation_SVP_Ticket.pdf");
   });
 });

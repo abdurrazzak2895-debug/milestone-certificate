@@ -254,19 +254,28 @@ export function buildStoredSession(
   };
 }
 
-/**
- * Perform an authenticated SVP request for the current app user.
- * Refreshes the bearer token once on 401 and persists rotated cookies.
- */
-export async function svpAuthedRequest(
+export type SvpBinaryResponse = {
+  ok: boolean;
+  status: number;
+  contentType: string | null;
+  base64: string | null;
+  message: string | null;
+};
+
+const MAX_BINARY_BYTES = 5 * 1024 * 1024;
+
+type AuthedOptions = {
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  query?: Record<string, string | number | null | undefined>;
+  body?: unknown;
+};
+
+/** Fetch with the stored session, refresh once on 401, and persist rotated cookies. */
+async function performAuthedResponse(
   appUserId: string,
   path: string,
-  options: {
-    method?: "GET" | "POST" | "PATCH" | "DELETE";
-    query?: Record<string, string | number | null | undefined>;
-    body?: unknown;
-  } = {},
-): Promise<SvpApiResponse> {
+  options: AuthedOptions,
+): Promise<Response> {
   let session = readStoredSvpSession(appUserId);
   if (!session) throw new SvpSessionMissingError();
 
@@ -300,7 +309,19 @@ export async function svpAuthedRequest(
     session = { ...session, refreshCookies: mergeCookiePairs(session.refreshCookies, rotated) };
   }
   writeStoredSvpSession(appUserId, session);
+  return response;
+}
 
+/**
+ * Perform an authenticated SVP JSON request for the current app user.
+ * Refreshes the bearer token once on 401 and persists rotated cookies.
+ */
+export async function svpAuthedRequest(
+  appUserId: string,
+  path: string,
+  options: AuthedOptions = {},
+): Promise<SvpApiResponse> {
+  const response = await performAuthedResponse(appUserId, path, options);
   const payload = await readBoundedBody(response);
   return {
     ok: response.ok,
@@ -309,6 +330,85 @@ export async function svpAuthedRequest(
     message: response.ok
       ? null
       : (svpErrorMessage(payload) ?? `SVP returned HTTP ${response.status}.`),
+  };
+}
+
+function toBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+/** Download a binary SVP document (ticket PDF) with the same session/refresh rules. */
+export async function svpAuthedBinary(
+  appUserId: string,
+  path: string,
+  options: AuthedOptions = {},
+): Promise<SvpBinaryResponse> {
+  const response = await performAuthedResponse(appUserId, path, options);
+  const contentType = response.headers.get("content-type");
+
+  if (!response.ok) {
+    let message: string | null = null;
+    try {
+      message = svpErrorMessage(await readBoundedBody(response));
+    } catch {
+      message = null;
+    }
+    return {
+      ok: false,
+      status: response.status,
+      contentType,
+      base64: null,
+      message: message ?? `SVP returned HTTP ${response.status}.`,
+    };
+  }
+
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength === 0) {
+    return {
+      ok: false,
+      status: response.status,
+      contentType,
+      base64: null,
+      message: "SVP returned an empty ticket file.",
+    };
+  }
+  if (buffer.byteLength > MAX_BINARY_BYTES) {
+    return {
+      ok: false,
+      status: response.status,
+      contentType,
+      base64: null,
+      message: "The SVP ticket is too large to download here. Use the official portal.",
+    };
+  }
+  if (contentType && contentType.includes("json")) {
+    let message: string | null = null;
+    try {
+      message = svpErrorMessage(JSON.parse(new TextDecoder().decode(buffer)));
+    } catch {
+      message = null;
+    }
+    return {
+      ok: false,
+      status: response.status,
+      contentType,
+      base64: null,
+      message: message ?? "SVP did not return a ticket PDF.",
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    contentType: contentType ?? "application/pdf",
+    base64: toBase64(buffer),
+    message: null,
   };
 }
 

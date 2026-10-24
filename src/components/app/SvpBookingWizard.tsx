@@ -5,6 +5,7 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
+  Download,
   ExternalLink,
   LoaderCircle,
   LogOut,
@@ -22,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   checkSvpBookingEligibility,
   createSvpBooking,
+  downloadSvpTicket,
   getSvpBookingSetup,
   listSvpAvailableDates,
   listSvpBookingOccupations,
@@ -31,6 +33,7 @@ import {
   type SvpBookingResult,
 } from "@/lib/svp-booking.functions";
 import { getSvpSessionStatus, signOutSvpSession } from "@/lib/svp-session.functions";
+import { svpTicketFileName } from "@/lib/svp-api.shared";
 import type {
   SvpAvailableDate,
   SvpEligibility,
@@ -85,6 +88,23 @@ function formatDateOnly(date: string): string {
   });
 }
 
+function savePdfBase64(base64: string, contentType: string, fileName: string): void {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  const blob = new Blob([bytes], { type: contentType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function SvpBookingWizard() {
   const queryClient = useQueryClient();
 
@@ -111,6 +131,7 @@ export function SvpBookingWizard() {
   const [agency, setAgency] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [result, setResult] = useState<SvpBookingResult | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const requireSignIn = () => {
     setNeedsLogin(true);
@@ -228,6 +249,30 @@ export function SvpBookingWizard() {
     setAgency("");
     setAccepted(false);
     setResult(null);
+  };
+
+  const downloadTicketById = async (
+    reservationId: string,
+    name: string | null,
+    occupationEnglishName: string | null,
+  ) => {
+    if (downloadingId) return;
+    setDownloadingId(reservationId);
+    try {
+      const response = await downloadSvpTicket({ data: { reservationId } });
+      if (!response.ok) {
+        if (response.needsSignIn) requireSignIn();
+        toast.error(response.message);
+        return;
+      }
+      const fileName = svpTicketFileName(name, occupationEnglishName);
+      savePdfBase64(response.data.base64, response.data.contentType, fileName);
+      toast.success(`Ticket saved as ${fileName}`);
+    } catch {
+      toast.error("The SVP ticket could not be downloaded.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const saveLocalRecord = async (booking: SvpBookingResult) => {
@@ -833,6 +878,27 @@ export function SvpBookingWizard() {
             <Button type="button" onClick={resetFlow}>
               Book another
             </Button>
+            {!result.paymentRequired && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  void downloadTicketById(
+                    result.reservationId,
+                    status?.userName ?? candidateName,
+                    occupation?.name ?? null,
+                  )
+                }
+                disabled={downloadingId === result.reservationId}
+              >
+                {downloadingId === result.reservationId ? (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Download ticket PDF
+              </Button>
+            )}
             <a href={SVP_PORTAL_BOOKING_URL} target="_blank" rel="noreferrer">
               <Button type="button" variant="outline">
                 <ExternalLink className="mr-2 h-4 w-4" /> Open SVP portal
@@ -862,28 +928,59 @@ export function SvpBookingWizard() {
           </p>
         ) : (
           <div className="divide-y rounded-2xl border bg-card">
-            {reservations.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="font-semibold">
-                    <UserRound className="mr-1 inline h-4 w-4" />{" "}
-                    {entry.occupationName ?? "Occupation"} · #{entry.id}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {entry.startAt ? formatSlot(entry.startAt) : "Date not set"}
-                    {(entry.centerName ?? entry.city) ? ` · ${entry.centerName ?? entry.city}` : ""}
-                  </p>
-                </div>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone(entry.status)}`}
+            {reservations.map((entry) => {
+              const ticketReady = entry.status
+                ? /reserved|completed|confirmed/i.test(entry.status)
+                : false;
+              return (
+                <div
+                  key={entry.id}
+                  className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
                 >
-                  {entry.status ?? "unknown"}
-                </span>
-              </div>
-            ))}
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      <UserRound className="mr-1 inline h-4 w-4" />{" "}
+                      {entry.occupationName ?? "Occupation"} · #{entry.id}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {entry.startAt ? formatSlot(entry.startAt) : "Date not set"}
+                      {(entry.centerName ?? entry.city)
+                        ? ` · ${entry.centerName ?? entry.city}`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone(entry.status)}`}
+                    >
+                      {entry.status ?? "unknown"}
+                    </span>
+                    {ticketReady && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void downloadTicketById(
+                            entry.id,
+                            entry.laborName ?? status?.userName ?? candidateName,
+                            entry.occupationEnglishName ?? entry.occupationName,
+                          )
+                        }
+                        disabled={downloadingId === entry.id}
+                      >
+                        {downloadingId === entry.id ? (
+                          <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="mr-1 h-3.5 w-3.5" />
+                        )}
+                        Ticket PDF
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

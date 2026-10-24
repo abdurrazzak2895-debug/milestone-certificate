@@ -24,6 +24,7 @@ import {
   readStoredSvpSession,
   requireSvpAllowedRole,
   SvpSessionMissingError,
+  svpAuthedBinary,
   svpAuthedRequest,
 } from "@/lib/svp-session.server";
 
@@ -449,5 +450,43 @@ export const createSvpBooking = createServerFn({ method: "POST" })
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("The SVP reservation could not be created.");
+    }
+  });
+
+export type SvpTicketFile = { base64: string; contentType: string };
+
+/** Download the official SVP ticket PDF for a reservation. */
+export const downloadSvpTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpTicketFile>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedBinary(
+        context.userId,
+        `/individual_labor_space/tickets/${encodeURIComponent(data.reservationId)}/show_pdf`,
+      );
+      if (!response.ok || !response.base64) {
+        return failure(response.message ?? "The SVP ticket could not be downloaded.");
+      }
+      return {
+        ok: true,
+        data: {
+          base64: response.base64,
+          contentType: response.contentType ?? "application/pdf",
+        },
+      };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The SVP ticket could not be downloaded.");
     }
   });
