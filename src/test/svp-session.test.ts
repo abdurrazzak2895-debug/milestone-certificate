@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildSvpLoginBody, buildSvpOtpBody, readSvpSessionResult } from "@/lib/svp-session.shared";
+import {
+  buildSvpLoginBody,
+  buildSvpOtpBody,
+  extractSvpAuthPayload,
+  readSvpSessionResult,
+} from "@/lib/svp-session.shared";
 
 const system = { feApp: "legislator", otpMethod: "email" };
 
@@ -102,5 +107,27 @@ describe("SVP login outcomes", () => {
     const result = await readSvpSessionResult(response, "otp");
 
     expect(result.message).toBe("Invalid OTP");
+  });
+});
+
+describe("SVP token extraction", () => {
+  it("trims the token and treats a small access_expires_at as a duration", () => {
+    const before = Math.floor(Date.now() / 1000);
+    const auth = extractSvpAuthPayload({
+      access_payload: { access: "  TOKEN-VALUE  ", access_expires_at: 3600 },
+    });
+
+    expect(auth?.access).toBe("TOKEN-VALUE");
+    expect(auth?.accessExpiresAt).toBeGreaterThanOrEqual(before + 3595);
+    expect(auth?.accessExpiresAt).toBeLessThanOrEqual(before + 3605);
+  });
+
+  it("keeps epoch seconds and milliseconds correct", () => {
+    expect(
+      extractSvpAuthPayload({ access: "A", access_expires_at: 1_800_000_000 })?.accessExpiresAt,
+    ).toBe(1_800_000_000);
+    expect(
+      extractSvpAuthPayload({ access: "A", access_expires_at: 1_800_000_000_000 })?.accessExpiresAt,
+    ).toBe(1_800_000_000);
   });
 });

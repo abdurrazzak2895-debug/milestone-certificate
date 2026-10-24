@@ -14,7 +14,7 @@ type FormState = {
 
 type LoginStep = "login" | "otp";
 
-type Status = { tone: "ok" | "error"; text: string };
+type Status = { tone: "ok" | "error"; text: string; details?: string };
 
 const EMPTY_FORM: FormState = { login: "", password: "", otpAttempt: "" };
 
@@ -67,7 +67,11 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
           ? await submitSvpLogin({ data: { ...parsed.data, step: "login" } })
           : await submitSvpLogin({ data: { ...parsed.data, step: "otp" } });
 
-      setStatus({ tone: result.ok ? "ok" : "error", text: result.message });
+      setStatus({
+        tone: result.ok ? "ok" : "error",
+        text: result.message,
+        details: result.ok ? undefined : result.details,
+      });
       if (step === "login" && result.otpRequired) {
         setStep("otp");
       }
@@ -166,16 +170,17 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
       </form>
 
       {status && (
-        <p
+        <div
           role={status.tone === "error" ? "alert" : "status"}
-          className={`rounded-lg border p-3 text-sm ${
+          className={`space-y-1 rounded-lg border p-3 text-sm ${
             status.tone === "error"
               ? "border-destructive/30 bg-destructive/5 text-destructive"
               : "bg-muted/40"
           }`}
         >
-          {status.text}
-        </p>
+          <p>{status.text}</p>
+          {status.details && <p className="font-mono text-[11px] opacity-80">{status.details}</p>}
+        </div>
       )}
     </section>
   );

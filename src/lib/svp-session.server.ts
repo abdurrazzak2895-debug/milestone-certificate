@@ -120,7 +120,15 @@ function cookiePairs(headers: Headers): string[] {
       : headers.get("set-cookie")
         ? [headers.get("set-cookie") as string]
         : [];
-  return raw
+  const parts =
+    typeof withGetSetCookie.getSetCookie === "function"
+      ? raw
+      : raw.flatMap((entry) =>
+          entry.includes(",")
+            ? entry.split(/,\s*(?=[^;,=]+=[^;,]*)/).map((part) => part.trim())
+            : [entry],
+        );
+  return parts
     .map((entry) => entry.split(";", 1)[0]?.trim())
     .filter((entry): entry is string => Boolean(entry && entry.includes("=")));
 }
@@ -285,11 +293,6 @@ async function performAuthedResponse(
 ): Promise<Response> {
   let session = readStoredSvpSession(appUserId);
   if (!session) throw new SvpSessionMissingError();
-
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  if (session.expiresAt - 30 <= nowSeconds) {
-    session = await refreshStoredSession(appUserId, session);
-  }
 
   const send = async (active: SvpStoredSession) => {
     const headers: Record<string, string> = {

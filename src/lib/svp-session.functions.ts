@@ -57,6 +57,19 @@ function loginFailure(
   };
 }
 
+function describePayloadFields(payload: unknown): string {
+  const record = (value: unknown) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  const root = record(payload);
+  const accessPayload =
+    record(root?.["access_payload"]) ?? record(record(root?.["data"])?.["access_payload"]);
+  const rootFields = root ? Object.keys(root).slice(0, 12).join(",") : "none";
+  const accessFields = accessPayload ? Object.keys(accessPayload).slice(0, 12).join(",") : "none";
+  return `response fields: ${rootFields} · access payload: ${accessFields}`;
+}
+
 /**
  * Real SVP sign-in: POST /sessions/login, then POST /sessions/otp.
  * A successful OTP stores the bearer token in the server-only session cookie.
@@ -128,26 +141,24 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
     try {
       const verification = await svpAuthedRequest(
         context.userId,
-        "/individual_labor_space/permissions",
-        { query: { locale: "en" } },
+        "/individual_labor_space/occupations",
+        { query: { locale: "en", per_page: 1, page: 1, name: "" } },
       );
       verificationStatus = verification.status;
     } catch (error) {
       if (error instanceof SvpSessionMissingError) verificationStatus = 401;
     }
-    if (verificationStatus === 401 || verificationStatus === 403) {
+    if (verificationStatus === 401) {
       clearStoredSvpSession(context.userId);
       return {
         step: "otp",
-        httpStatus: verificationStatus,
+        httpStatus: 401,
         ok: false,
         otpRequired: false,
         authenticated: false,
-        message:
-          verificationStatus === 403
-            ? "SVP rejected this account's booking permissions. Check the SVP account."
-            : "SVP accepted the OTP but the session token was rejected. Try signing in again.",
+        message: "SVP accepted the OTP but rejected the session token. Try signing in again.",
         session: null,
+        details: describePayloadFields(payload),
       };
     }
 

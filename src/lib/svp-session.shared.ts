@@ -86,6 +86,7 @@ export type SvpSessionResult = {
   authenticated: boolean;
   message: string;
   session: SvpSessionSummary | null;
+  details?: string;
 };
 
 const MAX_RESPONSE_BODY_BYTES = 64 * 1024;
@@ -293,14 +294,17 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function readExpiry(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
-  }
+  const now = Math.floor(Date.now() / 1000);
+  const normalize = (numeric: number): number => {
+    if (numeric > 10_000_000_000) return Math.floor(numeric / 1000); // epoch milliseconds
+    if (numeric > 1_000_000_000) return Math.floor(numeric); // epoch seconds
+    if (numeric > 0) return now + Math.floor(numeric); // duration in seconds
+    return 0;
+  };
+  if (typeof value === "number" && Number.isFinite(value)) return normalize(value);
   if (typeof value === "string") {
     const numeric = Number(value);
-    if (Number.isFinite(numeric) && numeric > 0) {
-      return numeric > 10_000_000_000 ? Math.floor(numeric / 1000) : Math.floor(numeric);
-    }
+    if (Number.isFinite(numeric) && numeric > 0) return normalize(numeric);
     const parsed = Date.parse(value);
     if (Number.isFinite(parsed)) return Math.floor(parsed / 1000);
   }
@@ -311,7 +315,8 @@ function readExpiry(value: unknown): number {
 export function extractSvpAuthPayload(payload: unknown): SvpAuthPayload | null {
   const root = asRecord(payload);
   if (!root) return null;
-  const candidates = [asRecord(root["data"]), root];
+  // Prefer the canonical root-level access_payload, then a data envelope.
+  const candidates = [root, asRecord(root["data"])];
   for (const candidate of candidates) {
     if (!candidate) continue;
     const token = asRecord(candidate["access_payload"]) ?? candidate;
@@ -323,7 +328,7 @@ export function extractSvpAuthPayload(payload: unknown): SvpAuthPayload | null {
           : null;
     if (!access) continue;
     return {
-      access,
+      access: access.trim(),
       accessExpiresAt:
         readExpiry(token["access_expires_at"]) ||
         readExpiry(token["expires_at"]) ||
