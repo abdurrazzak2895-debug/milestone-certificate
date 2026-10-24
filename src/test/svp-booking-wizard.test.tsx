@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   sites: vi.fn(),
   slots: vi.fn(),
   hold: vi.fn(),
+  targetedHold: vi.fn(),
   dates: vi.fn(),
   sessions: vi.fn(),
   reservations: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpPrometricSites: mocks.sites,
   listSvpPrometricSlots: mocks.slots,
   createSvpPrometricHold: mocks.hold,
+  createSvpTargetedHold: mocks.targetedHold,
   listSvpAvailableDates: mocks.dates,
   listSvpExamSessions: mocks.sessions,
   listSvpReservations: mocks.reservations,
@@ -116,6 +118,10 @@ beforeEach(() => {
     data: [{ id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 }],
   });
   mocks.hold.mockResolvedValue({ ok: true, data: { holdId: "hold-1", expiresAt: null } });
+  mocks.targetedHold.mockResolvedValue({
+    ok: true,
+    data: { expiresAt: "2026-11-05T09:40:00.000Z" },
+  });
   mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 4 }] });
   mocks.setup.mockResolvedValue({
     ok: true,
@@ -254,7 +260,13 @@ describe("SVP booking wizard", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
+    await waitFor(() =>
+      expect(mocks.targetedHold).toHaveBeenCalledWith({
+        data: { examSessionId: 501, categoryId: 159, countryId: 4 },
+      }),
+    );
     expect(await screen.findByText(/Step 3/)).toBeInTheDocument();
+    expect(await screen.findByText(/Seat held by SVP until/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Candidate name *"), {
       target: { value: "Noor Rahman" },
     });
@@ -515,5 +527,31 @@ describe("SVP ticket download", () => {
     );
     expect(downloadedName).toBe("Noor_Rahman_Welder_SVP_Ticket.pdf");
     clickSpy.mockRestore();
+  });
+});
+
+describe("temporary seat hold", () => {
+  it("does not move to confirmation when SVP rejects the seat hold", async () => {
+    mocks.targetedHold.mockResolvedValue({
+      ok: false,
+      needsSignIn: false,
+      message: "SVP could not hold this seat.",
+    });
+
+    renderWizard();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    fireEvent.change(screen.getByLabelText("Test center city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    await screen.findByText(/Step 2/);
+    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(mocks.targetedHold).toHaveBeenCalled());
+    expect(screen.queryByText(/Step 3/)).not.toBeInTheDocument();
   });
 });

@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  Clock3,
   Download,
   ExternalLink,
   LoaderCircle,
@@ -27,6 +28,7 @@ import {
   checkSvpBookingEligibility,
   createSvpBooking,
   createSvpPrometricHold,
+  createSvpTargetedHold,
   downloadSvpTicket,
   getSvpAccountOverview,
   getSvpBookingSetup,
@@ -108,6 +110,12 @@ function hashSlotId(value: string): number {
   return hash || 1;
 }
 
+function formatHoldExpiry(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
 function formatDateOnly(date: string): string {
   const parsed = new Date(`${date}T12:00:00`);
   if (Number.isNaN(parsed.getTime())) return date;
@@ -170,6 +178,8 @@ export function SvpBookingWizard() {
   const [prometricDate, setPrometricDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<SvpPrometricSlot | null>(null);
   const [holdId, setHoldId] = useState<string | null>(null);
+  const [prometricHoldExpiresAt, setPrometricHoldExpiresAt] = useState<string | null>(null);
+  const [targetedHoldExpiresAt, setTargetedHoldExpiresAt] = useState<string | null>(null);
   const [candidateName, setCandidateName] = useState("");
   const [passport, setPassport] = useState("");
   const [agency, setAgency] = useState("");
@@ -414,6 +424,8 @@ export function SvpBookingWizard() {
     setPrometricDate(null);
     setSelectedSlot(null);
     setHoldId(null);
+    setPrometricHoldExpiresAt(null);
+    setTargetedHoldExpiresAt(null);
     setStage("select");
   };
 
@@ -432,6 +444,8 @@ export function SvpBookingWizard() {
       siteId: slot.siteId,
     });
     setHoldId(null);
+    setTargetedHoldExpiresAt(null);
+    setPrometricHoldExpiresAt(null);
   };
 
   const holdMutation = useMutation({
@@ -448,15 +462,42 @@ export function SvpBookingWizard() {
     },
     onSuccess: (data) => {
       setHoldId(data.holdId);
+      setPrometricHoldExpiresAt(data.expiresAt);
       setStage("confirm");
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "SVP could not hold the slot."),
   });
 
+  const targetedHoldMutation = useMutation({
+    mutationFn: async () => {
+      if (!occupation?.categoryId || !selectedSession) {
+        throw new Error("Select an exam session first.");
+      }
+      const response = await createSvpTargetedHold({
+        data: {
+          examSessionId: selectedSession.id,
+          categoryId: occupation.categoryId,
+          countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
+        },
+      });
+      if (!response.ok) {
+        if (response.needsSignIn) requireSignIn();
+        throw new Error(response.message);
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setTargetedHoldExpiresAt(data.expiresAt);
+      setStage("confirm");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "SVP could not hold this seat."),
+  });
+
   const continueFromDates = () => {
     if (isTargeted) {
-      setStage("confirm");
+      targetedHoldMutation.mutate();
       return;
     }
     holdMutation.mutate();
@@ -466,6 +507,8 @@ export function SvpBookingWizard() {
     setSelectedSession(null);
     setSelectedSlot(null);
     setHoldId(null);
+    setPrometricHoldExpiresAt(null);
+    setTargetedHoldExpiresAt(null);
     if (isTargeted) {
       const nextDate =
         availableDates.find(
@@ -507,6 +550,8 @@ export function SvpBookingWizard() {
     setPrometricDate(null);
     setSelectedSlot(null);
     setHoldId(null);
+    setPrometricHoldExpiresAt(null);
+    setTargetedHoldExpiresAt(null);
     setCandidateName("");
     setPassport("");
     setAgency("");
@@ -703,6 +748,8 @@ export function SvpBookingWizard() {
           setSelectedSession(entry);
           setSelectedSlot(null);
           setHoldId(null);
+          setPrometricHoldExpiresAt(null);
+          setTargetedHoldExpiresAt(null);
         },
       }))
     : prometricSlots.map((slot) => {
@@ -1029,6 +1076,8 @@ export function SvpBookingWizard() {
                     setSelectedSlot(null);
                     setSelectedSession(null);
                     setHoldId(null);
+                    setPrometricHoldExpiresAt(null);
+                    setTargetedHoldExpiresAt(null);
                   }}
                   required
                 >
@@ -1314,9 +1363,13 @@ export function SvpBookingWizard() {
             <Button
               type="button"
               onClick={continueFromDates}
-              disabled={!selectedSession || holdMutation.isPending}
+              disabled={
+                !selectedSession || holdMutation.isPending || targetedHoldMutation.isPending
+              }
             >
-              {holdMutation.isPending && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+              {(holdMutation.isPending || targetedHoldMutation.isPending) && (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Continue
             </Button>
           </div>
@@ -1354,6 +1407,20 @@ export function SvpBookingWizard() {
               </dd>
             </div>
           </dl>
+
+          {isTargeted && targetedHoldExpiresAt && (
+            <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
+              <Clock3 className="h-3.5 w-3.5" /> Seat held by SVP until{" "}
+              {formatHoldExpiry(targetedHoldExpiresAt)}. Complete the booking to confirm it.
+            </p>
+          )}
+          {!isTargeted && holdId && (
+            <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
+              <Clock3 className="h-3.5 w-3.5" /> Slot held by SVP
+              {prometricHoldExpiresAt ? ` until ${formatHoldExpiry(prometricHoldExpiresAt)}` : ""}.
+              Complete the booking to confirm it.
+            </p>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Candidate name *">

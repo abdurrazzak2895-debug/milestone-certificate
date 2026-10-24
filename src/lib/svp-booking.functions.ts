@@ -374,6 +374,19 @@ export const createSvpBooking = createServerFn({ method: "POST" })
         );
       }
 
+      if (!data.holdId && typeof data.examSessionId === "number") {
+        // Targeted flow: the portal creates a temporary seat for the chosen session.
+        await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: {
+            exam_session_id: data.examSessionId,
+            country_id: data.countryId ?? null,
+            category_id: data.categoryId,
+          },
+        }).catch(() => undefined);
+      }
+
       if (data.holdId) {
         // The portal holds the temporary seat again for a held slot; best effort, like the portal.
         await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
@@ -1053,5 +1066,48 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("The appointment could not be rescheduled.");
+    }
+  });
+
+/** Temporary seat hold for a targeted exam session (portal summary step). */
+export const createSvpTargetedHold = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        examSessionId: z.number().int().positive(),
+        categoryId: z.number().int().positive(),
+        countryId: z.number().int().positive().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<{ expiresAt: string | null }>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/temporary_seats",
+        {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: {
+            exam_session_id: data.examSessionId,
+            country_id: data.countryId ?? null,
+            category_id: data.categoryId,
+          },
+        },
+      );
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "SVP could not hold this seat.", response.status),
+        );
+      }
+      const root = record(response.payload);
+      const payload = record(root?.["data"]) ?? root;
+      const expires = payload?.["expired_at"] ?? root?.["expired_at"];
+      return { ok: true, data: { expiresAt: typeof expires === "string" ? expires : null } };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("SVP could not hold this seat.");
     }
   });
