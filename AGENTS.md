@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,9 +8,11 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 ## Project rules
+
 - Managed-account avatars use the existing private candidate-photos path candidate-drafts/<userId>/agent-profile.jpg; admin uploads and owner uploads share it so every authorized view resolves the same image.
 - App data is read client-side via the browser data client + TanStack Query options in `src/lib/data.ts`; all pages live under the `_authenticated` layout — keeps one cached dataset so search/filters/stats update instantly.
 - Exam results live on the exam row; a DB trigger appends every non-pending result change to the results history table — history is never overwritten.
@@ -25,4 +28,4 @@
 - Device + 12h login is enforced via `src/lib/device-session.ts` against `device_sessions` through SECURITY DEFINER RPCs claim/is_current_device_session; admins keep the latest two device keys (session_key + prev_session_key), other roles one — newest login wins, oldest is signed out on next check.
 - Sub-agents are agent accounts with agent_accounts.parent_agent_id; their submissions start as status pending_agent (set by insert trigger), visible only to parent agent and admin until the parent approves into pending_approval — reuses the normal agent workflow and RLS.
 - Admin messaging: recipient selection and template rendering live in src/lib/messaging.ts (shared by preview and sender); sending goes through a sms_messages queue with unique dedupe_key, processed by admin server fns and an hourly cron route — one sender path, no duplicate SMS.
-- The /svp-booking workspace has two independent parts: `SvpManualRecordPanel` writes the `svp_bookings` local tracker (candidate name + passport always required, `draft` allowed before appointment details; agents see only their own rows via RLS) and `SvpLoginPanel` runs the real SVP login (`src/lib/svp-session.functions.ts` → `/sessions/login`, then `/sessions/otp`). `fe_app`/`otp_method`/`locale` stay server-managed, and responses reach the browser only as `readSvpSessionResult` messages with credentials redacted and tokens never returned.
+- The /svp-booking workspace: `SvpBookingWizard` runs the real booking flow — `SvpLoginPanel` signs in through `src/lib/svp-session.functions.ts` (`/sessions/login` → `/sessions/otp`) and `src/lib/svp-session.server.ts` keeps the SVP bearer token + refresh cookies in an httpOnly per-app-user cookie; `svp-booking.functions.ts` then calls occupations → test-center cities → `validate` eligibility → `available_dates` → `exam_sessions` → `POST exam_reservations` → free reservations or `reservation_credits/use`. `SvpManualRecordPanel` stays the local tracker (candidate name + passport always required, `draft` allowed before appointment details, agents see only their own rows). `fe_app`/`otp_method`/`locale` are server-managed, credentials are redacted from messages, and tokens never reach the browser.

@@ -71,6 +71,13 @@ export type SvpSessionStep = "login" | "otp";
  * Outcome of one real SVP request. Only the provider's human-readable message is
  * surfaced; tokens and other response values never leave the server.
  */
+export type SvpSessionSummary = {
+  userName: string | null;
+  login: string;
+  /** Epoch seconds when the stored SVP access token expires. */
+  expiresAt: number;
+};
+
 export type SvpSessionResult = {
   step: SvpSessionStep;
   httpStatus: number;
@@ -78,6 +85,7 @@ export type SvpSessionResult = {
   otpRequired: boolean;
   authenticated: boolean;
   message: string;
+  session: SvpSessionSummary | null;
 };
 
 const MAX_RESPONSE_BODY_BYTES = 64 * 1024;
@@ -263,5 +271,86 @@ export async function readSvpSessionResult(
     otpRequired: step === "login" && !rejected,
     authenticated: step === "otp" && !rejected,
     message: infoText ?? defaultMessage(step, response.status, rejected, tokenReceived),
+    session: null,
   };
+}
+
+export type SvpAuthPayload = {
+  access: string;
+  /** Epoch seconds when the bearer token expires. */
+  accessExpiresAt: number;
+};
+
+export type SvpSessionUser = {
+  id: string | null;
+  name: string | null;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readExpiry(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+  }
+  if (typeof value === "string") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return numeric > 10_000_000_000 ? Math.floor(numeric / 1000) : Math.floor(numeric);
+    }
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return Math.floor(parsed / 1000);
+  }
+  return 0;
+}
+
+/** Extract the bearer token from the real SVP OTP/refresh payload shapes. */
+export function extractSvpAuthPayload(payload: unknown): SvpAuthPayload | null {
+  const root = asRecord(payload);
+  if (!root) return null;
+  const candidates = [asRecord(root["data"]), root];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const token = asRecord(candidate["access_payload"]) ?? candidate;
+    const access =
+      typeof token["access"] === "string"
+        ? token["access"]
+        : typeof token["access_token"] === "string"
+          ? token["access_token"]
+          : null;
+    if (!access) continue;
+    return {
+      access,
+      accessExpiresAt:
+        readExpiry(token["access_expires_at"]) ||
+        readExpiry(token["expires_at"]) ||
+        Math.floor(Date.now() / 1000) + 3000,
+    };
+  }
+  return null;
+}
+
+/** Read the signed-in labor identity from the OTP response. */
+export function extractSvpSessionUser(payload: unknown): SvpSessionUser {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  const user = asRecord(data?.["user"]);
+  const profile = asRecord(user?.["profile"]);
+  const idValue = user?.["id"] ?? data?.["user_id"] ?? profile?.["id"];
+  const nameValue =
+    user?.["full_name"] ?? user?.["name"] ?? profile?.["full_name"] ?? profile?.["name"];
+  return {
+    id: idValue === undefined || idValue === null ? null : String(idValue),
+    name: typeof nameValue === "string" && nameValue.trim() ? nameValue.trim() : null,
+  };
+}
+
+/** Convert a provider error payload into one safe, readable line. */
+export function svpErrorMessage(payload: unknown, redact: string[] = []): string | null {
+  const errorText = sanitizeMessage(providerMessage(payload, ERROR_KEYS), redact);
+  if (errorText) return errorText;
+  return sanitizeMessage(providerMessage(payload, MESSAGE_KEYS), redact);
 }

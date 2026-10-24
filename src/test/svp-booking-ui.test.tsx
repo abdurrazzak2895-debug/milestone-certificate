@@ -18,6 +18,7 @@ const loginAccepted = {
   otpRequired: true,
   authenticated: false,
   message: "SVP accepted the username and password. Enter the OTP sent to the registered email.",
+  session: null,
 };
 
 const otpAccepted = {
@@ -27,6 +28,7 @@ const otpAccepted = {
   otpRequired: false,
   authenticated: true,
   message: "Signed in to SVP.",
+  session: { userName: "Test Labor", login: "login@example.com", expiresAt: 1_800_000_000 },
 };
 
 describe("SVP login panel", () => {
@@ -101,6 +103,7 @@ describe("SVP login panel", () => {
       otpRequired: false,
       authenticated: false,
       message: "SVP rejected this username or password.",
+      session: null,
     });
     render(<SvpLoginPanel />);
 

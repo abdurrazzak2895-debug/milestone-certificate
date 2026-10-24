@@ -1,0 +1,236 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SvpBookingWizard } from "@/components/app/SvpBookingWizard";
+
+const mocks = vi.hoisted(() => ({
+  status: vi.fn(),
+  occupations: vi.fn(),
+  cities: vi.fn(),
+  setup: vi.fn(),
+  dates: vi.fn(),
+  sessions: vi.fn(),
+  reservations: vi.fn(),
+  eligibility: vi.fn(),
+  create: vi.fn(),
+  insert: vi.fn(),
+  signOut: vi.fn(),
+}));
+
+vi.mock("@/lib/svp-session.functions", () => ({
+  getSvpSessionStatus: mocks.status,
+  signOutSvpSession: mocks.signOut,
+  submitSvpLogin: vi.fn(),
+}));
+
+vi.mock("@/lib/svp-booking.functions", () => ({
+  listSvpBookingOccupations: mocks.occupations,
+  listSvpTestCenterCities: mocks.cities,
+  getSvpBookingSetup: mocks.setup,
+  listSvpAvailableDates: mocks.dates,
+  listSvpExamSessions: mocks.sessions,
+  listSvpReservations: mocks.reservations,
+  checkSvpBookingEligibility: mocks.eligibility,
+  createSvpBooking: mocks.create,
+}));
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { from: () => ({ insert: mocks.insert }) },
+}));
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+vi.mock("@/components/app/SvpLoginPanel", () => ({
+  SvpLoginPanel: () => <div>SVPLOGINPANEL</div>,
+}));
+
+const occupation = {
+  id: 11,
+  name: "Welder",
+  arabicName: null,
+  occupationKey: "721201",
+  categoryId: 159,
+  categoryName: "Welding",
+  languages: [{ code: "en", label: "English", questionCount: 30 }],
+  driverLicenseRequired: false,
+};
+
+const session = {
+  id: 501,
+  startAt: "2026-11-05 09:30:00",
+  endAt: null,
+  duration: 3600,
+  availableSeats: 7,
+  city: "Dhaka",
+  centerName: "Dhaka Center",
+  siteId: null,
+};
+
+afterEach(cleanup);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.status.mockResolvedValue({
+    signedIn: true,
+    userName: "Noor Rahman",
+    login: "noor@example.com",
+    expiresAt: 1_900_000_000,
+  });
+  mocks.occupations.mockResolvedValue({ ok: true, data: [occupation] });
+  mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 4 }] });
+  mocks.setup.mockResolvedValue({
+    ok: true,
+    data: {
+      permissions: {
+        freeReservations: true,
+        targeted: true,
+        countryId: 4,
+        countryName: "Bangladesh",
+      },
+      credits: 0,
+      svpUserId: "969955",
+    },
+  });
+  mocks.dates.mockResolvedValue({
+    ok: true,
+    data: [{ startAt: "2026-11-05 09:30:00", city: "Dhaka", centerName: "Dhaka Center" }],
+  });
+  mocks.sessions.mockResolvedValue({ ok: true, data: [session] });
+  mocks.reservations.mockResolvedValue({ ok: true, data: [] });
+  mocks.eligibility.mockResolvedValue({
+    ok: true,
+    data: [
+      {
+        key: "passport_expiration_condition",
+        label: "Passport validity",
+        passed: true,
+        message: "Passed",
+      },
+      {
+        key: "booking_availability_condition",
+        label: "Booking availability",
+        passed: true,
+        message: "Passed",
+      },
+      {
+        key: "already_existing_booking",
+        label: "Existing booking check",
+        passed: true,
+        message: "Passed",
+      },
+    ],
+  });
+  mocks.create.mockResolvedValue({
+    ok: true,
+    data: {
+      reservationId: "R-123",
+      paid: true,
+      paymentRequired: false,
+      credits: 0,
+      message: "Reservation confirmed by SVP.",
+    },
+  });
+  mocks.insert.mockResolvedValue({ error: null });
+  mocks.signOut.mockResolvedValue({ ok: true });
+});
+
+function renderWizard() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <SvpBookingWizard />
+    </QueryClientProvider>,
+  );
+}
+
+describe("SVP booking wizard", () => {
+  it("shows the SVP login panel when there is no stored session", async () => {
+    mocks.status.mockResolvedValue({
+      signedIn: false,
+      userName: null,
+      login: null,
+      expiresAt: 0,
+    });
+    renderWizard();
+
+    expect(await screen.findByText("SVPLOGINPANEL")).toBeInTheDocument();
+  });
+
+  it("books a session end to end and saves the local record", async () => {
+    renderWizard();
+
+    expect(await screen.findByText(/Signed in to SVP as Noor Rahman/)).toBeInTheDocument();
+
+    fireEvent.change(await screen.findByLabelText("Occupation *"), { target: { value: "11" } });
+    fireEvent.change(screen.getByLabelText("Test center city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+
+    expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByText(/Step 3/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Candidate name *"), {
+      target: { value: "Noor Rahman" },
+    });
+    fireEvent.change(screen.getByLabelText("Passport *"), { target: { value: "AB123456" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Create SVP booking" }));
+
+    expect(await screen.findByText(/SVP reservation number: R-123/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith({
+        data: {
+          occupationId: 11,
+          categoryId: 159,
+          examSessionId: 501,
+          languageCode: "en",
+          duration: 3600,
+          startAt: "2026-11-05 09:30:00",
+          siteId: null,
+          siteCity: null,
+          countryId: 4,
+        },
+      }),
+    );
+    await waitFor(() => expect(mocks.insert).toHaveBeenCalled());
+    expect(mocks.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidate_name: "NOOR RAHMAN",
+        passport: "AB123456",
+        reference_no: "R-123",
+        status: "booked",
+      }),
+    );
+  });
+
+  it("blocks the flow when an SVP eligibility check fails", async () => {
+    mocks.eligibility.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          key: "already_existing_booking",
+          label: "Existing booking check",
+          passed: false,
+          message: "An existing reservation already uses this category.",
+        },
+      ],
+    });
+    renderWizard();
+
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.change(await screen.findByLabelText("Occupation *"), { target: { value: "11" } });
+    fireEvent.change(screen.getByLabelText("Test center city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+
+    expect(
+      await screen.findByText(/An existing reservation already uses this category/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Step 2/)).not.toBeInTheDocument();
+  });
+});

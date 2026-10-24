@@ -51,6 +51,7 @@ describe("SVP login outcomes", () => {
       otpRequired: true,
       authenticated: false,
       message: "OTP sent",
+      session: null,
     });
   });
 

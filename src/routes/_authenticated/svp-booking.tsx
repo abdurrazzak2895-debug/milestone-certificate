@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/ui-bits";
-import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
+import { SvpBookingWizard } from "@/components/app/SvpBookingWizard";
 import { SvpManualRecordPanel } from "@/components/app/SvpManualRecordPanel";
 
 export const Route = createFileRoute("/_authenticated/svp-booking")({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/svp-booking")({
       {
         name: "description",
         content:
-          "Manual SVP record tracker plus SVP username/password login for agent, staff, and admin users.",
+          "Book real SVP exam appointments with occupation, eligibility, test center and credit checks, then keep a local record.",
       },
     ],
   }),
@@ -26,7 +26,7 @@ function SvpBookingWorkspace() {
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
       <PageHeader
         title="SVP booking"
-        subtitle="Record candidate reservations manually and sign in to the SVP portal with username and password."
+        subtitle="Sign in to SVP, choose an occupation and session, and create the reservation through the official SVP API."
         actions={
           <a href={SVP_PORTAL_URL} target="_blank" rel="noreferrer">
             <Button type="button" variant="outline" size="sm">
@@ -35,8 +35,8 @@ function SvpBookingWorkspace() {
           </a>
         }
       />
+      <SvpBookingWizard />
       <SvpManualRecordPanel />
-      <SvpLoginPanel />
     </div>
   );
 }

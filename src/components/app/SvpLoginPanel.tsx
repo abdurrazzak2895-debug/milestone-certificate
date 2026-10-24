@@ -18,7 +18,7 @@ type Status = { tone: "ok" | "error"; text: string };
 
 const EMPTY_FORM: FormState = { login: "", password: "", otpAttempt: "" };
 
-export function SvpLoginPanel() {
+export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [step, setStep] = useState<LoginStep>("login");
   const [busy, setBusy] = useState(false);
@@ -70,6 +70,9 @@ export function SvpLoginPanel() {
       setStatus({ tone: result.ok ? "ok" : "error", text: result.message });
       if (step === "login" && result.otpRequired) {
         setStep("otp");
+      }
+      if (result.authenticated && result.session) {
+        onSignedIn?.();
       }
     } catch (error) {
       setStatus({

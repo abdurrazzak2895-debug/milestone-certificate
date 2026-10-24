@@ -1,93 +1,162 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
 import {
   buildSvpLoginBody,
   buildSvpOtpBody,
-  readSvpSessionResult,
+  extractSvpSessionUser,
   svpSessionInputSchema,
   type SvpSessionResult,
   type SvpSystemConfig,
 } from "@/lib/svp-session.shared";
+import {
+  buildStoredSession,
+  clearPendingSvpSession,
+  clearStoredSvpSession,
+  mergeCookiePairs,
+  readPendingSvpSession,
+  readStoredSvpSession,
+  requireSvpAllowedRole,
+  responseCookies,
+  svpLoginRequest,
+  writePendingSvpSession,
+  writeStoredSvpSession,
+} from "@/lib/svp-session.server";
 
-const SVP_API_ORIGIN = "https://svp-international-api.pacc.sa";
-const SVP_LOGIN_PATH = "/api/v1/sessions/login";
-const SVP_OTP_PATH = "/api/v1/sessions/otp";
-const SVP_PORTAL_ORIGIN = "https://svp-international.qiwa.sa";
-const SVP_REQUEST_TIMEOUT_MS = 15_000;
-
-// Fixed values from the supplied Postman login/OTP request. They are server-managed, not form fields.
-const SVP_SYSTEM_CONFIG: SvpSystemConfig & { locale: string } = {
+// Fixed values from the real SVP portal login request. Server-managed, never form fields.
+const SVP_SYSTEM_CONFIG: SvpSystemConfig = {
   feApp: "legislator",
   otpMethod: "email",
-  locale: "en",
 };
 
-const SVP_HEADERS = {
-  Accept: "application/json",
-  "Content-Type": "application/json",
-  Origin: SVP_PORTAL_ORIGIN,
-  Referer: `${SVP_PORTAL_ORIGIN}/`,
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
-} as const;
+export type SvpSessionStatus = {
+  signedIn: boolean;
+  userName: string | null;
+  login: string | null;
+  expiresAt: number;
+};
 
-async function requireAllowedRole(supabase: SupabaseClient<Database>, userId: string) {
-  const { data: rows, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-
-  if (
-    error ||
-    !rows?.some((row: { role: string }) => ["admin", "staff", "agent"].includes(row.role))
-  ) {
-    throw new Error("Unauthorized");
-  }
-}
-
-async function postToSvp(
-  path: string,
-  body: unknown,
+function loginFailure(
   step: "login" | "otp",
-  redact: string[],
-): Promise<SvpSessionResult> {
-  const url = new URL(path, SVP_API_ORIGIN);
-  url.searchParams.set("locale", SVP_SYSTEM_CONFIG.locale);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SVP_REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: SVP_HEADERS,
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    return await readSvpSessionResult(response, step, redact);
-  } catch {
-    throw new Error("SVP could not be reached. Check the connection and try again.");
-  } finally {
-    clearTimeout(timeout);
-  }
+  status: number,
+  message: string | null,
+): SvpSessionResult {
+  return {
+    step,
+    httpStatus: status,
+    ok: false,
+    otpRequired: false,
+    authenticated: false,
+    message:
+      message ??
+      (step === "login"
+        ? "SVP rejected this username or password."
+        : "SVP rejected this OTP. Check the code and try again."),
+    session: null,
+  };
 }
 
+/**
+ * Real SVP sign-in: POST /sessions/login, then POST /sessions/otp.
+ * A successful OTP stores the bearer token in the server-only session cookie.
+ */
 export const submitSvpLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => svpSessionInputSchema.parse(input))
   .handler(async ({ context, data }): Promise<SvpSessionResult> => {
-    await requireAllowedRole(context.supabase, context.userId);
+    await requireSvpAllowedRole(context.supabase, context.userId);
 
     if (data.step === "login") {
-      return postToSvp(SVP_LOGIN_PATH, buildSvpLoginBody(data, SVP_SYSTEM_CONFIG), "login", [
-        data.login,
-        data.password,
-      ]);
+      const { response, message } = await svpLoginRequest(
+        "/sessions/login",
+        buildSvpLoginBody(data, SVP_SYSTEM_CONFIG),
+      );
+      if (!response.ok) return loginFailure("login", response.status, message);
+
+      writePendingSvpSession(context.userId, {
+        login: data.login,
+        refreshCookies: mergeCookiePairs("", responseCookies(response)),
+        savedAt: Date.now(),
+      });
+
+      return {
+        step: "login",
+        httpStatus: response.status,
+        ok: true,
+        otpRequired: true,
+        authenticated: false,
+        message:
+          message ??
+          "SVP accepted the username and password. Enter the OTP sent to the registered email.",
+        session: null,
+      };
     }
-    return postToSvp(SVP_OTP_PATH, buildSvpOtpBody(data, SVP_SYSTEM_CONFIG), "otp", [
-      data.login,
-      data.password,
-      data.otpAttempt,
-    ]);
+
+    const { response, payload, message } = await svpLoginRequest(
+      "/sessions/otp",
+      buildSvpOtpBody(data, SVP_SYSTEM_CONFIG),
+    );
+    if (!response.ok) return loginFailure("otp", response.status, message);
+
+    const pending = readPendingSvpSession(context.userId);
+    const refreshCookies = mergeCookiePairs(
+      pending?.refreshCookies ?? "",
+      responseCookies(response),
+    );
+    const user = extractSvpSessionUser(payload);
+    const session = buildStoredSession(data.login, payload, refreshCookies, user.name, user.id);
+
+    if (!session) {
+      return {
+        step: "otp",
+        httpStatus: response.status,
+        ok: false,
+        otpRequired: false,
+        authenticated: false,
+        message:
+          "SVP accepted the OTP but did not return an access token. Try again or use the official portal.",
+        session: null,
+      };
+    }
+
+    writeStoredSvpSession(context.userId, session);
+    clearPendingSvpSession(context.userId);
+
+    return {
+      step: "otp",
+      httpStatus: response.status,
+      ok: true,
+      otpRequired: false,
+      authenticated: true,
+      message: message ?? "Signed in to SVP.",
+      session: {
+        userName: session.userName,
+        login: session.login,
+        expiresAt: session.expiresAt,
+      },
+    };
+  });
+
+/** Whether this app user currently holds an SVP web session. */
+export const getSvpSessionStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SvpSessionStatus> => {
+    const session = readStoredSvpSession(context.userId);
+    const now = Math.floor(Date.now() / 1000);
+    const active =
+      session && (session.expiresAt > now || Boolean(session.refreshCookies)) ? session : null;
+    if (session && !active) clearStoredSvpSession(context.userId);
+    return {
+      signedIn: Boolean(active),
+      userName: active?.userName ?? null,
+      login: active?.login ?? null,
+      expiresAt: active?.expiresAt ?? 0,
+    };
+  });
+
+/** Forget the stored SVP session for this app user. */
+export const signOutSvpSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ ok: true }> => {
+    clearStoredSvpSession(context.userId);
+    return { ok: true };
   });
