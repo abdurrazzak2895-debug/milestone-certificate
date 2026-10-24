@@ -28,6 +28,7 @@ const nav = [
   { to: "/candidates", label: "পরীক্ষার্থী", icon: Users },
   { to: "/exams", label: "পরীক্ষা", icon: CalendarDays },
   { to: "/results", label: "রেজাল্ট", icon: ClipboardCheck, desktopOnly: true },
+  { to: "/takamol", label: "Takamol", icon: Globe },
   { to: "/reports", label: "রিপোর্ট", icon: BarChart3 },
   { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users, desktopOnly: true },
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },

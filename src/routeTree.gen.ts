@@ -36,6 +36,7 @@ import { Route as AuthenticatedSubAgentsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSubmissionsRouteImport } from './routes/_authenticated/submissions'
 import { Route as AuthenticatedSubmitJobRouteImport } from './routes/_authenticated/submit-job'
 import { Route as AuthenticatedSvpBookingRouteImport } from './routes/_authenticated/svp-booking'
+import { Route as AuthenticatedTakamolRouteImport } from './routes/_authenticated/takamol'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
@@ -181,6 +182,11 @@ const AuthenticatedSvpBookingRoute = AuthenticatedSvpBookingRouteImport.update({
   path: '/svp-booking',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTakamolRoute = AuthenticatedTakamolRouteImport.update({
+  id: '/takamol',
+  path: '/takamol',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
@@ -241,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
   '/svp-booking': typeof AuthenticatedSvpBookingRoute
+  '/takamol': typeof AuthenticatedTakamolRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/': typeof AuthenticatedCandidatesIndexRoute
@@ -275,6 +282,7 @@ export interface FileRoutesByTo {
   '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
   '/svp-booking': typeof AuthenticatedSvpBookingRoute
+  '/takamol': typeof AuthenticatedTakamolRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates': typeof AuthenticatedCandidatesIndexRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/_authenticated/submissions': typeof AuthenticatedSubmissionsRoute
   '/_authenticated/submit-job': typeof AuthenticatedSubmitJobRoute
   '/_authenticated/svp-booking': typeof AuthenticatedSvpBookingRoute
+  '/_authenticated/takamol': typeof AuthenticatedTakamolRoute
   '/admin/login': typeof AdminLoginRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/': typeof AuthenticatedCandidatesIndexRoute
@@ -347,6 +356,7 @@ export interface FileRouteTypes {
     | '/submissions'
     | '/submit-job'
     | '/svp-booking'
+    | '/takamol'
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates/'
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/submissions'
     | '/submit-job'
     | '/svp-booking'
+    | '/takamol'
     | '/admin/login'
     | '/candidates/$id'
     | '/candidates'
@@ -416,6 +427,7 @@ export interface FileRouteTypes {
     | '/_authenticated/submissions'
     | '/_authenticated/submit-job'
     | '/_authenticated/svp-booking'
+    | '/_authenticated/takamol'
     | '/admin/login'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/'
@@ -628,6 +640,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSvpBookingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/takamol': {
+      id: '/_authenticated/takamol'
+      path: '/takamol'
+      fullPath: '/takamol'
+      preLoaderRoute: typeof AuthenticatedTakamolRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
@@ -695,6 +714,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSubmissionsRoute: typeof AuthenticatedSubmissionsRoute
   AuthenticatedSubmitJobRoute: typeof AuthenticatedSubmitJobRoute
   AuthenticatedSvpBookingRoute: typeof AuthenticatedSvpBookingRoute
+  AuthenticatedTakamolRoute: typeof AuthenticatedTakamolRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesIndexRoute: typeof AuthenticatedCandidatesIndexRoute
 }
@@ -721,6 +741,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSubmissionsRoute: AuthenticatedSubmissionsRoute,
   AuthenticatedSubmitJobRoute: AuthenticatedSubmitJobRoute,
   AuthenticatedSvpBookingRoute: AuthenticatedSvpBookingRoute,
+  AuthenticatedTakamolRoute: AuthenticatedTakamolRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesIndexRoute: AuthenticatedCandidatesIndexRoute,
 }
