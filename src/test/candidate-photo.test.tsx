@@ -3,9 +3,24 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CandidatePhoto } from "@/components/app/CandidatePhoto";
 
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: "https://example.test/photo.jpg" } }) }) } } }));
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    storage: {
+      from: () => ({
+        createSignedUrl: async () => ({ data: { signedUrl: "https://example.test/photo.jpg" } }),
+      }),
+    },
+  },
+}));
 afterEach(cleanup);
-const mount = (path: string | null) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><CandidatePhoto path={path} name="TEST CANDIDATE" size={36} /></QueryClientProvider>);
+const mount = (path: string | null) =>
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <CandidatePhoto path={path} name="TEST CANDIDATE" size={36} />
+    </QueryClientProvider>,
+  );
 describe("Candidate photos", () => {
   it("keeps initials at the enlarged minimum size without a photo", () => {
     mount(null);

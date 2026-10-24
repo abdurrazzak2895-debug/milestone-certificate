@@ -15,7 +15,10 @@ export const Route = createFileRoute("/reset-password")({
     meta: [
       { title: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
       { name: "description", content: "অ্যাডমিন অ্যাকাউন্টের নতুন পাসওয়ার্ড সেট করুন।" },
-      { property: "og:title", content: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute" },
+      {
+        property: "og:title",
+        content: "নতুন পাসওয়ার্ড — পরীক্ষা ব্যবস্থাপনা | Milestone Certificate Institute",
+      },
       { property: "og:description", content: "অ্যাডমিন অ্যাকাউন্টের নতুন পাসওয়ার্ড সেট করুন।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -54,7 +57,12 @@ function ResetPassword() {
   };
 
   const eye = (
-    <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"} className="text-white/50 transition-colors hover:text-white">
+    <button
+      type="button"
+      onClick={() => setShow((v) => !v)}
+      aria-label={show ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+      className="text-white/50 transition-colors hover:text-white"
+    >
       {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
     </button>
   );
@@ -85,26 +93,49 @@ function ResetPassword() {
           />
         ))}
       </div>
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/70 via-black/45 to-black/80" aria-hidden="true" />
-      <div className="pointer-events-none absolute -left-32 top-1/4 -z-10 h-96 w-96 rounded-full bg-cyan-500/15 blur-[120px]" aria-hidden="true" />
-      <div className="pointer-events-none absolute -right-32 bottom-1/4 -z-10 h-96 w-96 rounded-full bg-indigo-500/20 blur-[120px]" aria-hidden="true" />
+      <div
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-black/70 via-black/45 to-black/80"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -left-32 top-1/4 -z-10 h-96 w-96 rounded-full bg-cyan-500/15 blur-[120px]"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -right-32 bottom-1/4 -z-10 h-96 w-96 rounded-full bg-indigo-500/20 blur-[120px]"
+        aria-hidden="true"
+      />
 
       <section className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3">
           <div className="relative">
-            <span className="absolute inset-0 -z-10 rounded-full bg-cyan-400/30 blur-2xl" aria-hidden="true" />
-            <img src={brandLogo.url} alt="Milestone Certificate Institute" className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]" />
+            <span
+              className="absolute inset-0 -z-10 rounded-full bg-cyan-400/30 blur-2xl"
+              aria-hidden="true"
+            />
+            <img
+              src={brandLogo.url}
+              alt="Milestone Certificate Institute"
+              className="h-20 w-20 rounded-full border border-white/20 object-cover shadow-[0_0_50px_-10px_rgba(34,211,238,0.7)]"
+            />
           </div>
           <div className="text-center">
-            <p className="font-display text-lg font-bold tracking-wide text-white">Milestone Certificate Institute</p>
+            <p className="font-display text-lg font-bold tracking-wide text-white">
+              Milestone Certificate Institute
+            </p>
             <p className="text-xs tracking-[0.3em] text-cyan-200/70">পাসওয়ার্ড রিসেট</p>
           </div>
         </div>
 
         <div className="rounded-[2rem] bg-gradient-to-br from-cyan-400/50 via-white/10 to-indigo-500/50 p-px shadow-[0_0_90px_-25px_rgba(34,211,238,0.6)]">
-          <form onSubmit={save} className="rounded-[calc(2rem-1px)] bg-black/70 p-7 backdrop-blur-2xl sm:p-9">
+          <form
+            onSubmit={save}
+            className="rounded-[calc(2rem-1px)] bg-black/70 p-7 backdrop-blur-2xl sm:p-9"
+          >
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-5 duration-500">
-              <h1 className="text-center text-lg font-semibold text-white">নতুন পাসওয়ার্ড সেট করুন</h1>
+              <h1 className="text-center text-lg font-semibold text-white">
+                নতুন পাসওয়ার্ড সেট করুন
+              </h1>
               {field({
                 type: show ? "text" : "password",
                 autoComplete: "new-password",
@@ -126,7 +157,10 @@ function ResetPassword() {
                 disabled={busy || password.length < 8 || password !== confirm}
                 className="group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 py-3.5 text-base font-bold text-black transition-all duration-300 hover:shadow-[0_0_45px_-8px_rgba(34,211,238,0.9)] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" aria-hidden="true" />
+                <span
+                  className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+                  aria-hidden="true"
+                />
                 <span className="relative">{busy ? "অপেক্ষা করুন..." : "সংরক্ষণ করুন"}</span>
               </button>
             </div>
@@ -135,10 +169,13 @@ function ResetPassword() {
 
         <div className="mt-5 flex justify-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-4 py-1.5 text-[11px] font-semibold text-emerald-200 shadow-[0_0_25px_-8px_rgba(52,211,153,0.8)] backdrop-blur">
-            <ShieldCheck className="h-3.5 w-3.5" /> 256-Bit SSL Encrypted &amp; Official Skill Verification Portal
+            <ShieldCheck className="h-3.5 w-3.5" /> 256-Bit SSL Encrypted &amp; Official Skill
+            Verification Portal
           </span>
         </div>
-        <p className="mt-3 text-center text-[11px] text-white/45">© {new Date().getFullYear()} Milestone Certificate Institute · সর্বস্বত্ব সংরক্ষিত</p>
+        <p className="mt-3 text-center text-[11px] text-white/45">
+          © {new Date().getFullYear()} Milestone Certificate Institute · সর্বস্বত্ব সংরক্ষিত
+        </p>
       </section>
     </main>
   );

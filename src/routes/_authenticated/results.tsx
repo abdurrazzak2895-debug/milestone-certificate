@@ -8,13 +8,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, ResultBadge, Empty, Field } from "@/components/app/ui-bits";
 import { ResultDialog } from "@/components/app/forms";
-import { candidatesQ, examsQ, occQ, ttcQ, lookup, fmtDate, todayStr, RESULT_LABEL, useRefreshAll, type Exam } from "@/lib/data";
+import {
+  candidatesQ,
+  examsQ,
+  occQ,
+  ttcQ,
+  lookup,
+  fmtDate,
+  todayStr,
+  RESULT_LABEL,
+  useRefreshAll,
+  type Exam,
+} from "@/lib/data";
 import { useServerFn } from "@tanstack/react-start";
 import { checkSvpResult, listSvpOccupations } from "@/lib/svp.functions";
 import { ResultShareActions } from "@/components/app/ResultListShare";
 
 export const Route = createFileRoute("/_authenticated/results")({
-  head: () => ({ meta: [{ title: "রেজাল্ট ব্যবস্থাপনা | Milestone Certificate Institute" }, { name: "description", content: "রেজাল্ট চেক ও আপডেট করুন।" }, { property: "og:title", content: "রেজাল্ট ব্যবস্থাপনা | Milestone Certificate Institute" }, { property: "og:description", content: "রেজাল্ট চেক ও আপডেট করুন।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({
+    meta: [
+      { title: "রেজাল্ট ব্যবস্থাপনা | Milestone Certificate Institute" },
+      { name: "description", content: "রেজাল্ট চেক ও আপডেট করুন।" },
+      { property: "og:title", content: "রেজাল্ট ব্যবস্থাপনা | Milestone Certificate Institute" },
+      { property: "og:description", content: "রেজাল্ট চেক ও আপডেট করুন।" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ResultsPage,
 });
 
@@ -29,7 +49,11 @@ function ResultsPage() {
   const candMap = useMemo(() => new Map(cands.map((c) => [c.id, c])), [cands]);
   const listOcc = useServerFn(listSvpOccupations);
   const checkFn = useServerFn(checkSvpResult);
-  const { data: svpOcc = [] } = useQuery({ queryKey: ["svp-occupations"], queryFn: () => listOcc(), staleTime: 86400000 });
+  const { data: svpOcc = [] } = useQuery({
+    queryKey: ["svp-occupations"],
+    queryFn: () => listOcc(),
+    staleTime: 86400000,
+  });
   const [pp, setPp] = useState("");
   const [occKey, setOccKey] = useState("");
   const [occFilter, setOccFilter] = useState("");
@@ -39,27 +63,50 @@ function ResultsPage() {
   const [resExam, setResExam] = useState<Exam | null>(null);
 
   const t = todayStr();
-  const pending = exams.filter((e) => e.result === "PENDING" && e.exam_date <= t).sort((a, b) => a.exam_date.localeCompare(b.exam_date));
+  const pending = exams
+    .filter((e) => e.result === "PENDING" && e.exam_date <= t)
+    .sort((a, b) => a.exam_date.localeCompare(b.exam_date));
   const match = cands.find((c) => pp && c.passport_no?.toUpperCase() === pp.trim().toUpperCase());
-  const matchExam = match ? exams.find((e) => e.candidate_id === match.id && e.result === "PENDING") : undefined;
+  const matchExam = match
+    ? exams.find((e) => e.candidate_id === match.id && e.result === "PENDING")
+    : undefined;
   const autoKey = (occId: string | null | undefined) => {
     const n = occName(occId)?.toLowerCase().trim();
-    return n ? svpOcc.find((o) => o.name.toLowerCase().trim() === n || o.key === n)?.key ?? "" : "";
+    return n
+      ? (svpOcc.find((o) => o.name.toLowerCase().trim() === n || o.key === n)?.key ?? "")
+      : "";
   };
-  const filteredOcc = occFilter ? svpOcc.filter((o) => (o.name + o.key + o.arabic).toLowerCase().includes(occFilter.toLowerCase())) : svpOcc;
+  const filteredOcc = occFilter
+    ? svpOcc.filter((o) =>
+        (o.name + o.key + o.arabic).toLowerCase().includes(occFilter.toLowerCase()),
+      )
+    : svpOcc;
 
   const runCheck = async (passport: string, key: string, exam?: Exam) => {
     if (!passport.trim()) return toast.error("পাসপোর্ট নম্বর দিন");
     if (!key) return toast.error("পেশা (Occupation) নির্বাচন করুন");
-    setBusy(true); setMsg(null); setFound(null);
-    const res = await checkFn({ data: { passport: passport.trim(), occupationKey: key } }).catch(() => ({ status: "error" as const, message: "চেক করা যায়নি" }));
+    setBusy(true);
+    setMsg(null);
+    setFound(null);
+    const res = await checkFn({ data: { passport: passport.trim(), occupationKey: key } }).catch(
+      () => ({ status: "error" as const, message: "চেক করা যায়নি" }),
+    );
     setBusy(false);
     if (res.status !== "found") return setMsg(res.message);
-    setFound(`SVP রেজাল্ট: ${RESULT_LABEL[res.result]}${res.applicantName ? ` · ${res.applicantName}` : ""}${res.examDate ? ` · ${fmtDate(res.examDate)}` : ""}`);
+    setFound(
+      `SVP রেজাল্ট: ${RESULT_LABEL[res.result]}${res.applicantName ? ` · ${res.applicantName}` : ""}${res.examDate ? ` · ${fmtDate(res.examDate)}` : ""}`,
+    );
     const target = exam ?? matchExam;
     if (res.result === "PENDING") return toast.info("SVP-তে রেজাল্ট এখনো অপেক্ষমান");
     if (!target) return toast.info("রেজাল্ট পাওয়া গেছে, কিন্তু মিল থাকা অপেক্ষমান পরীক্ষা নেই");
-    const { error } = await supabase.from("exams").update({ result: res.result, result_date: res.examDate ?? todayStr(), remarks: "SVP অটো চেক" }).eq("id", target.id);
+    const { error } = await supabase
+      .from("exams")
+      .update({
+        result: res.result,
+        result_date: res.examDate ?? todayStr(),
+        remarks: "SVP অটো চেক",
+      })
+      .eq("id", target.id);
     if (error) return toast.error(error.message);
     toast.success(`রেজাল্ট সংরক্ষিত: ${RESULT_LABEL[res.result]}`);
     refresh();
@@ -67,7 +114,10 @@ function ResultsPage() {
 
   const quickSet = async (e: Exam, result: "PASS" | "FAIL" | "ABSENT") => {
     setBusy(true);
-    const { error } = await supabase.from("exams").update({ result, result_date: todayStr(), remarks: "অ্যাডমিন ভেরিফাইড" }).eq("id", e.id);
+    const { error } = await supabase
+      .from("exams")
+      .update({ result, result_date: todayStr(), remarks: "অ্যাডমিন ভেরিফাইড" })
+      .eq("id", e.id);
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(`${candMap.get(e.candidate_id)?.name ?? ""}: ${RESULT_LABEL[result]}`);
@@ -89,57 +139,164 @@ function ResultsPage() {
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="card-surface space-y-3 p-4 lg:col-span-2">
           <h3 className="text-base font-semibold">SVP অটোমেটিক রেজাল্ট চেক</h3>
-          <Field label="জাতীয়তা"><Input value="Bangladesh" disabled /></Field>
-          <Field label="পাসপোর্ট নম্বর *"><Input value={pp} onChange={(e) => { setPp(e.target.value); const c = cands.find((x) => x.passport_no?.toUpperCase() === e.target.value.trim().toUpperCase()); if (c) { const k = autoKey(c.occupation_id); if (k) setOccKey(k); } }} /></Field>
+          <Field label="জাতীয়তা">
+            <Input value="Bangladesh" disabled />
+          </Field>
+          <Field label="পাসপোর্ট নম্বর *">
+            <Input
+              value={pp}
+              onChange={(e) => {
+                setPp(e.target.value);
+                const c = cands.find(
+                  (x) => x.passport_no?.toUpperCase() === e.target.value.trim().toUpperCase(),
+                );
+                if (c) {
+                  const k = autoKey(c.occupation_id);
+                  if (k) setOccKey(k);
+                }
+              }}
+            />
+          </Field>
           <Field label="পেশা (Occupation) *">
-            <Input value={occFilter} onChange={(e) => setOccFilter(e.target.value)} placeholder="পেশা খুঁজুন..." className="mb-2" />
-            <select value={occKey} onChange={(e) => setOccKey(e.target.value)} className="h-10 w-full rounded-md border bg-background px-2 text-sm">
+            <Input
+              value={occFilter}
+              onChange={(e) => setOccFilter(e.target.value)}
+              placeholder="পেশা খুঁজুন..."
+              className="mb-2"
+            />
+            <select
+              value={occKey}
+              onChange={(e) => setOccKey(e.target.value)}
+              className="h-10 w-full rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">— নির্বাচন করুন ({svpOcc.length}) —</option>
-              {filteredOcc.map((o) => <option key={o.key} value={o.key}>{o.name} ({o.key})</option>)}
+              {filteredOcc.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.name} ({o.key})
+                </option>
+              ))}
             </select>
           </Field>
-          <Button className="w-full" onClick={() => runCheck(pp, occKey)} disabled={busy}><Search className="h-4 w-4" /> {busy ? "চেক হচ্ছে..." : "SVP থেকে রেজাল্ট চেক করুন"}</Button>
-          {found && <div className="rounded-lg bg-primary/10 p-3 text-sm font-semibold text-primary">{found}</div>}
+          <Button className="w-full" onClick={() => runCheck(pp, occKey)} disabled={busy}>
+            <Search className="h-4 w-4" /> {busy ? "চেক হচ্ছে..." : "SVP থেকে রেজাল্ট চেক করুন"}
+          </Button>
+          {found && (
+            <div className="rounded-lg bg-primary/10 p-3 text-sm font-semibold text-primary">
+              {found}
+            </div>
+          )}
           {msg && (
             <div className="rounded-lg bg-warning-soft p-3 text-sm text-warning">
-              <div className="flex items-center gap-2 font-semibold"><AlertCircle className="h-4 w-4" />{msg}</div>
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertCircle className="h-4 w-4" />
+                {msg}
+              </div>
               <p className="mt-1 text-foreground/80">নিচে থেকে ম্যানুয়ালি রেজাল্ট দিন।</p>
             </div>
           )}
-          {match && (() => {
-            const declared = exams.filter((e) => e.candidate_id === match.id && (e.result === "PASS" || e.result === "FAIL")).sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0];
-            return (
-            <div className="rounded-lg border p-3 text-sm">
-              <div className="font-semibold">{match.name}</div>
-              <div className="text-muted-foreground">{match.passport_no} · {occName(match.occupation_id)}</div>
-              {matchExam ? (
-                <div className="mt-2 flex items-center justify-between">
-                  <span>পরীক্ষা: {fmtDate(matchExam.exam_date)}</span>
-                  <Button size="sm" onClick={() => setResExam(matchExam)}>ম্যানুয়াল রেজাল্ট দিন</Button>
+          {match &&
+            (() => {
+              const declared = exams
+                .filter(
+                  (e) =>
+                    e.candidate_id === match.id && (e.result === "PASS" || e.result === "FAIL"),
+                )
+                .sort((a, b) => b.exam_date.localeCompare(a.exam_date))[0];
+              return (
+                <div className="rounded-lg border p-3 text-sm">
+                  <div className="font-semibold">{match.name}</div>
+                  <div className="text-muted-foreground">
+                    {match.passport_no} · {occName(match.occupation_id)}
+                  </div>
+                  {matchExam ? (
+                    <div className="mt-2 flex items-center justify-between">
+                      <span>পরীক্ষা: {fmtDate(matchExam.exam_date)}</span>
+                      <Button size="sm" onClick={() => setResExam(matchExam)}>
+                        ম্যানুয়াল রেজাল্ট দিন
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-muted-foreground">কোনো অপেক্ষমান পরীক্ষা নেই</div>
+                  )}
+                  {declared && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2">
+                      <ResultBadge result={declared.result} date={declared.result_date} />
+                      <ResultShareActions
+                        d={{
+                          name: match.name,
+                          passport: match.passport_no ?? "—",
+                          occupation: occName(declared.occupation_id ?? match.occupation_id) ?? "—",
+                          ttc: ttcName(declared.ttc_id ?? match.ttc_id) ?? "—",
+                          examAt: fmtDate(declared.exam_date),
+                          result: declared.result,
+                          ref: "—",
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-              ) : <div className="mt-2 text-muted-foreground">কোনো অপেক্ষমান পরীক্ষা নেই</div>}
-              {declared && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2">
-                  <ResultBadge result={declared.result} date={declared.result_date} />
-                  <ResultShareActions d={{ name: match.name, passport: match.passport_no ?? "—", occupation: occName(declared.occupation_id ?? match.occupation_id) ?? "—", ttc: ttcName(declared.ttc_id ?? match.ttc_id) ?? "—", examAt: fmtDate(declared.exam_date), result: declared.result, ref: "—" }} />
-                </div>
-              )}
-            </div>
-            );
-          })()}
+              );
+            })()}
         </div>
 
         <div className="card-surface p-4 lg:col-span-3">
           <h3 className="mb-3 text-base font-semibold">রেজাল্টের অপেক্ষায় ({pending.length})</h3>
-          {pending.length === 0 ? <Empty>সব রেজাল্ট আপডেট করা আছে</Empty> : (
+          {pending.length === 0 ? (
+            <Empty>সব রেজাল্ট আপডেট করা আছে</Empty>
+          ) : (
             <ul className="divide-y">
               {pending.map((e) => (
                 <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <div className="min-w-0">
-                    <Link to="/candidates/$id" params={{ id: e.candidate_id }} className="font-medium hover:text-primary">{candMap.get(e.candidate_id)?.name}</Link>
-                    <div className="text-xs text-muted-foreground">{fmtDate(e.exam_date)} · {occName(e.occupation_id)} · {ttcName(e.ttc_id)}</div>
+                    <Link
+                      to="/candidates/$id"
+                      params={{ id: e.candidate_id }}
+                      className="font-medium hover:text-primary"
+                    >
+                      {candMap.get(e.candidate_id)?.name}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">
+                      {fmtDate(e.exam_date)} · {occName(e.occupation_id)} · {ttcName(e.ttc_id)}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5"><ResultBadge result={e.result} date={e.result_date} /><Button size="sm" variant="outline" disabled={busy} onClick={() => quickCheck(e)}>SVP চেক</Button><Button size="sm" disabled={busy} className="bg-success text-primary-foreground hover:bg-success/90" onClick={() => quickSet(e, "PASS")}>PASS</Button><Button size="sm" variant="destructive" disabled={busy} onClick={() => quickSet(e, "FAIL")}>FAIL</Button><Button size="sm" variant="secondary" disabled={busy} onClick={() => quickSet(e, "ABSENT")}>ABSENT</Button><Button size="sm" variant="ghost" onClick={() => setResExam(e)}>বিস্তারিত</Button></div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ResultBadge result={e.result} date={e.result_date} />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => quickCheck(e)}
+                    >
+                      SVP চেক
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={busy}
+                      className="bg-success text-primary-foreground hover:bg-success/90"
+                      onClick={() => quickSet(e, "PASS")}
+                    >
+                      PASS
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={busy}
+                      onClick={() => quickSet(e, "FAIL")}
+                    >
+                      FAIL
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => quickSet(e, "ABSENT")}
+                    >
+                      ABSENT
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setResExam(e)}>
+                      বিস্তারিত
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -14,7 +14,11 @@ export function WorkerLoader({ size = "md", label }: { size?: Size; label?: stri
         <span className="bh-ring absolute -inset-[25%] rounded-full border-2 border-transparent border-t-primary border-l-primary/40" />
         <span className="bh-ring-rev absolute -inset-[12%] rounded-full border-2 border-transparent border-b-accent border-r-primary/60" />
         <span className="absolute -inset-1 rounded-full bg-background shadow-[0_0_30px_8px_color-mix(in_oklab,var(--primary)_55%,transparent)]" />
-        <img src={brandLogo.url} alt="" className="logo-wave relative h-full w-full rounded-full object-cover" />
+        <img
+          src={brandLogo.url}
+          alt=""
+          className="logo-wave relative h-full w-full rounded-full object-cover"
+        />
       </span>
       {label && <span className="text-sm font-medium text-primary animate-pulse">{label}</span>}
     </span>
@@ -43,7 +47,10 @@ export function NavLoader() {
       t = window.setTimeout(() => setClicked(false), 700);
     };
     document.addEventListener("click", onClick, true);
-    return () => { document.removeEventListener("click", onClick, true); window.clearTimeout(t); };
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.clearTimeout(t);
+    };
   }, []);
   if (!loading && !clicked) return null;
   return (

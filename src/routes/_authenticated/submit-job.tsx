@@ -15,7 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SmartTicketUpload, fieldStatus, type Stage, type FieldCheck } from "@/components/app/SmartTicketUpload";
+import {
+  SmartTicketUpload,
+  fieldStatus,
+  type Stage,
+  type FieldCheck,
+} from "@/components/app/SmartTicketUpload";
 import type { TicketExtraction } from "@/lib/ticket-extract.functions";
 
 export const Route = createFileRoute("/_authenticated/submit-job")({
@@ -23,7 +28,10 @@ export const Route = createFileRoute("/_authenticated/submit-job")({
     meta: [
       { title: "কাজ Submit করুন — এজেন্ট | Milestone Certificate Institute" },
       { name: "description", content: "এজেন্টদের জন্য পরীক্ষার্থীর কাজ Submit করার ফর্ম।" },
-      { property: "og:title", content: "কাজ Submit করুন — এজেন্ট | Milestone Certificate Institute" },
+      {
+        property: "og:title",
+        content: "কাজ Submit করুন — এজেন্ট | Milestone Certificate Institute",
+      },
       { property: "og:description", content: "এজেন্টদের জন্য পরীক্ষার্থীর কাজ Submit করার ফর্ম।" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -33,15 +41,35 @@ export const Route = createFileRoute("/_authenticated/submit-job")({
 });
 
 const BATCHES = [
-  { batch: "MORNING", times: [{ value: "10:00", label: "10:00 AM" }, { value: "11:00", label: "11:00 AM" }] },
-  { batch: "AFTERNOON", times: [{ value: "13:00", label: "01:00 PM" }, { value: "14:00", label: "02:00 PM" }] },
+  {
+    batch: "MORNING",
+    times: [
+      { value: "10:00", label: "10:00 AM" },
+      { value: "11:00", label: "11:00 AM" },
+    ],
+  },
+  {
+    batch: "AFTERNOON",
+    times: [
+      { value: "13:00", label: "01:00 PM" },
+      { value: "14:00", label: "02:00 PM" },
+    ],
+  },
 ];
 const BATCH_VALUES = BATCHES.flatMap((b) => b.times.map((t) => t.value)) as [string, ...string[]];
 
 const schema = z.object({
-  passport_no: z.string().trim().min(5, "সঠিক পাসপোর্ট নম্বর দিন").max(20).regex(/^[A-Za-z0-9]+$/, "সঠিক পাসপোর্ট নম্বর দিন"),
+  passport_no: z
+    .string()
+    .trim()
+    .min(5, "সঠিক পাসপোর্ট নম্বর দিন")
+    .max(20)
+    .regex(/^[A-Za-z0-9]+$/, "সঠিক পাসপোর্ট নম্বর দিন"),
   candidate_name: z.string().trim().min(2, "প্রার্থীর নাম দিন").max(100),
-  mobile: z.string().trim().regex(/^01[3-9]\d{8}$/, "১১ সংখ্যার সঠিক মোবাইল নম্বর দিন"),
+  mobile: z
+    .string()
+    .trim()
+    .regex(/^01[3-9]\d{8}$/, "১১ সংখ্যার সঠিক মোবাইল নম্বর দিন"),
   skill_details: z.string().trim().max(1000),
   occupation_id: z.string().uuid("পেশা নির্বাচন করুন"),
   ttc_id: z.string().uuid("TTC নির্বাচন করুন"),
@@ -60,7 +88,21 @@ const notices = [
   "Submit করার আগে সকল তথ্য ভালোভাবে যাচাই করতে হবে।",
 ];
 
-const empty = { passport_no: "", candidate_name: "", mobile: "", skill_details: "", result_email: "", result_password: "", other_info: "", occupation_id: "", ttc_id: "", exam_date: "", exam_time: "", education: "educated", experience: "yes" };
+const empty = {
+  passport_no: "",
+  candidate_name: "",
+  mobile: "",
+  skill_details: "",
+  result_email: "",
+  result_password: "",
+  other_info: "",
+  occupation_id: "",
+  ttc_id: "",
+  exam_date: "",
+  exam_time: "",
+  education: "educated",
+  experience: "yes",
+};
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
 function SubmitJob() {
@@ -86,20 +128,41 @@ function SubmitJob() {
   const locked = stage !== "done" && stage !== "review";
   const set = (k: keyof typeof empty, v: string) => setF((p) => ({ ...p, [k]: v }));
   const applyOcr = (x: TicketExtraction) => {
-    setOcr(x); setCritOk(false);
+    setOcr(x);
+    setCritOk(false);
     const lc = (v: string | null) => (v ?? "").toLowerCase();
-    const occ = x.occupation.value ? (occs ?? []).find((o) => lc(o.name).includes(lc(x.occupation.value)) || lc(x.occupation.value).includes(lc(o.name))) : undefined;
-    const ttc = x.center.value ? (ttcs ?? []).find((t) => lc(x.center.value).includes(lc(t.name).split(/\s+/)[0] ?? "~")) : undefined;
-    const time = x.exam_time.value && BATCH_VALUES.includes(x.exam_time.value) ? x.exam_time.value : "";
-    setF((p) => ({ ...p,
+    const occ = x.occupation.value
+      ? (occs ?? []).find(
+          (o) =>
+            lc(o.name).includes(lc(x.occupation.value)) ||
+            lc(x.occupation.value).includes(lc(o.name)),
+        )
+      : undefined;
+    const ttc = x.center.value
+      ? (ttcs ?? []).find((t) => lc(x.center.value).includes(lc(t.name).split(/\s+/)[0] ?? "~"))
+      : undefined;
+    const time =
+      x.exam_time.value && BATCH_VALUES.includes(x.exam_time.value) ? x.exam_time.value : "";
+    setF((p) => ({
+      ...p,
       ...(x.candidate_name.value && { candidate_name: x.candidate_name.value.toUpperCase() }),
-      ...(x.passport_no.value && { passport_no: x.passport_no.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }),
-      ...(x.exam_date.value && /^\d{4}-\d{2}-\d{2}$/.test(x.exam_date.value) && { exam_date: x.exam_date.value }),
+      ...(x.passport_no.value && {
+        passport_no: x.passport_no.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+      }),
+      ...(x.exam_date.value &&
+        /^\d{4}-\d{2}-\d{2}$/.test(x.exam_date.value) && { exam_date: x.exam_date.value }),
       ...(time && { exam_time: time }),
       ...(occ && { occupation_id: occ.id }),
       ...(ttc && { ttc_id: ttc.id }),
     }));
-    const low = Object.values(x).some((v) => typeof v === "object" && v && "confidence" in v && (v as { value: unknown }).value && (v as { confidence: number }).confidence < 0.9);
+    const low = Object.values(x).some(
+      (v) =>
+        typeof v === "object" &&
+        v &&
+        "confidence" in v &&
+        (v as { value: unknown }).value &&
+        (v as { confidence: number }).confidence < 0.9,
+    );
     setStage(x.ambiguities.length || x.candidate_count > 1 || low ? "review" : "done");
   };
   const occList = useMemo(() => {
@@ -109,29 +172,68 @@ function SubmitJob() {
   const DEFAULT_OCC_NAME = "Load and Unload Worker";
   useEffect(() => {
     if (!f.occupation_id) {
-      const d = occs.find((o) => o.active && o.name.toLowerCase() === DEFAULT_OCC_NAME.toLowerCase());
+      const d = occs.find(
+        (o) => o.active && o.name.toLowerCase() === DEFAULT_OCC_NAME.toLowerCase(),
+      );
       if (d) setF((p) => (p.occupation_id ? p : { ...p, occupation_id: d.id }));
     }
   }, [occs, f.occupation_id]);
   useEffect(() => {
     if (!f.ttc_id) {
-      const b = active.find((t) => t.name.includes("বগুড়া") || t.name.toLowerCase().includes("bogura"));
+      const b = active.find(
+        (t) => t.name.includes("বগুড়া") || t.name.toLowerCase().includes("bogura"),
+      );
       if (b) setF((p) => (p.ttc_id ? p : { ...p, ttc_id: b.id }));
     }
   }, [active, f.ttc_id]);
 
-  const ocrWarnings = ocr ? [
-    ...ocr.ambiguities,
-    ...(ocr.candidate_count > 1 ? ["টিকিটে একাধিক পরীক্ষার্থী আছে — শুধু একজনের তথ্য নেওয়া হয়েছে"] : []),
-    ...(ocr.exam_time.value && !BATCH_VALUES.includes(ocr.exam_time.value) ? [`টিকিটের সময় ${ocr.exam_time.value} তালিকায় নেই — সময় নিজে বাছাই করুন`] : []),
-    ...(ocr.occupation.value && !occs?.some((o) => o.id === f.occupation_id && o.name.toLowerCase().includes(ocr.occupation.value!.toLowerCase())) ? [`টিকিটের পেশা: ${ocr.occupation.value} — মিলিয়ে নিন`] : []),
-  ] : [];
-  const checks: FieldCheck[] = ocr ? [
-    { label: "Candidate Name", extracted: ocr.candidate_name.value?.toUpperCase() ?? null, current: f.candidate_name, confidence: ocr.candidate_name.confidence },
-    { label: "Passport Number", extracted: ocr.passport_no.value?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? null, current: f.passport_no, confidence: ocr.passport_no.confidence },
-    { label: "Exam Date", extracted: ocr.exam_date.value, current: f.exam_date, confidence: ocr.exam_date.confidence },
-    { label: "Exam Time", extracted: ocr.exam_time.value, current: f.exam_time, confidence: ocr.exam_time.confidence },
-  ] : [];
+  const ocrWarnings = ocr
+    ? [
+        ...ocr.ambiguities,
+        ...(ocr.candidate_count > 1
+          ? ["টিকিটে একাধিক পরীক্ষার্থী আছে — শুধু একজনের তথ্য নেওয়া হয়েছে"]
+          : []),
+        ...(ocr.exam_time.value && !BATCH_VALUES.includes(ocr.exam_time.value)
+          ? [`টিকিটের সময় ${ocr.exam_time.value} তালিকায় নেই — সময় নিজে বাছাই করুন`]
+          : []),
+        ...(ocr.occupation.value &&
+        !occs?.some(
+          (o) =>
+            o.id === f.occupation_id &&
+            o.name.toLowerCase().includes(ocr.occupation.value!.toLowerCase()),
+        )
+          ? [`টিকিটের পেশা: ${ocr.occupation.value} — মিলিয়ে নিন`]
+          : []),
+      ]
+    : [];
+  const checks: FieldCheck[] = ocr
+    ? [
+        {
+          label: "Candidate Name",
+          extracted: ocr.candidate_name.value?.toUpperCase() ?? null,
+          current: f.candidate_name,
+          confidence: ocr.candidate_name.confidence,
+        },
+        {
+          label: "Passport Number",
+          extracted: ocr.passport_no.value?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? null,
+          current: f.passport_no,
+          confidence: ocr.passport_no.confidence,
+        },
+        {
+          label: "Exam Date",
+          extracted: ocr.exam_date.value,
+          current: f.exam_date,
+          confidence: ocr.exam_date.confidence,
+        },
+        {
+          label: "Exam Time",
+          extracted: ocr.exam_time.value,
+          current: f.exam_time,
+          confidence: ocr.exam_time.confidence,
+        },
+      ]
+    : [];
   const critical = checks.slice(0, 2).some((c) => fieldStatus(c) === "mismatch");
 
   const validate = () => {
@@ -148,10 +250,15 @@ function SubmitJob() {
   const openConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return toast.error("সব বাধ্যতামূলক তথ্য সঠিকভাবে দিন");
-    if (critical && !critOk) return toast.error("নাম/পাসপোর্ট টিকিটের সাথে মিলছে না — ঠিক করুন অথবা নিশ্চিত করার বক্সে টিক দিন");
+    if (critical && !critOk)
+      return toast.error(
+        "নাম/পাসপোর্ট টিকিটের সাথে মিলছে না — ঠিক করুন অথবা নিশ্চিত করার বক্সে টিক দিন",
+      );
     const hist = await qc.fetchQuery(passportHistoryQ(f.passport_no)).catch(() => []);
-    if (hist.some((r) => r.blocking)) return toast.error("এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না");
-    if (hist.length) toast.warning("এই পাসপোর্ট আগে জমা হয়েছিল (FAIL/বাতিল) — নিচের ইতিহাস যাচাই করুন");
+    if (hist.some((r) => r.blocking))
+      return toast.error("এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না");
+    if (hist.length)
+      toast.warning("এই পাসপোর্ট আগে জমা হয়েছিল (FAIL/বাতিল) — নিচের ইতিহাস যাচাই করুন");
     setAgree(false);
     setConfirmOpen(true);
   };
@@ -165,12 +272,46 @@ function SubmitJob() {
       if (!u.user) throw new Error("লগইন পাওয়া যায়নি");
       const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
       const path = `takamul/${u.user.id}/${crypto.randomUUID()}.${ext}`;
-      const up = await supabase.storage.from("candidate-photos").upload(path, file, { contentType: file.type });
+      const up = await supabase.storage
+        .from("candidate-photos")
+        .upload(path, file, { contentType: file.type });
       if (up.error) throw up.error;
       const { exam_date, exam_time, ...rest } = d;
       const { data, error } = await supabase
         .from("job_submissions")
-        .insert({ ...rest, secondary_mobile: null, skill_details: [rest.skill_details, f.result_email.trim() && `Result Email: ${f.result_email.trim()}`, f.result_password.trim() && `Result Password: ${f.result_password.trim()}`, f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`].filter(Boolean).join("\n").slice(0, 2000) || null, passport_no: rest.passport_no.toUpperCase(), exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!, ticket_path: path, terms_accepted: true, ocr_meta: ocr ? JSON.parse(JSON.stringify({ extracted: ocr, overall: checks.length ? checks.reduce((a, c) => a + (c.extracted ? c.confidence : 0), 0) / checks.length : 0, fields: checks.map((c) => ({ ...c, status: fieldStatus(c) })), warnings: ocrWarnings, confirmed_mismatch: critical && critOk, at: new Date().toISOString() })) : null })
+        .insert({
+          ...rest,
+          secondary_mobile: null,
+          skill_details:
+            [
+              rest.skill_details,
+              f.result_email.trim() && `Result Email: ${f.result_email.trim()}`,
+              f.result_password.trim() && `Result Password: ${f.result_password.trim()}`,
+              f.other_info.trim() && `অন্যান্য: ${f.other_info.trim()}`,
+            ]
+              .filter(Boolean)
+              .join("\n")
+              .slice(0, 2000) || null,
+          passport_no: rest.passport_no.toUpperCase(),
+          exam_at: dhakaInputToISO(`${exam_date}T${exam_time}`)!,
+          ticket_path: path,
+          terms_accepted: true,
+          ocr_meta: ocr
+            ? JSON.parse(
+                JSON.stringify({
+                  extracted: ocr,
+                  overall: checks.length
+                    ? checks.reduce((a, c) => a + (c.extracted ? c.confidence : 0), 0) /
+                      checks.length
+                    : 0,
+                  fields: checks.map((c) => ({ ...c, status: fieldStatus(c) })),
+                  warnings: ocrWarnings,
+                  confirmed_mismatch: critical && critOk,
+                  at: new Date().toISOString(),
+                }),
+              )
+            : null,
+        })
         .select("ref_code")
         .single();
       if (error) throw error;
@@ -180,10 +321,17 @@ function SubmitJob() {
         setOk(false);
         setDoneRef(data.ref_code);
       }, 900);
-      setF(empty); setFile(null); setOcr(null); setStage("idle");
+      setF(empty);
+      setFile(null);
+      setOcr(null);
+      setStage("idle");
       qc.invalidateQueries({ queryKey: ["works"] });
     } catch (err) {
-      toast.error(String((err as { message?: string })?.message ?? "").includes("DUPLICATE_PASSPORT") ? "এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না" : "কাজ Submit করা যায়নি। আবার চেষ্টা করুন।");
+      toast.error(
+        String((err as { message?: string })?.message ?? "").includes("DUPLICATE_PASSPORT")
+          ? "এই পাসপোর্ট নম্বর আগে জমা দেওয়া আছে — দ্বিতীয়বার জমা দেওয়া যাবে না"
+          : "কাজ Submit করা যায়নি। আবার চেষ্টা করুন।",
+      );
     } finally {
       setBusy(false);
     }
@@ -194,21 +342,30 @@ function SubmitJob() {
       <div className="mx-auto max-w-lg rounded-2xl border bg-card p-8 text-center shadow-sm">
         <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
         <h1 className="mt-4 font-display text-2xl font-bold">কাজ সফলভাবে Submit হয়েছে</h1>
-        <p className="mt-2 text-muted-foreground">রেফারেন্স নম্বর: <span className="font-semibold text-foreground">#{doneRef}</span></p>
+        <p className="mt-2 text-muted-foreground">
+          রেফারেন্স নম্বর: <span className="font-semibold text-foreground">#{doneRef}</span>
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">অ্যাডমিন অনুমোদনের অপেক্ষায় রয়েছে।</p>
         <div className="mt-6 flex justify-center gap-2">
           <Button onClick={() => setDoneRef(null)}>নতুন কাজ Submit করুন</Button>
-          <Button variant="outline" asChild><Link to="/my-works">আমার কাজ দেখুন</Link></Button>
+          <Button variant="outline" asChild>
+            <Link to="/my-works">আমার কাজ দেখুন</Link>
+          </Button>
         </div>
       </div>
     );
 
-  const Err = ({ k }: { k: string }) => (errors[k] ? <p className="mt-1 text-xs text-destructive">{errors[k]}</p> : null);
+  const Err = ({ k }: { k: string }) =>
+    errors[k] ? <p className="mt-1 text-xs text-destructive">{errors[k]}</p> : null;
   const Choice = ({ k, opts }: { k: "education" | "experience"; opts: [string, string][] }) => (
     <div className="grid grid-cols-2 gap-2">
       {opts.map(([v, l]) => (
-        <button type="button" key={v} onClick={() => set(k, v)}
-          className={`rounded-xl border px-3 py-2.5 text-sm transition-colors ${f[k] === v ? "border-primary bg-primary/10 font-semibold text-primary" : "hover:bg-muted"}`}>
+        <button
+          type="button"
+          key={v}
+          onClick={() => set(k, v)}
+          className={`rounded-xl border px-3 py-2.5 text-sm transition-colors ${f[k] === v ? "border-primary bg-primary/10 font-semibold text-primary" : "hover:bg-muted"}`}
+        >
           {f[k] === v ? "☑" : "☐"} {l}
         </button>
       ))}
@@ -220,98 +377,261 @@ function SubmitJob() {
     <form onSubmit={openConfirm} className="mx-auto max-w-2xl space-y-5">
       <h1 className="font-display text-2xl font-bold">📋 Submit Work</h1>
       {unpaid && <UnpaidNotice />}
-      <SmartTicketUpload file={file} onFile={setFile} onExtract={applyOcr} checks={checks} warnings={ocrWarnings} stage={stage} setStage={setStage} />
+      <SmartTicketUpload
+        file={file}
+        onFile={setFile}
+        onExtract={applyOcr}
+        checks={checks}
+        warnings={ocrWarnings}
+        stage={stage}
+        setStage={setStage}
+      />
       {critical && (
         <label className="flex items-start gap-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-          <input type="checkbox" className="mt-1" checked={critOk} onChange={(e) => setCritOk(e.target.checked)} />
-          নাম/পাসপোর্ট টিকিটের সাথে মিলছে না। আমি মূল PDF মিলিয়ে নিশ্চিত হয়েছি যে ফর্মের তথ্য সঠিক।
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={critOk}
+            onChange={(e) => setCritOk(e.target.checked)}
+          />
+          নাম/পাসপোর্ট টিকিটের সাথে মিলছে না। আমি মূল PDF মিলিয়ে নিশ্চিত হয়েছি যে ফর্মের তথ্য
+          সঠিক।
         </label>
       )}
 
       <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
         {locked && (
           <p className="rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
-            ⬆️ প্রথমে উপরে Takamul Appointment Ticket আপলোড করুন — প্রসেসিং শেষ হলে নিচের ঘরগুলো স্বয়ংক্রিয়ভাবে খুলে যাবে।
+            ⬆️ প্রথমে উপরে Takamul Appointment Ticket আপলোড করুন — প্রসেসিং শেষ হলে নিচের ঘরগুলো
+            স্বয়ংক্রিয়ভাবে খুলে যাবে।
           </p>
         )}
         <fieldset disabled={locked} className="min-w-0 space-y-4 disabled:opacity-60">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div><Label>Candidate Name *</Label><Input value={f.candidate_name} onChange={(e) => set("candidate_name", e.target.value.toUpperCase())} maxLength={100} /><Err k="candidate_name" /></div>
-          <div><Label>Passport Number *</Label><Input value={f.passport_no} onChange={(e) => set("passport_no", e.target.value.toUpperCase())} maxLength={20} /><Err k="passport_no" /><PassportHistory passport={f.passport_no} /></div>
-          <div><Label>Mobile Number *</Label><Input inputMode="numeric" value={f.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="01XXXXXXXXX" /><p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">⚠️ শুধুমাত্র পরীক্ষার্থীর নিজের মোবাইল নম্বর দিন — এজেন্ট/নিজের নম্বর দেবেন না।</p><Err k="mobile" /></div>
-          <div>
-            <Label>TTC *</Label>
-            <select value={f.ttc_id} onChange={(e) => set("ttc_id", e.target.value)} className={selectCls}>
-              <option value="">নির্বাচন করুন</option>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Candidate Name *</Label>
+              <Input
+                value={f.candidate_name}
+                onChange={(e) => set("candidate_name", e.target.value.toUpperCase())}
+                maxLength={100}
+              />
+              <Err k="candidate_name" />
+            </div>
+            <div>
+              <Label>Passport Number *</Label>
+              <Input
+                value={f.passport_no}
+                onChange={(e) => set("passport_no", e.target.value.toUpperCase())}
+                maxLength={20}
+              />
+              <Err k="passport_no" />
+              <PassportHistory passport={f.passport_no} />
+            </div>
+            <div>
+              <Label>Mobile Number *</Label>
+              <Input
+                inputMode="numeric"
+                value={f.mobile}
+                onChange={(e) => set("mobile", e.target.value.replace(/\D/g, "").slice(0, 11))}
+                placeholder="01XXXXXXXXX"
+              />
+              <p className="mt-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
+                ⚠️ শুধুমাত্র পরীক্ষার্থীর নিজের মোবাইল নম্বর দিন — এজেন্ট/নিজের নম্বর দেবেন না।
+              </p>
+              <Err k="mobile" />
+            </div>
+            <div>
+              <Label>TTC *</Label>
+              <select
+                value={f.ttc_id}
+                onChange={(e) => set("ttc_id", e.target.value)}
+                className={selectCls}
+              >
+                <option value="">নির্বাচন করুন</option>
+                {(() => {
+                  const isBog = (n: string) =>
+                    n.includes("বগুড়া") || n.toLowerCase().includes("bogura");
+                  const pinned = active
+                    .filter((t) => t.sort_order < 100)
+                    .sort(
+                      (a, b) =>
+                        (isBog(b.name) ? 1 : 0) - (isBog(a.name) ? 1 : 0) ||
+                        a.sort_order - b.sort_order,
+                    );
+                  const rest = active
+                    .filter((t) => t.sort_order >= 100)
+                    .sort((a, b) => a.name.localeCompare(b.name, "bn"));
+                  return (
+                    <>
+                      <optgroup label="📌 পিন করা কেন্দ্র">
+                        {pinned.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {isBog(t.name) ? "📌 " : ""}
+                            {t.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="সকল জেলা">
+                        {rest.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </>
+                  );
+                })()}
+              </select>
+              <Err k="ttc_id" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Profession / পেশা *</Label>
+              <OccupationPicker
+                items={occList}
+                value={f.occupation_id}
+                onChange={(id) => set("occupation_id", id)}
+              />
+              <Err k="occupation_id" />
+            </div>
+            <div>
+              <Label>Exam Date *</Label>
               {(() => {
-                const isBog = (n: string) => n.includes("বগুড়া") || n.toLowerCase().includes("bogura");
-                const pinned = active.filter((t) => t.sort_order < 100).sort((a, b) => (isBog(b.name) ? 1 : 0) - (isBog(a.name) ? 1 : 0) || a.sort_order - b.sort_order);
-                const rest = active.filter((t) => t.sort_order >= 100).sort((a, b) => a.name.localeCompare(b.name, "bn"));
-                return (<>
-                  <optgroup label="📌 পিন করা কেন্দ্র">{pinned.map((t) => <option key={t.id} value={t.id}>{isBog(t.name) ? "📌 " : ""}{t.name}</option>)}</optgroup>
-                  <optgroup label="সকল জেলা">{rest.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
-                </>);
+                const now = new Date();
+                const [yy, mm, dd] = (f.exam_date || "").split("-");
+                const year = Number(yy) || now.getFullYear();
+                const month = Number(mm) || now.getMonth() + 1;
+                const day = Number(dd) || 0;
+                const days = new Date(year, month, 0).getDate();
+                const MONTHS = [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December",
+                ];
+                const upd = (y: number, m: number, d: number) => {
+                  const max = new Date(y, m, 0).getDate();
+                  const dv = d > max ? max : d;
+                  set(
+                    "exam_date",
+                    dv
+                      ? `${y}-${String(m).padStart(2, "0")}-${String(dv).padStart(2, "0")}`
+                      : `${y}-${String(m).padStart(2, "0")}-`,
+                  );
+                };
+                return (
+                  <div className="grid grid-cols-[1fr_1.6fr_1.2fr] gap-2">
+                    <select
+                      value={day || ""}
+                      onChange={(e) => upd(year, month, Number(e.target.value))}
+                      className={selectCls}
+                    >
+                      <option value="">Date</option>
+                      {Array.from({ length: days }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={month}
+                      onChange={(e) => upd(year, Number(e.target.value), day)}
+                      className={selectCls}
+                    >
+                      {MONTHS.map((m, i) => (
+                        <option key={m} value={i + 1}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={year}
+                      onChange={(e) => upd(Number(e.target.value), month, day)}
+                      className={selectCls}
+                    >
+                      {[0, 1, 2]
+                        .map((o) => now.getFullYear() + o)
+                        .map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                );
               })()}
-            </select>
-            <Err k="ttc_id" />
-          </div>
-          <div className="sm:col-span-2">
-            <Label>Profession / পেশা *</Label>
-            <OccupationPicker items={occList} value={f.occupation_id} onChange={(id) => set("occupation_id", id)} />
-            <Err k="occupation_id" />
-          </div>
-          <div>
-            <Label>Exam Date *</Label>
-            {(() => {
-              const now = new Date();
-              const [yy, mm, dd] = (f.exam_date || "").split("-");
-              const year = Number(yy) || now.getFullYear();
-              const month = Number(mm) || now.getMonth() + 1;
-              const day = Number(dd) || 0;
-              const days = new Date(year, month, 0).getDate();
-              const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-              const upd = (y: number, m: number, d: number) => {
-                const max = new Date(y, m, 0).getDate();
-                const dv = d > max ? max : d;
-                set("exam_date", dv ? `${y}-${String(m).padStart(2, "0")}-${String(dv).padStart(2, "0")}` : `${y}-${String(m).padStart(2, "0")}-`);
-              };
-              return (
-                <div className="grid grid-cols-[1fr_1.6fr_1.2fr] gap-2">
-                  <select value={day || ""} onChange={(e) => upd(year, month, Number(e.target.value))} className={selectCls}>
-                    <option value="">Date</option>
-                    {Array.from({ length: days }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <select value={month} onChange={(e) => upd(year, Number(e.target.value), day)} className={selectCls}>
-                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
-                  <select value={year} onChange={(e) => upd(Number(e.target.value), month, day)} className={selectCls}>
-                    {[0, 1, 2].map((o) => now.getFullYear() + o).map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-              );
-            })()}
-            <Err k="exam_date" />
+              <Err k="exam_date" />
+            </div>
+            <div>
+              <Label>Exam Time *</Label>
+              <select
+                value={f.exam_time}
+                onChange={(e) => set("exam_time", e.target.value)}
+                className={selectCls}
+              >
+                <option value="">সময় নির্বাচন করুন</option>
+                {BATCHES.map((b) => (
+                  <optgroup key={b.batch} label={b.batch}>
+                    {b.times.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label} ({b.batch})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <Err k="exam_time" />
+            </div>
           </div>
           <div>
-            <Label>Exam Time *</Label>
-            <select value={f.exam_time} onChange={(e) => set("exam_time", e.target.value)} className={selectCls}>
-              <option value="">সময় নির্বাচন করুন</option>
-              {BATCHES.map((b) => (
-                <optgroup key={b.batch} label={b.batch}>
-                  {b.times.map((t) => <option key={t.value} value={t.value}>{t.label} ({b.batch})</option>)}
-                </optgroup>
-              ))}
-            </select>
-            <Err k="exam_time" />
+            <Label className="mb-2 block">নোট</Label>
+            <Textarea
+              value={f.skill_details}
+              onChange={(e) => set("skill_details", e.target.value)}
+              maxLength={1000}
+              rows={3}
+              placeholder="কাজের বিবরণ লিখুন..."
+            />
           </div>
-        </div>
-        <div><Label className="mb-2 block">নোট</Label><Textarea value={f.skill_details} onChange={(e) => set("skill_details", e.target.value)} maxLength={1000} rows={3} placeholder="কাজের বিবরণ লিখুন..." /></div>
-        <div className="grid gap-4 rounded-xl border border-dashed p-3 sm:grid-cols-2">
-          <p className="text-sm font-semibold sm:col-span-2">রেজাল্ট চেকের তথ্য (ঐচ্ছিক)</p>
-          <div><Label>Email</Label><Input type="email" value={f.result_email} onChange={(e) => set("result_email", e.target.value)} maxLength={120} placeholder="example@gmail.com" /></div>
-          <div><Label>Password</Label><Input value={f.result_password} onChange={(e) => set("result_password", e.target.value)} maxLength={100} placeholder="পাসওয়ার্ড" /></div>
-          <div className="sm:col-span-2"><Label>অন্যান্য</Label><Textarea value={f.other_info} onChange={(e) => set("other_info", e.target.value)} maxLength={500} rows={2} placeholder="অন্য কিছু লিখুন..." /></div>
-        </div>
+          <div className="grid gap-4 rounded-xl border border-dashed p-3 sm:grid-cols-2">
+            <p className="text-sm font-semibold sm:col-span-2">রেজাল্ট চেকের তথ্য (ঐচ্ছিক)</p>
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={f.result_email}
+                onChange={(e) => set("result_email", e.target.value)}
+                maxLength={120}
+                placeholder="example@gmail.com"
+              />
+            </div>
+            <div>
+              <Label>Password</Label>
+              <Input
+                value={f.result_password}
+                onChange={(e) => set("result_password", e.target.value)}
+                maxLength={100}
+                placeholder="পাসওয়ার্ড"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>অন্যান্য</Label>
+              <Textarea
+                value={f.other_info}
+                onChange={(e) => set("other_info", e.target.value)}
+                maxLength={500}
+                rows={2}
+                placeholder="অন্য কিছু লিখুন..."
+              />
+            </div>
+          </div>
         </fieldset>
       </section>
 
@@ -329,14 +649,37 @@ function SubmitJob() {
             : "shadow-[0_10px_35px_-10px_var(--primary)] hover:-translate-y-0.5 hover:shadow-[0_16px_45px_-8px_var(--primary)]"
         }`}
       >
-        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer"
+        />
         {walkKey > 0 && (
-          <span key={walkKey} aria-hidden className="pointer-events-none absolute bottom-0.5 animate-trolley-walk">
-            <svg viewBox="0 0 48 32" className="h-9 w-12 animate-trolley-bob" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <span
+            key={walkKey}
+            aria-hidden
+            className="pointer-events-none absolute bottom-0.5 animate-trolley-walk"
+          >
+            <svg
+              viewBox="0 0 48 32"
+              className="h-9 w-12 animate-trolley-bob"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="10" cy="5" r="3" fill="currentColor" />
               <path d="M10 8 L12 18 M11 11 L20 13 M12 18 L8 27 M12 18 L16 27" />
               <path d="M20 9 L22 26 L40 26" />
-              <rect x="25" y="13" width="12" height="12" rx="1" fill="currentColor" fillOpacity="0.35" />
+              <rect
+                x="25"
+                y="13"
+                width="12"
+                height="12"
+                rx="1"
+                fill="currentColor"
+                fillOpacity="0.35"
+              />
               <circle cx="24" cy="28.5" r="2.5" fill="currentColor" />
               <circle cx="38" cy="28.5" r="2.5" fill="currentColor" />
             </svg>
@@ -352,35 +695,57 @@ function SubmitJob() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="border-destructive/40">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> জরুরি নির্দেশনা</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> জরুরি নির্দেশনা
+            </DialogTitle>
           </DialogHeader>
           {unpaid && <UnpaidNotice />}
           <div className="rounded-xl border bg-muted/50 p-3 text-sm">
             <p className="mb-2 font-semibold">তথ্য যাচাই করুন</p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-              {([
-                ["নাম", f.candidate_name],
-                ["পাসপোর্ট", f.passport_no.toUpperCase()],
-                ["মোবাইল", f.mobile],
-                ["পেশা", occs.find((o) => o.id === f.occupation_id)?.name ?? ""],
-                ["TTC", ttcs.find((t) => t.id === f.ttc_id)?.name ?? ""],
-                ["তারিখ", f.exam_date],
-                ["সময়", BATCHES.flatMap((b) => b.times.map((t) => `${t.label} (${b.batch})`)).find((_, i) => BATCH_VALUES[i] === f.exam_time) ?? ""],
-                ["টিকেট", file?.name ?? ""],
-                ...(f.skill_details ? [["নোট", f.skill_details]] : []),
-                ...(f.result_email ? [["Email", f.result_email]] : []),
-                ...(f.result_password ? [["Password", f.result_password]] : []),
-                ...(f.other_info ? [["অন্যান্য", f.other_info]] : []),
-              ] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="contents"><dt className="text-muted-foreground">{k}:</dt><dd className="break-words font-medium">{v || "—"}</dd></div>
+              {(
+                [
+                  ["নাম", f.candidate_name],
+                  ["পাসপোর্ট", f.passport_no.toUpperCase()],
+                  ["মোবাইল", f.mobile],
+                  ["পেশা", occs.find((o) => o.id === f.occupation_id)?.name ?? ""],
+                  ["TTC", ttcs.find((t) => t.id === f.ttc_id)?.name ?? ""],
+                  ["তারিখ", f.exam_date],
+                  [
+                    "সময়",
+                    BATCHES.flatMap((b) => b.times.map((t) => `${t.label} (${b.batch})`)).find(
+                      (_, i) => BATCH_VALUES[i] === f.exam_time,
+                    ) ?? "",
+                  ],
+                  ["টিকেট", file?.name ?? ""],
+                  ...(f.skill_details ? [["নোট", f.skill_details]] : []),
+                  ...(f.result_email ? [["Email", f.result_email]] : []),
+                  ...(f.result_password ? [["Password", f.result_password]] : []),
+                  ...(f.other_info ? [["অন্যান্য", f.other_info]] : []),
+                ] as [string, string][]
+              ).map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt className="text-muted-foreground">{k}:</dt>
+                  <dd className="break-words font-medium">{v || "—"}</dd>
+                </div>
               ))}
             </dl>
           </div>
           <ul className="max-h-40 space-y-2 overflow-y-auto text-sm">
-            {notices.map((t) => <li key={t} className="flex gap-2"><span>•</span><span>{t}</span></li>)}
+            {notices.map((t) => (
+              <li key={t} className="flex gap-2">
+                <span>•</span>
+                <span>{t}</span>
+              </li>
+            ))}
           </ul>
           <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-muted p-3 text-sm font-medium">
-            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-primary" />
+            <input
+              type="checkbox"
+              checked={agree}
+              onChange={(e) => setAgree(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
             আমি উপরোক্ত সকল নির্দেশনা পড়েছি এবং সম্মত।
           </label>
           <Button
@@ -394,7 +759,12 @@ function SubmitJob() {
                 : "bg-gradient-to-r from-primary via-primary to-accent shadow-[0_8px_30px_-8px_var(--primary)] hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-6px_var(--primary)] disabled:opacity-60"
             }`}
           >
-            {!busy && !ok && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer" />}
+            {!busy && !ok && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent animate-btn-shimmer"
+              />
+            )}
             <span className="relative flex items-center gap-2">
               {ok ? (
                 <>
@@ -403,7 +773,9 @@ function SubmitJob() {
                 </>
               ) : busy ? (
                 <>
-                  <span className="text-primary-foreground"><WorkerLoader size="sm" /></span>
+                  <span className="text-primary-foreground">
+                    <WorkerLoader size="sm" />
+                  </span>
                   Submit হচ্ছে...
                 </>
               ) : (

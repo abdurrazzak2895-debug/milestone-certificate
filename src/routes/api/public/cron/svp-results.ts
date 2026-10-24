@@ -9,7 +9,10 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
         if (!token || token.length < 32) return new Response("Unauthorized", { status: 401 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: valid } = await supabaseAdmin.rpc("verify_cron_token" as any, { _name: "svp_results", _token: token });
+        const { data: valid } = await supabaseAdmin.rpc("verify_cron_token" as any, {
+          _name: "svp_results",
+          _token: token,
+        });
         if (valid !== true) return new Response("Unauthorized", { status: 401 });
         const cutoff = new Date(Date.now() - 150 * 60_000).toISOString();
         const retryBefore = new Date(Date.now() - 5 * 60_000).toISOString();
@@ -30,12 +33,23 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
         for (const work of works ?? []) {
           if (!work.occupation_id) continue;
           // FAIL/NOT_FOUND are only provisional within 10h of exam start.
-          if (work.svp_result !== "PENDING" && Date.now() - new Date((work as any).exam_at ?? 0).getTime() > 10 * 3600_000) continue;
-          const { data: occupation } = await supabaseAdmin.from("occupations").select("svp_key").eq("id", work.occupation_id).maybeSingle();
+          if (
+            work.svp_result !== "PENDING" &&
+            Date.now() - new Date((work as any).exam_at ?? 0).getTime() > 10 * 3600_000
+          )
+            continue;
+          const { data: occupation } = await supabaseAdmin
+            .from("occupations")
+            .select("svp_key")
+            .eq("id", work.occupation_id)
+            .maybeSingle();
           if (!occupation?.svp_key) continue;
           const result = await querySvp(work.passport_no, occupation.svp_key);
           // Network/server errors only bump checked_at so the next run retries.
-          const upd = result.status === "error" ? { svp_checked_at: new Date().toISOString() } : svpUpdate(result, work.exam_at, work.svp_result);
+          const upd =
+            result.status === "error"
+              ? { svp_checked_at: new Date().toISOString() }
+              : svpUpdate(result, work.exam_at, work.svp_result);
           await supabaseAdmin.from("job_submissions").update(upd).eq("id", work.id);
           checked++;
         }

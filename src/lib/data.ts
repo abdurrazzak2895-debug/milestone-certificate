@@ -28,7 +28,11 @@ async function all<T>(p: PromiseLike<{ data: T[] | null; error: unknown }>): Pro
 export const candidatesQ = queryOptions({
   queryKey: ["candidates"],
   queryFn: async () =>
-    (await all<Candidate>(supabase.from("candidates").select("*").order("created_at", { ascending: false }))).map((c) => ({
+    (
+      await all<Candidate>(
+        supabase.from("candidates").select("*").order("created_at", { ascending: false }),
+      )
+    ).map((c) => ({
       ...c,
       name: (c.name ?? "").toUpperCase(),
       passport_no: c.passport_no ? c.passport_no.toUpperCase() : c.passport_no,
@@ -36,19 +40,23 @@ export const candidatesQ = queryOptions({
 });
 export const examsQ = queryOptions({
   queryKey: ["exams"],
-  queryFn: () => all<Exam>(supabase.from("exams").select("*").order("exam_date", { ascending: false })),
+  queryFn: () =>
+    all<Exam>(supabase.from("exams").select("*").order("exam_date", { ascending: false })),
 });
 export const resultsQ = queryOptions({
   queryKey: ["results"],
-  queryFn: () => all<ResultRow>(supabase.from("results").select("*").order("created_at", { ascending: false })),
+  queryFn: () =>
+    all<ResultRow>(supabase.from("results").select("*").order("created_at", { ascending: false })),
 });
 export const ttcQ = queryOptions({
   queryKey: ["ttc"],
-  queryFn: () => all<Ttc>(supabase.from("ttc_centers").select("*").order("sort_order").order("name")),
+  queryFn: () =>
+    all<Ttc>(supabase.from("ttc_centers").select("*").order("sort_order").order("name")),
 });
 export const occQ = queryOptions({
   queryKey: ["occ"],
-  queryFn: async () => pinOcc(await all<Occupation>(supabase.from("occupations").select("*").order("name"))),
+  queryFn: async () =>
+    pinOcc(await all<Occupation>(supabase.from("occupations").select("*").order("name"))),
 });
 export const remindersQ = queryOptions({
   queryKey: ["reminders"],
@@ -57,7 +65,9 @@ export const remindersQ = queryOptions({
 export const settingsQ = queryOptions({
   queryKey: ["settings"],
   queryFn: async () => {
-    const rows = await all<{ key: string; value: string | null }>(supabase.from("settings").select("*"));
+    const rows = await all<{ key: string; value: string | null }>(
+      supabase.from("settings").select("*"),
+    );
     return Object.fromEntries(rows.map((r) => [r.key, r.value ?? ""])) as Record<string, string>;
   },
 });
@@ -69,7 +79,7 @@ export function useRefreshAll() {
 
 export function lookup<T extends { id: string; name: string }>(rows: T[] | undefined) {
   const m = new Map((rows ?? []).map((r) => [r.id, r.name]));
-  return (id: string | null | undefined) => (id ? m.get(id) ?? "—" : "—");
+  return (id: string | null | undefined) => (id ? (m.get(id) ?? "—") : "—");
 }
 
 // ---------- dates ----------
@@ -96,7 +106,20 @@ export function addDays(iso: string, n: number) {
 }
 const bnDigits = "০১২৩৪৫৬৭৮৯";
 export const bn = (v: string | number) => String(v).replace(/\d/g, (d) => bnDigits[+d]);
-const MONTHS = ["জানু", "ফেব্রু", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্ট", "অক্টো", "নভে", "ডিসে"];
+const MONTHS = [
+  "জানু",
+  "ফেব্রু",
+  "মার্চ",
+  "এপ্রিল",
+  "মে",
+  "জুন",
+  "জুলাই",
+  "আগস্ট",
+  "সেপ্ট",
+  "অক্টো",
+  "নভে",
+  "ডিসে",
+];
 export function fmtDate(iso: string | null | undefined) {
   if (!iso) return "—";
   const [y, m, d] = iso.slice(0, 10).split("-");
@@ -116,7 +139,12 @@ export function dayLabel(iso: string) {
 }
 export function fmtDhakaDate(d: Date | string) {
   const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: "2-digit", month: "short", year: "numeric" });
+  return date.toLocaleDateString("en-GB", {
+    timeZone: "Asia/Dhaka",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // ---------- export ----------
@@ -129,13 +157,21 @@ export function exportCSV(name: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const keys = Object.keys(rows[0]);
   const esc = (v: unknown) => `"${safeCell(v).replace(/"/g, '""')}"`;
-  const csv = "\uFEFF" + [keys.map(esc).join(","), ...rows.map((r) => keys.map((k) => esc(r[k])).join(","))].join("\n");
+  const csv =
+    "\uFEFF" +
+    [keys.map(esc).join(","), ...rows.map((r) => keys.map((k) => esc(r[k])).join(","))].join("\n");
   download(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${name}.csv`);
 }
 export async function exportXLSX(name: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
   const XLSX = await import("xlsx");
-  const ws = XLSX.utils.json_to_sheet(rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === "string" ? safeCell(v) : v]))));
+  const ws = XLSX.utils.json_to_sheet(
+    rows.map((r) =>
+      Object.fromEntries(
+        Object.entries(r).map(([k, v]) => [k, typeof v === "string" ? safeCell(v) : v]),
+      ),
+    ),
+  );
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
   XLSX.writeFile(wb, `${name}.xlsx`);

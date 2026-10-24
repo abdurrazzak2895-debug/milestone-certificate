@@ -22,8 +22,15 @@ export function ResultCheckButton({ w }: { w: Work }) {
       qc.invalidateQueries({ queryKey: ["works"] });
       qc.invalidateQueries({ queryKey: ["exams"] });
       qc.invalidateQueries({ queryKey: ["candidates"] });
-    } catch (e) { toast.error(e instanceof Error ? e.message : "রেজাল্ট চেক করা যায়নি"); }
-    finally { setBusy(false); }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "রেজাল্ট চেক করা যায়নি");
+    } finally {
+      setBusy(false);
+    }
   };
-  return <Button size="sm" variant="secondary" disabled={busy} onClick={run}><Search className="h-4 w-4" /> {busy ? "চেক হচ্ছে..." : "রেজাল্ট চেকিং"}</Button>;
+  return (
+    <Button size="sm" variant="secondary" disabled={busy} onClick={run}>
+      <Search className="h-4 w-4" /> {busy ? "চেক হচ্ছে..." : "রেজাল্ট চেকিং"}
+    </Button>
+  );
 }

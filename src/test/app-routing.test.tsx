@@ -1,39 +1,29 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { cleanup, render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoryHistory, createRouter } from "@tanstack/react-router";
+import { describe, expect, it } from "vitest";
 
 import { routeTree } from "@/routeTree.gen";
 
-function renderAt(path: string) {
-  const queryClient = new QueryClient();
-  const router = createRouter({
+function createRouterAt(path: string) {
+  return createRouter({
     routeTree,
-    context: { queryClient },
+    context: { queryClient: new QueryClient() },
     history: createMemoryHistory({ initialEntries: [path] }),
   });
-  return render(<RouterProvider router={router} />);
 }
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
-
-// Assert only that the router mounts and paints, never page content:
-// routes are rewritten as the app is built and this must keep passing.
 describe("App routing", () => {
-  it("renders the index route", async () => {
-    const { container } = renderAt("/");
+  it("matches the index route", () => {
+    const router = createRouterAt("/");
 
-    await waitFor(() => expect(container.firstChild).not.toBeNull());
+    expect(router.matchRoutes("/").map((match) => match.routeId)).toContain("/");
   });
 
-  it("renders the not-found route", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  it("uses the root not-found boundary for an unknown route", () => {
+    const router = createRouterAt("/this-route-does-not-exist");
+    const matches = router.matchRoutes("/this-route-does-not-exist");
 
-    const { container } = renderAt("/this-route-does-not-exist");
-
-    await waitFor(() => expect(container.firstChild).not.toBeNull());
+    expect(matches.map((match) => match.routeId)).toEqual(["__root__"]);
+    expect(routeTree.options.notFoundComponent).toBeDefined();
   });
 });

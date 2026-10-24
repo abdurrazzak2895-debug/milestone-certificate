@@ -29,18 +29,42 @@ export function EditMobileDialog({ w }: { w: Work }) {
       setOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "আপডেট করা যায়নি");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <>
-      <Button variant="outline" size="sm" className="mt-2" onClick={() => setOpen(true)}><Phone className="mr-1 h-4 w-4" /> মোবাইল পরিবর্তন</Button>
+      <Button variant="outline" size="sm" className="mt-2" onClick={() => setOpen(true)}>
+        <Phone className="mr-1 h-4 w-4" /> মোবাইল পরিবর্তন
+      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>মোবাইল নম্বর পরিবর্তন #{w.ref_code}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>মোবাইল নম্বর পরিবর্তন #{w.ref_code}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
-            <div><Label>মোবাইল</Label><Input inputMode="numeric" maxLength={11} value={m} onChange={(e) => setM(e.target.value.replace(/\D/g, ""))} /></div>
-            <div><Label>বিকল্প মোবাইল</Label><Input inputMode="numeric" maxLength={11} value={m2} onChange={(e) => setM2(e.target.value.replace(/\D/g, ""))} /></div>
-            <Button className="w-full" disabled={busy} onClick={submit}>{busy ? "সংরক্ষণ হচ্ছে..." : "সংরক্ষণ করুন"}</Button>
+            <div>
+              <Label>মোবাইল</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={11}
+                value={m}
+                onChange={(e) => setM(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            <div>
+              <Label>বিকল্প মোবাইল</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={11}
+                value={m2}
+                onChange={(e) => setM2(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            <Button className="w-full" disabled={busy} onClick={submit}>
+              {busy ? "সংরক্ষণ হচ্ছে..." : "সংরক্ষণ করুন"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

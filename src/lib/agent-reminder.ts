@@ -6,7 +6,12 @@ export type ReminderCandidate = { name: string; passport: string; occupation: st
 
 export function buildAgentReminder(agency: string, date: string, list: ReminderCandidate[]) {
   const [y, m, d] = date.split("-");
-  const items = list.map((c, i) => `${bnNum(i + 1)}. নাম: ${c.name}\n\nপাসপোর্ট নম্বর: ${c.passport}\n\nপেশা: ${c.occupation}`).join("\n\n");
+  const items = list
+    .map(
+      (c, i) =>
+        `${bnNum(i + 1)}. নাম: ${c.name}\n\nপাসপোর্ট নম্বর: ${c.passport}\n\nপেশা: ${c.occupation}`,
+    )
+    .join("\n\n");
   return `আসসালামু আলাইকুম। 🌸
 
 সম্মানিত পার্টনার ${agency},

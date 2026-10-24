@@ -77,14 +77,22 @@ export function AboutServicesCard() {
         <GraduationCap className="h-5 w-5 text-primary" /> Milestone Certificate Institute
       </div>
       <div className="space-y-4 p-4 text-sm select-text">
-        <p className="font-semibold">🌍 Your Trusted Partner in Education, Certification, Documentation & Global Support Services</p>
-        <p className="text-muted-foreground">We proudly provide professional support for students, job seekers, skilled professionals, business owners, and Bangladeshi expatriates worldwide.</p>
+        <p className="font-semibold">
+          🌍 Your Trusted Partner in Education, Certification, Documentation & Global Support
+          Services
+        </p>
+        <p className="text-muted-foreground">
+          We proudly provide professional support for students, job seekers, skilled professionals,
+          business owners, and Bangladeshi expatriates worldwide.
+        </p>
 
         <div>
           <h3 className="mb-2 font-semibold">📚 Our Services</h3>
           <ul className="space-y-1.5">
             {SERVICES.map((s) => (
-              <li key={s} className="rounded-lg bg-muted/40 px-3 py-1.5">{s}</li>
+              <li key={s} className="rounded-lg bg-muted/40 px-3 py-1.5">
+                {s}
+              </li>
             ))}
           </ul>
         </div>
@@ -98,31 +106,58 @@ export function AboutServicesCard() {
               ["🇲🇪", "Montenegro"],
               ["🇷🇸", "Serbia"],
             ].map(([flag, name]) => (
-              <span key={name} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium">{flag} {name}</span>
+              <span
+                key={name}
+                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium"
+              >
+                {flag} {name}
+              </span>
             ))}
           </div>
         </div>
 
-        <p className="text-muted-foreground">🤝 Through professional networks and trusted partners, we assist clients with educational, professional, travel, and documentation requirements, with a focus on transparency and reliable service.</p>
+        <p className="text-muted-foreground">
+          🤝 Through professional networks and trusted partners, we assist clients with educational,
+          professional, travel, and documentation requirements, with a focus on transparency and
+          reliable service.
+        </p>
 
         <ul className="space-y-1 text-sm">
-          {["✅ Professional Guidance", "✅ Reliable Documentation Support", "✅ Responsive Client Service", "✅ Client Satisfaction Priority", "✅ International Support Network"].map((v) => (
+          {[
+            "✅ Professional Guidance",
+            "✅ Reliable Documentation Support",
+            "✅ Responsive Client Service",
+            "✅ Client Satisfaction Priority",
+            "✅ International Support Network",
+          ].map((v) => (
             <li key={v}>{v}</li>
           ))}
         </ul>
 
         <div className="rounded-xl border border-primary/40 bg-primary/10 p-3 text-center font-semibold leading-relaxed">
-          💡 Learn With Confidence<br />
-          📈 Build Your Future<br />
-          🌍 Explore Global Opportunities<br />
+          💡 Learn With Confidence
+          <br />
+          📈 Build Your Future
+          <br />
+          🌍 Explore Global Opportunities
+          <br />
           🚀 Achieve Your Goals
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">📍 Education | Certification | Documentation | Visa Support | Probashi Services</p>
-        <p className="text-center font-medium">🇧🇩 Serving Bangladesh & the Global Bangladeshi Community</p>
-        <p className="text-center text-sm font-semibold text-primary">✨ "Your Trust, Our Commitment. Your Success, Our Milestone."</p>
+        <p className="text-center text-xs text-muted-foreground">
+          📍 Education | Certification | Documentation | Visa Support | Probashi Services
+        </p>
+        <p className="text-center font-medium">
+          🇧🇩 Serving Bangladesh & the Global Bangladeshi Community
+        </p>
+        <p className="text-center text-sm font-semibold text-primary">
+          ✨ "Your Trust, Our Commitment. Your Success, Our Milestone."
+        </p>
 
-        <button onClick={copy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 font-semibold text-primary-foreground">
+        <button
+          onClick={copy}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 font-semibold text-primary-foreground"
+        >
           <Copy className="h-4 w-4" /> পুরো তথ্য কপি করুন
         </button>
       </div>

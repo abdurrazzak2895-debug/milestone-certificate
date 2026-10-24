@@ -4,17 +4,33 @@ import { Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-export type CertInfo = { name: string; passport: string; occupation: string; occupationId: string | null; examAt: string; result: string; ref: string };
+export type CertInfo = {
+  name: string;
+  passport: string;
+  occupation: string;
+  occupationId: string | null;
+  examAt: string;
+  result: string;
+  ref: string;
+};
 
 const OFFICIAL_URL = "https://svp-international.qiwa.sa/applicant-result";
 const SITE = "https://milestonecertificate.lovable.app";
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const esc = (s: string) =>
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 
 export const verifyUrl = (d: CertInfo) =>
   `${SITE}/result-check?passport=${encodeURIComponent(d.passport)}${d.occupationId ? `&occ=${encodeURIComponent(d.occupationId)}` : ""}`;
 
 async function buildHtml(d: CertInfo) {
-  const qr = await QRCode.toDataURL(OFFICIAL_URL, { margin: 1, width: 260, color: { dark: "#0f3d2e", light: "#ffffff" } });
+  const qr = await QRCode.toDataURL(OFFICIAL_URL, {
+    margin: 1,
+    width: 260,
+    color: { dark: "#0f3d2e", light: "#ffffff" },
+  });
   const pass = d.result === "PASS";
   const col = pass ? "#047857" : "#b91c1c";
   const row = (k: string, v: string) => `<tr><th>${k}</th><td>${esc(v || "—")}</td></tr>`;
@@ -87,28 +103,49 @@ export function ResultCertificateButton({ d }: { d: CertInfo }) {
       const f = document.createElement("iframe");
       f.id = "cert-print-frame";
       f.setAttribute("aria-hidden", "true");
-      f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+      f.style.cssText =
+        "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
       document.body.appendChild(f);
       const w = f.contentWindow;
       const doc = w?.document;
       if (!w || !doc) throw new Error("no frame");
-      doc.open(); doc.write(html); doc.close();
+      doc.open();
+      doc.write(html);
+      doc.close();
       const fire = () => {
-        try { w.focus(); w.print(); }
-        catch {
+        try {
+          w.focus();
+          w.print();
+        } catch {
           // Older browsers: fall back to a new tab that prints itself.
           const tab = window.open("", "_blank");
           if (!tab) return toast.error("প্রিন্ট খোলা যায়নি — পপআপ অনুমতি দিন");
-          tab.document.write(html.replace("</body>", "<script>window.onload=()=>setTimeout(()=>print(),600)<\/script></body>"));
+          tab.document.write(
+            html.replace(
+              "</body>",
+              "<script>window.onload=()=>setTimeout(()=>print(),600)<\/script></body>",
+            ),
+          );
           tab.document.close();
         }
       };
       const fonts = (doc as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
-      await Promise.race([fonts?.ready ?? Promise.resolve(), new Promise((r) => setTimeout(r, 1500))]);
+      await Promise.race([
+        fonts?.ready ?? Promise.resolve(),
+        new Promise((r) => setTimeout(r, 1500)),
+      ]);
       await new Promise((r) => setTimeout(r, 400));
       fire();
-    } catch { toast.error("রেজাল্ট পেপার তৈরি করা যায়নি"); }
-    finally { setBusy(false); }
+    } catch {
+      toast.error("রেজাল্ট পেপার তৈরি করা যায়নি");
+    } finally {
+      setBusy(false);
+    }
   };
-  return <Button size="sm" variant="outline" disabled={busy} onClick={go}><Printer className="mr-1 h-4 w-4" />{busy ? "প্রস্তুত হচ্ছে..." : "A4 রেজাল্ট পেপার প্রিন্ট"}</Button>;
+  return (
+    <Button size="sm" variant="outline" disabled={busy} onClick={go}>
+      <Printer className="mr-1 h-4 w-4" />
+      {busy ? "প্রস্তুত হচ্ছে..." : "A4 রেজাল্ট পেপার প্রিন্ট"}
+    </Button>
+  );
 }

@@ -137,10 +137,15 @@
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
   }
-  input, textarea, select, button {
+  input,
+  textarea,
+  select,
+  button {
     font-family: inherit;
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-family: var(--font-display);
   }
 }
@@ -149,47 +154,125 @@
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  box-shadow: 0 1px 2px oklch(0.3 0.05 160 / 0.05), 0 4px 16px -8px oklch(0.3 0.05 160 / 0.08);
+  box-shadow:
+    0 1px 2px oklch(0.3 0.05 160 / 0.05),
+    0 4px 16px -8px oklch(0.3 0.05 160 / 0.08);
 }
 
 @utility pulse-dot {
   animation: pulse-dot 1.6s ease-in-out infinite;
 }
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
 }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
 }
-.animate-marquee { display: inline-block; padding-left: 100%; animation: marquee 22s linear infinite; }
-.animate-marquee:hover { animation-play-state: paused; }
-@keyframes btn-shimmer { 0% { transform: translateX(-120%) skewX(-20deg); } 60%,100% { transform: translateX(260%) skewX(-20deg); } }
-.animate-btn-shimmer { animation: btn-shimmer 3s ease-in-out infinite; }
+.animate-marquee {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 22s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+@keyframes btn-shimmer {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  60%,
+  100% {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+.animate-btn-shimmer {
+  animation: btn-shimmer 3s ease-in-out infinite;
+}
 
 @keyframes trolley-walk {
-  0% { left: -3rem; opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { left: calc(100% + 0.5rem); opacity: 0; }
+  0% {
+    left: -3rem;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 0.5rem);
+    opacity: 0;
+  }
 }
 @keyframes trolley-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
 }
-.animate-trolley-walk { animation: trolley-walk 1.6s linear forwards; }
-.animate-trolley-bob { animation: trolley-bob 0.3s ease-in-out infinite; }
-
+.animate-trolley-walk {
+  animation: trolley-walk 1.6s linear forwards;
+}
+.animate-trolley-bob {
+  animation: trolley-bob 0.3s ease-in-out infinite;
+}
 
 /* Black-hole loader */
-.bh-disk { background: conic-gradient(from 0deg, transparent, color-mix(in oklab, var(--primary) 60%, transparent), transparent 40%, color-mix(in oklab, var(--accent) 50%, transparent), transparent 75%); filter: blur(6px); animation: bh-spin 1.4s linear infinite; mask: radial-gradient(circle, transparent 38%, #000 42%, transparent 70%); }
-.bh-ring { animation: bh-spin .9s linear infinite; }
-.bh-ring-rev { animation: bh-spin 1.2s linear infinite reverse; }
-.logo-wave { animation: logo-wave 1s ease-in-out infinite; transform-origin: 50% 85%; }
-@keyframes bh-spin { to { transform: rotate(360deg); } }
-@keyframes logo-wave { 0%,100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.05); } }
+.bh-disk {
+  background: conic-gradient(
+    from 0deg,
+    transparent,
+    color-mix(in oklab, var(--primary) 60%, transparent),
+    transparent 40%,
+    color-mix(in oklab, var(--accent) 50%, transparent),
+    transparent 75%
+  );
+  filter: blur(6px);
+  animation: bh-spin 1.4s linear infinite;
+  mask: radial-gradient(circle, transparent 38%, #000 42%, transparent 70%);
+}
+.bh-ring {
+  animation: bh-spin 0.9s linear infinite;
+}
+.bh-ring-rev {
+  animation: bh-spin 1.2s linear infinite reverse;
+}
+.logo-wave {
+  animation: logo-wave 1s ease-in-out infinite;
+  transform-origin: 50% 85%;
+}
+@keyframes bh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes logo-wave {
+  0%,
+  100% {
+    transform: rotate(-6deg) scale(1);
+  }
+  50% {
+    transform: rotate(6deg) scale(1.05);
+  }
+}
 
 /* SVP Takamol portal look (scoped to /svp-booking) */
 .svp-portal {
@@ -197,17 +280,71 @@
   --svp-muted: oklch(0.72 0.03 270);
   --svp-accent: oklch(0.59 0.2 277);
   --svp-accent-2: oklch(0.67 0.26 322);
-  position: relative; isolation: isolate; color: var(--svp-fg);
-  border-radius: 1.5rem; padding: 1.25rem; overflow: hidden;
-  background: linear-gradient(135deg, oklch(0.21 0.04 265) 0%, oklch(0.26 0.09 277) 50%, oklch(0.33 0.15 277) 100%);
+  position: relative;
+  isolation: isolate;
+  color: var(--svp-fg);
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    oklch(0.21 0.04 265) 0%,
+    oklch(0.26 0.09 277) 50%,
+    oklch(0.33 0.15 277) 100%
+  );
 }
-.svp-portal::before, .svp-portal::after { content: ""; position: absolute; z-index: -1; border-radius: 9999px; filter: blur(64px); }
-.svp-portal::before { width: 28rem; height: 28rem; top: -10rem; left: -10rem; background: color-mix(in oklab, var(--svp-accent) 25%, transparent); }
-.svp-portal::after { width: 24rem; height: 24rem; bottom: -8rem; right: -8rem; background: color-mix(in oklab, var(--svp-accent-2) 15%, transparent); }
-.svp-glass { background: color-mix(in oklab, var(--svp-fg) 8%, transparent); backdrop-filter: blur(20px); border: 1px solid color-mix(in oklab, var(--svp-fg) 12%, transparent); border-radius: 1rem; }
-.svp-portal input, .svp-portal select { background: color-mix(in oklab, var(--svp-fg) 6%, transparent) !important; border-color: color-mix(in oklab, var(--svp-fg) 15%, transparent) !important; color: var(--svp-fg) !important; }
-.svp-portal option { color: oklch(0.2 0.02 270); }
-.svp-portal label, .svp-muted { color: var(--svp-muted); }
-.svp-btn { background: linear-gradient(90deg, var(--svp-accent), var(--svp-accent-2)) !important; color: var(--svp-fg) !important; box-shadow: 0 0 25px color-mix(in oklab, var(--svp-accent) 35%, transparent); }
-.svp-grad-text { background: linear-gradient(90deg, oklch(0.79 0.1 277), oklch(0.83 0.14 322)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.svp-logo { background: linear-gradient(135deg, oklch(0.67 0.16 277), var(--svp-accent-2)); }
+.svp-portal::before,
+.svp-portal::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  filter: blur(64px);
+}
+.svp-portal::before {
+  width: 28rem;
+  height: 28rem;
+  top: -10rem;
+  left: -10rem;
+  background: color-mix(in oklab, var(--svp-accent) 25%, transparent);
+}
+.svp-portal::after {
+  width: 24rem;
+  height: 24rem;
+  bottom: -8rem;
+  right: -8rem;
+  background: color-mix(in oklab, var(--svp-accent-2) 15%, transparent);
+}
+.svp-glass {
+  background: color-mix(in oklab, var(--svp-fg) 8%, transparent);
+  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in oklab, var(--svp-fg) 12%, transparent);
+  border-radius: 1rem;
+}
+.svp-portal input,
+.svp-portal select {
+  background: color-mix(in oklab, var(--svp-fg) 6%, transparent) !important;
+  border-color: color-mix(in oklab, var(--svp-fg) 15%, transparent) !important;
+  color: var(--svp-fg) !important;
+}
+.svp-portal option {
+  color: oklch(0.2 0.02 270);
+}
+.svp-portal label,
+.svp-muted {
+  color: var(--svp-muted);
+}
+.svp-btn {
+  background: linear-gradient(90deg, var(--svp-accent), var(--svp-accent-2)) !important;
+  color: var(--svp-fg) !important;
+  box-shadow: 0 0 25px color-mix(in oklab, var(--svp-accent) 35%, transparent);
+}
+.svp-grad-text {
+  background: linear-gradient(90deg, oklch(0.79 0.1 277), oklch(0.83 0.14 322));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.svp-logo {
+  background: linear-gradient(135deg, oklch(0.67 0.16 277), var(--svp-accent-2));
+}

@@ -4,9 +4,23 @@ import { AppShell } from "@/components/app/AppShell";
 import { homeForRoles, isManager } from "@/lib/roles";
 import { checkDeviceSession, forceSignOut } from "@/lib/device-session";
 
-const AGENT_PATHS = ["/dashboard", "/submit-job", "/my-works", "/sub-agents", "/office", "/about", "/agent-results"];
+const AGENT_PATHS = [
+  "/dashboard",
+  "/submit-job",
+  "/my-works",
+  "/sub-agents",
+  "/office",
+  "/about",
+  "/agent-results",
+];
 const PROVIDER_PATHS = ["/provider"];
-const ADMIN_ONLY_PATHS = ["/finance", "/agency-report", "/messages", "/center-addresses", "/svp-booking"];
+const ADMIN_ONLY_PATHS = [
+  "/finance",
+  "/agency-report",
+  "/messages",
+  "/center-addresses",
+  "/svp-booking",
+];
 const MANAGEMENT_PATHS = ["/management", "/submissions"];
 
 export const Route = createFileRoute("/_authenticated")({
@@ -25,7 +39,8 @@ export const Route = createFileRoute("/_authenticated")({
     }
     const roles = (rolesRes.data ?? []).map((r) => r.role as string);
     if (roles.length === 0) throw redirect({ to: "/portal" });
-    if (ADMIN_ONLY_PATHS.includes(location.pathname) && !roles.includes("admin")) throw redirect({ to: homeForRoles(roles) });
+    if (ADMIN_ONLY_PATHS.includes(location.pathname) && !roles.includes("admin"))
+      throw redirect({ to: homeForRoles(roles) });
     if (!isManager(roles)) {
       const active = activeRes.data;
       if (active === false) {

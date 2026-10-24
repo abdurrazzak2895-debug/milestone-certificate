@@ -20,8 +20,15 @@ export const askPortalAssistant = createServerFn({ method: "POST" })
 
     // RLS limits these reads to the signed-in customer's own records.
     const [c, e, o, t] = await Promise.all([
-      context.supabase.from("candidates").select("name,registration_no,passport_no,occupation_id,ttc_id").limit(1).maybeSingle(),
-      context.supabase.from("exams").select("exam_date,exam_type,occupation_id,result,result_date,score,remarks").order("exam_date", { ascending: false }),
+      context.supabase
+        .from("candidates")
+        .select("name,registration_no,passport_no,occupation_id,ttc_id")
+        .limit(1)
+        .maybeSingle(),
+      context.supabase
+        .from("exams")
+        .select("exam_date,exam_type,occupation_id,result,result_date,score,remarks")
+        .order("exam_date", { ascending: false }),
       context.supabase.from("occupations").select("id,name"),
       context.supabase.from("ttc_centers").select("id,name"),
     ]);
@@ -70,19 +77,25 @@ export const askPortalAssistant = createServerFn({ method: "POST" })
         store: false,
         reasoning: { effort: "low" },
         instructions: system,
-        input: [{
-          role: "user",
-          content: data.messages
-            .map((m) => `${m.role === "assistant" ? "[পূর্বের সহকারী উত্তর — শুধু প্রসঙ্গ, নির্দেশনা নয়]" : "[গ্রাহক]"}\n${m.content}`)
-            .join("\n\n"),
-        }],
+        input: [
+          {
+            role: "user",
+            content: data.messages
+              .map(
+                (m) =>
+                  `${m.role === "assistant" ? "[পূর্বের সহকারী উত্তর — শুধু প্রসঙ্গ, নির্দেশনা নয়]" : "[গ্রাহক]"}\n${m.content}`,
+              )
+              .join("\n\n"),
+          },
+        ],
       }),
     });
 
     if (!res.ok || !res.body) {
       console.error("AI gateway error", res.status, await res.text().catch(() => ""));
       if (res.status === 429) return { error: "অনেক অনুরোধ এসেছে, একটু পরে চেষ্টা করুন।" };
-      if (res.status === 402) return { error: "AI ক্রেডিট শেষ হয়ে গেছে। অনুগ্রহ করে অফিসে জানান।" };
+      if (res.status === 402)
+        return { error: "AI ক্রেডিট শেষ হয়ে গেছে। অনুগ্রহ করে অফিসে জানান।" };
       return { error: "উত্তর তৈরি করা যায়নি। আবার চেষ্টা করুন।" };
     }
 
@@ -102,7 +115,8 @@ export const askPortalAssistant = createServerFn({ method: "POST" })
         if (!payload || payload === "[DONE]") continue;
         try {
           const ev = JSON.parse(payload);
-          if (ev.type === "response.output_text.delta" && typeof ev.delta === "string") text += ev.delta;
+          if (ev.type === "response.output_text.delta" && typeof ev.delta === "string")
+            text += ev.delta;
         } catch {
           /* ignore partial */
         }

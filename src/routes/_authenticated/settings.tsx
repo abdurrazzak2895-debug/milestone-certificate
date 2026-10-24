@@ -10,10 +10,28 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Empty, Field, NativeSelect } from "@/components/app/ui-bits";
 import { changeMyAdminEmail } from "@/lib/accounts.functions";
-import { occQ, ttcQ, settingsQ, remindersQ, candidatesQ, fmtDate, todayStr, useRefreshAll } from "@/lib/data";
+import {
+  occQ,
+  ttcQ,
+  settingsQ,
+  remindersQ,
+  candidatesQ,
+  fmtDate,
+  todayStr,
+  useRefreshAll,
+} from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" }, { name: "description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" }, { property: "og:title", content: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" }, { property: "og:description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({
+    meta: [
+      { title: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" },
+      { name: "description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" },
+      { property: "og:title", content: "সেটিংস ও অ্যাডমিন | Milestone Certificate Institute" },
+      { property: "og:description", content: "টিটিসি, পেশা, ব্যবহারকারী ও সেটিংস।" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: SettingsPage,
 });
 
@@ -31,22 +49,43 @@ function SettingsPage() {
           <TabsTrigger value="gen">সাধারণ</TabsTrigger>
           <TabsTrigger value="email">অ্যাডমিন ইমেইল</TabsTrigger>
         </TabsList>
-        <TabsContent value="notice"><NoticeEditor /></TabsContent>
-        <TabsContent value="ttc"><MasterList table="ttc_centers" withDistrict /></TabsContent>
-        <TabsContent value="occ"><MasterList table="occupations" /></TabsContent>
-        <TabsContent value="rem"><Reminders /></TabsContent>
-        <TabsContent value="users"><Users /></TabsContent>
-        <TabsContent value="gen"><General /></TabsContent>
-        <TabsContent value="email"><AdminEmail /></TabsContent>
+        <TabsContent value="notice">
+          <NoticeEditor />
+        </TabsContent>
+        <TabsContent value="ttc">
+          <MasterList table="ttc_centers" withDistrict />
+        </TabsContent>
+        <TabsContent value="occ">
+          <MasterList table="occupations" />
+        </TabsContent>
+        <TabsContent value="rem">
+          <Reminders />
+        </TabsContent>
+        <TabsContent value="users">
+          <Users />
+        </TabsContent>
+        <TabsContent value="gen">
+          <General />
+        </TabsContent>
+        <TabsContent value="email">
+          <AdminEmail />
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function MasterList({ table, withDistrict }: { table: "ttc_centers" | "occupations"; withDistrict?: boolean }) {
+function MasterList({
+  table,
+  withDistrict,
+}: {
+  table: "ttc_centers" | "occupations";
+  withDistrict?: boolean;
+}) {
   const { data: ttcRows = [] } = useQuery(ttcQ);
   const { data: occRows = [] } = useQuery(occQ);
-  const data: { id: string; name: string; district?: string | null }[] = table === "ttc_centers" ? ttcRows : occRows;
+  const data: { id: string; name: string; district?: string | null }[] =
+    table === "ttc_centers" ? ttcRows : occRows;
   const refresh = useRefreshAll();
   const [name, setName] = useState("");
   const [district, setDistrict] = useState("");
@@ -56,7 +95,10 @@ function MasterList({ table, withDistrict }: { table: "ttc_centers" | "occupatio
       ? await supabase.from("ttc_centers").insert({ name: name.trim(), district: district || null })
       : await supabase.from("occupations").insert({ name: name.trim() });
     if (error) return toast.error(error.code === "23505" ? "এই নাম আগেই আছে" : error.message);
-    setName(""); setDistrict(""); refresh(); toast.success("যোগ হয়েছে");
+    setName("");
+    setDistrict("");
+    refresh();
+    toast.success("যোগ হয়েছে");
   };
   const del = async (id: string) => {
     const { error } = await supabase.from(table).delete().eq("id", id);
@@ -66,15 +108,32 @@ function MasterList({ table, withDistrict }: { table: "ttc_centers" | "occupatio
   return (
     <div className="card-surface max-w-2xl p-4">
       <div className="mb-4 flex flex-wrap gap-2">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="নাম" className="flex-1" />
-        {withDistrict && <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="জেলা" className="w-40" />}
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="নাম"
+          className="flex-1"
+        />
+        {withDistrict && (
+          <Input
+            value={district}
+            onChange={(e) => setDistrict(e.target.value)}
+            placeholder="জেলা"
+            className="w-40"
+          />
+        )}
         <Button onClick={add}>যোগ করুন</Button>
       </div>
       <ul className="divide-y">
         {data.map((r) => (
           <li key={r.id} className="flex items-center justify-between py-2">
-            <span>{r.name} {r.district && <span className="text-sm text-muted-foreground">· {r.district}</span>}</span>
-            <Button size="icon" variant="ghost" onClick={() => del(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            <span>
+              {r.name}{" "}
+              {r.district && <span className="text-sm text-muted-foreground">· {r.district}</span>}
+            </span>
+            <Button size="icon" variant="ghost" onClick={() => del(r.id)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
           </li>
         ))}
       </ul>
@@ -91,25 +150,57 @@ function Reminders() {
   const [cand, setCand] = useState("");
   const add = async () => {
     if (!title.trim()) return;
-    const { error } = await supabase.from("reminders").insert({ title, due_date: date, candidate_id: cand || null });
+    const { error } = await supabase
+      .from("reminders")
+      .insert({ title, due_date: date, candidate_id: cand || null });
     if (error) return toast.error(error.message);
-    setTitle(""); refresh();
+    setTitle("");
+    refresh();
   };
-  const toggle = async (id: string, done: boolean) => { await supabase.from("reminders").update({ done }).eq("id", id); refresh(); };
+  const toggle = async (id: string, done: boolean) => {
+    await supabase.from("reminders").update({ done }).eq("id", id);
+    refresh();
+  };
   return (
     <div className="card-surface max-w-3xl p-4">
       <div className="mb-4 grid gap-2 sm:grid-cols-4">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="যেমন: পুনঃপরীক্ষার তারিখ জানান" className="sm:col-span-2" />
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="যেমন: পুনঃপরীক্ষার তারিখ জানান"
+          className="sm:col-span-2"
+        />
         <DateSelect value={date} onChange={(e) => setDate(e.target.value)} />
-        <NativeSelect value={cand} onChange={(e) => setCand(e.target.value)}><option value="">পরীক্ষার্থী (ঐচ্ছিক)</option>{cands.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</NativeSelect>
-        <Button onClick={add} className="sm:col-span-4">রিমাইন্ডার যোগ করুন</Button>
+        <NativeSelect value={cand} onChange={(e) => setCand(e.target.value)}>
+          <option value="">পরীক্ষার্থী (ঐচ্ছিক)</option>
+          {cands.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </NativeSelect>
+        <Button onClick={add} className="sm:col-span-4">
+          রিমাইন্ডার যোগ করুন
+        </Button>
       </div>
-      {data.length === 0 ? <Empty>কোনো রিমাইন্ডার নেই</Empty> : (
+      {data.length === 0 ? (
+        <Empty>কোনো রিমাইন্ডার নেই</Empty>
+      ) : (
         <ul className="divide-y">
           {data.map((r) => (
-            <li key={r.id} className={`flex items-center justify-between py-2 ${r.done ? "opacity-50 line-through" : ""}`}>
-              <span>{r.title} <span className="text-sm text-muted-foreground">· {fmtDate(r.due_date)} · {cands.find((c) => c.id === r.candidate_id)?.name ?? ""}</span></span>
-              <Button size="sm" variant="outline" onClick={() => toggle(r.id, !r.done)}><Check className="h-4 w-4" /></Button>
+            <li
+              key={r.id}
+              className={`flex items-center justify-between py-2 ${r.done ? "opacity-50 line-through" : ""}`}
+            >
+              <span>
+                {r.title}{" "}
+                <span className="text-sm text-muted-foreground">
+                  · {fmtDate(r.due_date)} · {cands.find((c) => c.id === r.candidate_id)?.name ?? ""}
+                </span>
+              </span>
+              <Button size="sm" variant="outline" onClick={() => toggle(r.id, !r.done)}>
+                <Check className="h-4 w-4" />
+              </Button>
             </li>
           ))}
         </ul>
@@ -122,18 +213,30 @@ function Users() {
   const { data } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const [{ data: p }, { data: r }] = await Promise.all([supabase.from("profiles").select("*"), supabase.from("user_roles").select("*")]);
-      return (p ?? []).map((x) => ({ ...x, roles: (r ?? []).filter((y) => y.user_id === x.id).map((y) => y.role) }));
+      const [{ data: p }, { data: r }] = await Promise.all([
+        supabase.from("profiles").select("*"),
+        supabase.from("user_roles").select("*"),
+      ]);
+      return (p ?? []).map((x) => ({
+        ...x,
+        roles: (r ?? []).filter((y) => y.user_id === x.id).map((y) => y.role),
+      }));
     },
   });
   return (
     <div className="card-surface max-w-2xl p-4">
-      <p className="mb-3 text-sm text-muted-foreground">নতুন ব্যবহারকারী লগইন পেজ থেকে অ্যাকাউন্ট খুলতে পারবেন। প্রথম অ্যাকাউন্ট অ্যাডমিন।</p>
+      <p className="mb-3 text-sm text-muted-foreground">
+        নতুন ব্যবহারকারী লগইন পেজ থেকে অ্যাকাউন্ট খুলতে পারবেন। প্রথম অ্যাকাউন্ট অ্যাডমিন।
+      </p>
       <ul className="divide-y">
         {data?.map((u) => (
           <li key={u.id} className="flex justify-between py-2">
-            <span>{u.full_name} <span className="text-sm text-muted-foreground">{u.email}</span></span>
-            <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary">{u.roles.includes("admin") ? "অ্যাডমিন" : "স্টাফ"}</span>
+            <span>
+              {u.full_name} <span className="text-sm text-muted-foreground">{u.email}</span>
+            </span>
+            <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary">
+              {u.roles.includes("admin") ? "অ্যাডমিন" : "স্টাফ"}
+            </span>
           </li>
         ))}
       </ul>
@@ -146,17 +249,36 @@ function General() {
   const refresh = useRefreshAll();
   const [org, setOrg] = useState("");
   const [api, setApi] = useState("");
-  useEffect(() => { if (data) { setOrg(data.org_name ?? ""); setApi(data.result_api_url ?? ""); } }, [data]);
+  useEffect(() => {
+    if (data) {
+      setOrg(data.org_name ?? "");
+      setApi(data.result_api_url ?? "");
+    }
+  }, [data]);
   const save = async () => {
-    const { error } = await supabase.from("settings").upsert([{ key: "org_name", value: org }, { key: "result_api_url", value: api }]);
+    const { error } = await supabase.from("settings").upsert([
+      { key: "org_name", value: org },
+      { key: "result_api_url", value: api },
+    ]);
     if (error) return toast.error(error.message);
-    refresh(); toast.success("সংরক্ষিত হয়েছে");
+    refresh();
+    toast.success("সংরক্ষিত হয়েছে");
   };
   return (
     <div className="card-surface max-w-xl space-y-3 p-4">
-      <Field label="প্রতিষ্ঠানের নাম"><Input value={org} onChange={(e) => setOrg(e.target.value)} /></Field>
-      <Field label="অফিসিয়াল রেজাল্ট API ঠিকানা (ভবিষ্যতে সংযোগের জন্য)"><Input value={api} onChange={(e) => setApi(e.target.value)} placeholder="এখনো সংযুক্ত নয়" /></Field>
-      <p className="text-xs text-muted-foreground">অনুমোদিত অফিসিয়াল API পাওয়া গেলে অটোমেটিক রেজাল্ট চেক চালু করা যাবে।</p>
+      <Field label="প্রতিষ্ঠানের নাম">
+        <Input value={org} onChange={(e) => setOrg(e.target.value)} />
+      </Field>
+      <Field label="অফিসিয়াল রেজাল্ট API ঠিকানা (ভবিষ্যতে সংযোগের জন্য)">
+        <Input
+          value={api}
+          onChange={(e) => setApi(e.target.value)}
+          placeholder="এখনো সংযুক্ত নয়"
+        />
+      </Field>
+      <p className="text-xs text-muted-foreground">
+        অনুমোদিত অফিসিয়াল API পাওয়া গেলে অটোমেটিক রেজাল্ট চেক চালু করা যাবে।
+      </p>
       <Button onClick={save}>সংরক্ষণ করুন</Button>
     </div>
   );
@@ -171,13 +293,19 @@ function AdminEmail() {
       const r = await changeMyAdminEmail({ data: { email } });
       if (r.ok) toast.success("ইমেইল পরিবর্তন হয়েছে। পরবর্তীতে নতুন ইমেইল দিয়ে লগইন করুন।");
       else toast.error(r.message);
-    } catch { toast.error("ইমেইল পরিবর্তন করা যায়নি"); }
+    } catch {
+      toast.error("ইমেইল পরিবর্তন করা যায়নি");
+    }
     setBusy(false);
   };
   return (
     <div className="max-w-md space-y-3 rounded-2xl border bg-card p-4">
-      <Field label="নতুন অ্যাডমিন ইমেইল"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-      <Button onClick={save} disabled={busy}>{busy ? "অপেক্ষা করুন..." : "ইমেইল পরিবর্তন করুন"}</Button>
+      <Field label="নতুন অ্যাডমিন ইমেইল">
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </Field>
+      <Button onClick={save} disabled={busy}>
+        {busy ? "অপেক্ষা করুন..." : "ইমেইল পরিবর্তন করুন"}
+      </Button>
     </div>
   );
 }
@@ -185,21 +313,38 @@ function AdminEmail() {
 function NoticeEditor() {
   const [text, setText] = useState("");
   useEffect(() => {
-    supabase.from("settings").select("value").eq("key", "agent_notice").maybeSingle().then(({ data }) => setText(data?.value ?? ""));
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "agent_notice")
+      .maybeSingle()
+      .then(({ data }) => setText(data?.value ?? ""));
   }, []);
   const save = async (v: string) => {
-    const { error } = await supabase.from("settings").upsert({ key: "agent_notice", value: v.slice(0, 1000) });
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ key: "agent_notice", value: v.slice(0, 1000) });
     if (error) return toast.error("সংরক্ষণ করা যায়নি");
     setText(v);
     toast.success(v ? "নোটিস চালু হয়েছে" : "নোটিস বন্ধ করা হয়েছে");
   };
   return (
     <div className="card-surface space-y-3 p-4">
-      <p className="text-sm text-muted-foreground">এখানে লেখা নোটিস সব এজেন্টের পেজের উপরে চলমান অবস্থায় দেখাবে।</p>
-      <textarea className="min-h-28 w-full rounded-lg border bg-card p-3 text-sm" maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="যেমন: আগামীকাল সকাল ১০টার মধ্যে সকল প্রার্থীকে অফিসে পাঠান।" />
+      <p className="text-sm text-muted-foreground">
+        এখানে লেখা নোটিস সব এজেন্টের পেজের উপরে চলমান অবস্থায় দেখাবে।
+      </p>
+      <textarea
+        className="min-h-28 w-full rounded-lg border bg-card p-3 text-sm"
+        maxLength={1000}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="যেমন: আগামীকাল সকাল ১০টার মধ্যে সকল প্রার্থীকে অফিসে পাঠান।"
+      />
       <div className="flex gap-2">
         <Button onClick={() => save(text.trim())}>সংরক্ষণ করুন</Button>
-        <Button variant="outline" onClick={() => save("")}>নোটিস বন্ধ করুন</Button>
+        <Button variant="outline" onClick={() => save("")}>
+          নোটিস বন্ধ করুন
+        </Button>
       </div>
     </div>
   );

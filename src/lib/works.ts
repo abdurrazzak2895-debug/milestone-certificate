@@ -22,7 +22,12 @@ export const STATUS_CLS: Record<string, string> = {
   received: "bg-primary/15 text-primary",
   absent: "bg-destructive/15 text-destructive",
 };
-export const SVP_LABEL: Record<string, string> = { PASS: "PASS", FAIL: "FAIL", PENDING: "PENDING", NOT_FOUND: "NOT FOUND" };
+export const SVP_LABEL: Record<string, string> = {
+  PASS: "PASS",
+  FAIL: "FAIL",
+  PENDING: "PENDING",
+  NOT_FOUND: "NOT FOUND",
+};
 
 /** RLS decides which rows come back: agent = own, provider = approved, staff = all. */
 export const worksQ = queryOptions({
@@ -32,12 +37,21 @@ export const worksQ = queryOptions({
     // Page through results so lists are never cut off at the default row limit.
     const data: Work[] = [];
     for (let from = 0; ; from += 1000) {
-      const { data: page, error } = await supabase.from("job_submissions").select("*").order("exam_at", { ascending: true }).order("id").range(from, from + 999);
+      const { data: page, error } = await supabase
+        .from("job_submissions")
+        .select("*")
+        .order("exam_at", { ascending: true })
+        .order("id")
+        .range(from, from + 999);
       if (error) throw error;
       data.push(...(page ?? []));
       if (!page || page.length < 1000) break;
     }
-    return (data ?? []).map((w) => ({ ...w, candidate_name: (w.candidate_name ?? "").toUpperCase(), passport_no: (w.passport_no ?? "").toUpperCase() })) as Work[];
+    return (data ?? []).map((w) => ({
+      ...w,
+      candidate_name: (w.candidate_name ?? "").toUpperCase(),
+      passport_no: (w.passport_no ?? "").toUpperCase(),
+    })) as Work[];
   },
 });
 
@@ -46,14 +60,20 @@ export const myAccountQ = queryOptions({
   queryFn: async () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return null;
-    const { data } = await supabase.from("agent_accounts").select("*").eq("user_id", u.user.id).maybeSingle();
+    const { data } = await supabase
+      .from("agent_accounts")
+      .select("*")
+      .eq("user_id", u.user.id)
+      .maybeSingle();
     return data;
   },
 });
 
 export async function openTicket(path: string) {
   try {
-    const { data, error } = await supabase.storage.from("candidate-photos").createSignedUrl(path, 300, { download: path.split("/").pop() || "ticket.pdf" });
+    const { data, error } = await supabase.storage
+      .from("candidate-photos")
+      .createSignedUrl(path, 300, { download: path.split("/").pop() || "ticket.pdf" });
     if (error || !data?.signedUrl) throw error ?? new Error("no signed url");
     // Fetch to a blob so the file downloads reliably instead of being blocked as a popup.
     const res = await fetch(data.signedUrl);
@@ -75,5 +95,9 @@ export async function openTicket(path: string) {
 
 export function fmtDhakaDateTime(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("bn-BD", { timeZone: "Asia/Dhaka", dateStyle: "medium", timeStyle: "short" });
+  return new Date(iso).toLocaleString("bn-BD", {
+    timeZone: "Asia/Dhaka",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }

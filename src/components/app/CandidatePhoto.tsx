@@ -6,7 +6,15 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 const isImage = (p: string) => /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(p);
 
 /** Candidate photo from private storage (signed URL), falling back to initials. Click to enlarge. */
-export function CandidatePhoto({ path, name, size = 48 }: { path: string | null | undefined; name: string; size?: number }) {
+export function CandidatePhoto({
+  path,
+  name,
+  size = 48,
+}: {
+  path: string | null | undefined;
+  name: string;
+  size?: number;
+}) {
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
   const displaySize = Math.max(64, size);
@@ -23,19 +31,56 @@ export function CandidatePhoto({ path, name, size = 48 }: { path: string | null 
       return result.data?.signedUrl ?? null;
     },
   });
-  const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+  const initials =
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "?";
   return (
     <>
       <div
         style={{ width: displaySize, height: displaySize }}
         className={`shrink-0 overflow-hidden rounded-xl border bg-muted ring-2 ring-primary/20 ${url ? "cursor-zoom-in transition-transform hover:scale-105" : ""}`}
-        onClick={url ? (e) => { e.stopPropagation(); e.preventDefault(); setOpen(true); } : undefined}
+        onClick={
+          url
+            ? (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setOpen(true);
+              }
+            : undefined
+        }
         role={url ? "button" : undefined}
         tabIndex={url ? 0 : undefined}
-        onKeyDown={url ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setOpen(true); } } : undefined}
+        onKeyDown={
+          url
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(true);
+                }
+              }
+            : undefined
+        }
         title={url ? "বড় করে দেখুন" : undefined}
       >
-        {url && !failed ? <img src={url} alt={name} className="h-full w-full object-cover" loading="lazy" onError={() => setFailed(true)} /> : <div className="flex h-full w-full items-center justify-center text-lg font-bold text-muted-foreground">{initials}</div>}
+        {url && !failed ? (
+          <img
+            src={url}
+            alt={name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-lg font-bold text-muted-foreground">
+            {initials}
+          </div>
+        )}
       </div>
       {url && (
         <Dialog open={open} onOpenChange={setOpen}>

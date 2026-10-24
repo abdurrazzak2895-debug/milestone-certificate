@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { BellRing } from "lucide-react";
 
-type W = { id: string; candidate_name: string; exam_at: string | null; passport_no?: string | null };
+type W = {
+  id: string;
+  candidate_name: string;
+  exam_at: string | null;
+  passport_no?: string | null;
+};
 
 // Keeps asking until the agent turns browser notifications on; then reminds 1 hour before each exam.
 export function AgentNotifyPrompt({ works }: { works: W[] }) {
@@ -9,7 +14,10 @@ export function AgentNotifyPrompt({ works }: { works: W[] }) {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    if (typeof Notification === "undefined") { setPerm("unsupported"); return; }
+    if (typeof Notification === "undefined") {
+      setPerm("unsupported");
+      return;
+    }
     setPerm(Notification.permission);
   }, []);
 
@@ -56,10 +64,21 @@ export function AgentNotifyPrompt({ works }: { works: W[] }) {
       <BellRing className="h-6 w-6 shrink-0 text-primary" />
       <div className="min-w-0 flex-1 text-sm">
         <div className="font-semibold">পরীক্ষার রিমাইন্ডার পেতে নোটিফিকেশন চালু করুন</div>
-        {perm === "denied" && <div className="text-xs text-muted-foreground">ব্রাউজারের সেটিংস থেকে এই সাইটের Notification "Allow" করুন।</div>}
+        {perm === "denied" && (
+          <div className="text-xs text-muted-foreground">
+            ব্রাউজারের সেটিংস থেকে এই সাইটের Notification "Allow" করুন।
+          </div>
+        )}
       </div>
-      <button onClick={enable} className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">চালু করুন</button>
-      <button onClick={() => setHidden(true)} className="shrink-0 text-xs text-muted-foreground">পরে</button>
+      <button
+        onClick={enable}
+        className="shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+      >
+        চালু করুন
+      </button>
+      <button onClick={() => setHidden(true)} className="shrink-0 text-xs text-muted-foreground">
+        পরে
+      </button>
     </div>
   );
 }

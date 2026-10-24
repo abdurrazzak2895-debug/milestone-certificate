@@ -12,7 +12,12 @@ const resultStyle: Record<ExamResult, string> = {
 
 export function ResultBadge({ result, date }: { result: ExamResult; date?: string | null }) {
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", resultStyle[result])}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        resultStyle[result],
+      )}
+    >
       {RESULT_LABEL[result]}
       {date && <span className="font-normal opacity-80">· {fmtDate(date)}</span>}
     </span>
@@ -40,7 +45,14 @@ export function StatCard({
   };
   return (
     <div className="card-surface flex items-center gap-3 p-4">
-      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", tones[tone])}>{icon}</div>
+      <div
+        className={cn(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          tones[tone],
+        )}
+      >
+        {icon}
+      </div>
       <div className="min-w-0">
         <div className="truncate text-xs text-muted-foreground">{label}</div>
         <div className="font-display text-2xl font-bold leading-tight">{value}</div>
@@ -49,7 +61,11 @@ export function StatCard({
   );
 }
 
-export function NativeSelect({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function NativeSelect({
+  className,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       className={cn(
@@ -63,7 +79,15 @@ export function NativeSelect({ className, children, ...props }: SelectHTMLAttrib
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>

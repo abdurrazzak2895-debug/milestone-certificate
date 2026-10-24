@@ -1,6 +1,19 @@
 import { useEffect } from "react";
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 const pad = (n: number) => String(n).padStart(2, "0");
 const todayStr = () => {
   const d = new Date(Date.now() + 6 * 3600 * 1000); // Dhaka
@@ -37,16 +50,43 @@ export function DateSelect({ value, onChange, className = "", autoToday = true, 
   if (!years.includes(year)) years.push(year);
   const sel = "h-9 rounded-md border bg-background px-1.5 text-sm";
   return (
-    <span className={`inline-flex items-center gap-1 ${className.replace(/\bw-\S+/g, "")}`} aria-label={rest["aria-label"] as string | undefined}>
-      <select className={sel} value={day || ""} onChange={(e) => emit(year, month, Number(e.target.value))}>
+    <span
+      className={`inline-flex items-center gap-1 ${className.replace(/\bw-\S+/g, "")}`}
+      aria-label={rest["aria-label"] as string | undefined}
+    >
+      <select
+        className={sel}
+        value={day || ""}
+        onChange={(e) => emit(year, month, Number(e.target.value))}
+      >
         <option value="">Date</option>
-        {Array.from({ length: days }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
+        {Array.from({ length: days }, (_, i) => i + 1).map((d) => (
+          <option key={d} value={d}>
+            {d}
+          </option>
+        ))}
       </select>
-      <select className={sel} value={month} onChange={(e) => emit(year, Number(e.target.value), day || 1)}>
-        {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+      <select
+        className={sel}
+        value={month}
+        onChange={(e) => emit(year, Number(e.target.value), day || 1)}
+      >
+        {MONTHS.map((m, i) => (
+          <option key={m} value={i + 1}>
+            {m}
+          </option>
+        ))}
       </select>
-      <select className={sel} value={year} onChange={(e) => emit(Number(e.target.value), month, day || 1)}>
-        {years.sort().map((y) => <option key={y} value={y}>{y}</option>)}
+      <select
+        className={sel}
+        value={year}
+        onChange={(e) => emit(Number(e.target.value), month, day || 1)}
+      >
+        {years.sort().map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
       </select>
     </span>
   );

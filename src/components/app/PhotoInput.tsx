@@ -11,15 +11,33 @@ export function PhotoInput({ onFile }: { onFile: (f: File | null) => void }) {
   const pick = async (f: File | null | undefined) => {
     if (!f) return onFile(null);
     setBusy(true);
-    try { onFile(await compressImage(f)); } finally { setBusy(false); }
+    try {
+      onFile(await compressImage(f));
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div className="flex gap-2">
       <Input type="file" accept="image/*" onChange={(e) => pick(e.target.files?.[0])} />
-      <Button type="button" variant="outline" className="shrink-0" disabled={busy} onClick={() => camRef.current?.click()}>
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />} ক্যামেরা
+      <Button
+        type="button"
+        variant="outline"
+        className="shrink-0"
+        disabled={busy}
+        onClick={() => camRef.current?.click()}
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}{" "}
+        ক্যামেরা
       </Button>
-      <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+      <input
+        ref={camRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => pick(e.target.files?.[0])}
+      />
     </div>
   );
 }

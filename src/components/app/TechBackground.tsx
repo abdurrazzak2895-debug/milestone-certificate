@@ -18,13 +18,25 @@ export function TechBackground({ variant = "dark" }: { variant?: "dark" | "light
   }, [variant]);
   if (variant === "light") {
     return (
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-background">
-        <img src={light} alt="" width={1600} height={1008} className="absolute inset-0 h-full w-full object-cover" />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-background"
+      >
+        <img
+          src={light}
+          alt=""
+          width={1600}
+          height={1008}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
       </div>
     );
   }
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-background">
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-background"
+    >
       {IMAGES.map((src, idx) => (
         <img
           key={src}

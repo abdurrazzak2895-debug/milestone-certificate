@@ -4,7 +4,11 @@ import { askPortalAssistant } from "@/lib/portal-ai.functions";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const SUGGESTIONS = ["আমার পরীক্ষার ফল কী?", "আমি কি সার্টিফিকেট পাব?", "অফিসিয়াল রেজাল্ট কীভাবে যাচাই করব?"];
+const SUGGESTIONS = [
+  "আমার পরীক্ষার ফল কী?",
+  "আমি কি সার্টিফিকেট পাব?",
+  "অফিসিয়াল রেজাল্ট কীভাবে যাচাই করব?",
+];
 
 export function PortalAssistant() {
   const ask = useServerFn(askPortalAssistant);
@@ -35,13 +39,19 @@ export function PortalAssistant() {
   return (
     <section className="rounded-2xl border bg-card p-5 shadow-sm">
       <h2 className="font-semibold">প্রশ্ন করুন</h2>
-      <p className="text-sm text-muted-foreground">আপনার ফলাফল ও সার্টিফিকেট নিয়ে যেকোনো প্রশ্ন করুন।</p>
+      <p className="text-sm text-muted-foreground">
+        আপনার ফলাফল ও সার্টিফিকেট নিয়ে যেকোনো প্রশ্ন করুন।
+      </p>
 
       <div className="mt-4 max-h-80 space-y-3 overflow-y-auto">
         {msgs.length === 0 && (
           <div className="flex flex-wrap gap-2">
             {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => send(s)} className="rounded-full border px-3 py-1.5 text-xs hover:bg-muted">
+              <button
+                key={s}
+                onClick={() => send(s)}
+                className="rounded-full border px-3 py-1.5 text-xs hover:bg-muted"
+              >
                 {s}
               </button>
             ))}
@@ -51,7 +61,9 @@ export function PortalAssistant() {
           <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
             <p
               className={`whitespace-pre-wrap text-sm leading-relaxed ${
-                m.role === "user" ? "max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-primary-foreground" : ""
+                m.role === "user"
+                  ? "max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-primary-foreground"
+                  : ""
               }`}
             >
               {m.content}

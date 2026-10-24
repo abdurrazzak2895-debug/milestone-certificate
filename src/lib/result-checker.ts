@@ -14,7 +14,10 @@ export type ResultCheckResponse =
 
 export const NOT_CONNECTED_MSG = "স্বয়ংক্রিয় রেজাল্ট চেক বর্তমানে সংযুক্ত নয়";
 
-export async function checkOfficialResult(_q: ResultQuery, apiUrl?: string): Promise<ResultCheckResponse> {
+export async function checkOfficialResult(
+  _q: ResultQuery,
+  apiUrl?: string,
+): Promise<ResultCheckResponse> {
   if (!apiUrl) return { status: "unavailable", message: NOT_CONNECTED_MSG };
   // Placeholder: an official endpoint has not been integrated yet.
   return { status: "unavailable", message: NOT_CONNECTED_MSG };

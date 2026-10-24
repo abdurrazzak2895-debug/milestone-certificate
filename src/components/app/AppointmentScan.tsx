@@ -14,11 +14,26 @@ type Ext = { id: string; extracted: any; confidence: number | null; warnings: an
 type Saved = { name: string; passport: string; occupation: string };
 
 const norm = (s?: string | null) => (s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-const dDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
-const dTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Dhaka", hour: "2-digit", minute: "2-digit", hour12: false });
+const dDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Dhaka" });
+const dTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Dhaka",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 const HIDE = /report|arriv|minute|early|before|মিনিট|উপস্থিত|আগে/i;
 
-export function AppointmentScan({ submissionId, examAt, saved }: { submissionId: string; examAt: string; saved?: Saved }) {
+export function AppointmentScan({
+  submissionId,
+  examAt,
+  saved,
+}: {
+  submissionId: string;
+  examAt: string;
+  saved?: Saved;
+}) {
   const scan = useServerFn(scanAppointment);
   const verify = useServerFn(verifyAppointment);
   const qc = useQueryClient();
@@ -45,7 +60,15 @@ export function AppointmentScan({ submissionId, examAt, saved }: { submissionId:
     if (!ext || !f.date || !f.time) return toast.error("তারিখ ও সময় দিন");
     setBusy(true);
     try {
-      const r = await verify({ data: { extractionId: ext.id, examDate: f.date, examTime: f.time, reportingTime: null, reason: f.reason || null } });
+      const r = await verify({
+        data: {
+          extractionId: ext.id,
+          examDate: f.date,
+          examTime: f.time,
+          reportingTime: null,
+          reason: f.reason || null,
+        },
+      });
       if ("error" in r && r.error) return toast.error(r.error);
       toast.success("পরীক্ষার সময় যাচাই করে আপডেট হয়েছে");
       setExt(null);
@@ -56,7 +79,9 @@ export function AppointmentScan({ submissionId, examAt, saved }: { submissionId:
   }
 
   const x = ext?.extracted ?? {};
-  const warnings: string[] = (Array.isArray(ext?.warnings) ? (ext!.warnings as string[]) : []).filter((w) => !HIDE.test(w));
+  const warnings: string[] = (
+    Array.isArray(ext?.warnings) ? (ext!.warnings as string[]) : []
+  ).filter((w) => !HIDE.test(w));
   const rows: [string, string, string | null][] = [
     ["পরীক্ষার তারিখ", examAt ? dDate(examAt) : "", x.exam_date ?? null],
     ["পরীক্ষার সময়", examAt ? dTime(examAt) : "", x.exam_time ?? null],
@@ -67,40 +92,85 @@ export function AppointmentScan({ submissionId, examAt, saved }: { submissionId:
   return (
     <>
       <Button variant="outline" size="sm" disabled={busy} onClick={run}>
-        {busy && !ext ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ScanLine className="mr-1 h-4 w-4" />} টিকিট স্ক্যান
+        {busy && !ext ? (
+          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+        ) : (
+          <ScanLine className="mr-1 h-4 w-4" />
+        )}{" "}
+        টিকিট স্ক্যান
       </Button>
       <Dialog open={!!ext} onOpenChange={(o) => !o && setExt(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>টিকিট যাচাই</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>টিকিট যাচাই</DialogTitle>
+          </DialogHeader>
           <div className="overflow-hidden rounded-xl border text-sm">
             <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 bg-muted px-2 py-1.5 text-xs font-semibold">
-              <span>বিষয়</span><span>জমা দেওয়া</span><span>টিকিটে</span><span />
+              <span>বিষয়</span>
+              <span>জমা দেওয়া</span>
+              <span>টিকিটে</span>
+              <span />
             </div>
             {rows.map(([label, cur, tk]) => {
               const ok = !!tk && !!cur && norm(cur) === norm(tk);
               const bad = !!tk && !!cur && !ok;
               return (
-                <div key={label} className={`grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 border-t px-2 py-1.5 ${bad ? "bg-destructive/10" : ""}`}>
+                <div
+                  key={label}
+                  className={`grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 border-t px-2 py-1.5 ${bad ? "bg-destructive/10" : ""}`}
+                >
                   <span className="font-medium">{label}</span>
                   <span className="break-all">{cur || "—"}</span>
-                  <span className={`break-all ${bad ? "font-semibold text-destructive" : ""}`}>{tk ?? "পাওয়া যায়নি"}</span>
-                  {ok ? <CheckCircle2 className="h-4 w-4 text-primary" /> : bad ? <XCircle className="h-4 w-4 text-destructive" /> : <AlertTriangle className="h-4 w-4 text-muted-foreground" />}
+                  <span className={`break-all ${bad ? "font-semibold text-destructive" : ""}`}>
+                    {tk ?? "পাওয়া যায়নি"}
+                  </span>
+                  {ok ? (
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                  ) : bad ? (
+                    <XCircle className="h-4 w-4 text-destructive" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  )}
                 </div>
               );
             })}
           </div>
-          <p className="text-xs text-muted-foreground">নির্ভরযোগ্যতা: {Math.round((ext?.confidence ?? 0) * 100)}% · লাল চিহ্নিত ঘরে টিকিটের সাথে অমিল আছে।</p>
+          <p className="text-xs text-muted-foreground">
+            নির্ভরযোগ্যতা: {Math.round((ext?.confidence ?? 0) * 100)}% · লাল চিহ্নিত ঘরে টিকিটের
+            সাথে অমিল আছে।
+          </p>
           {warnings.length > 0 && (
             <ul className="space-y-1 rounded-lg bg-destructive/10 p-2 text-sm text-destructive">
-              {warnings.map((w, i) => <li key={i} className="flex gap-1"><AlertTriangle className="h-4 w-4 shrink-0" />{w}</li>)}
+              {warnings.map((w, i) => (
+                <li key={i} className="flex gap-1">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {w}
+                </li>
+              ))}
             </ul>
           )}
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs">পরীক্ষার তারিখ<DateSelect value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
-            <label className="text-xs">পরীক্ষার সময়<Input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} /></label>
+            <label className="text-xs">
+              পরীক্ষার তারিখ
+              <DateSelect value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+            </label>
+            <label className="text-xs">
+              পরীক্ষার সময়
+              <Input
+                type="time"
+                value={f.time}
+                onChange={(e) => setF({ ...f, time: e.target.value })}
+              />
+            </label>
           </div>
-          <Textarea placeholder="সংশোধন করলে কারণ লিখুন" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />
-          <Button disabled={busy} onClick={save}>{busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}যাচাই করে সংরক্ষণ</Button>
+          <Textarea
+            placeholder="সংশোধন করলে কারণ লিখুন"
+            value={f.reason}
+            onChange={(e) => setF({ ...f, reason: e.target.value })}
+          />
+          <Button disabled={busy} onClick={save}>
+            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}যাচাই করে সংরক্ষণ
+          </Button>
         </DialogContent>
       </Dialog>
     </>

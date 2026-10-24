@@ -20,7 +20,11 @@ export async function claimDeviceSession(isAdmin?: boolean) {
   if (admin === undefined) {
     const { data: u } = await supabase.auth.getUser();
     if (u.user) {
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id).eq("role", "admin");
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", u.user.id)
+        .eq("role", "admin");
       admin = (data?.length ?? 0) > 0;
     }
   }
@@ -33,11 +37,15 @@ export async function claimDeviceSession(isAdmin?: boolean) {
 export async function checkDeviceSession(force = false): Promise<string | null> {
   const key = localStorage.getItem(KEY);
   const at = Number(localStorage.getItem(AT) ?? 0);
-  const max = Math.min(Number(localStorage.getItem(MAX) ?? SESSION_MAX_MS) || SESSION_MAX_MS, ADMIN_SESSION_MAX_MS);
+  const max = Math.min(
+    Number(localStorage.getItem(MAX) ?? SESSION_MAX_MS) || SESSION_MAX_MS,
+    ADMIN_SESSION_MAX_MS,
+  );
   if (!key || !at || Date.now() - at > max) return "সেশনের মেয়াদ শেষ। আবার লগইন করুন।";
   if (!force && Date.now() - lastOkAt < CACHE_MS) return null;
   const { data, error } = await (supabase.rpc as any)("is_current_device_session", { _key: key });
-  if (!error && data === false) return "অন্য একটি ডিভাইসে এই আইডিতে লগইন করা হয়েছে, তাই এখান থেকে লগআউট করা হয়েছে।";
+  if (!error && data === false)
+    return "অন্য একটি ডিভাইসে এই আইডিতে লগইন করা হয়েছে, তাই এখান থেকে লগআউট করা হয়েছে।";
   lastOkAt = Date.now();
   return null;
 }

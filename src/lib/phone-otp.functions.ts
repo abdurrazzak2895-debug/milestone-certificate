@@ -19,10 +19,18 @@ export const sendPhoneOtp = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<SendResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const phone = `88${data.mobile}`;
-    const { data: existing } = await supabaseAdmin.from("phone_otps").select("last_sent_at").eq("phone", phone).maybeSingle();
-    if (existing && Date.now() - new Date(existing.last_sent_at).getTime() < 60_000) return { ok: false, reason: "cooldown" };
+    const { data: existing } = await supabaseAdmin
+      .from("phone_otps")
+      .select("last_sent_at")
+      .eq("phone", phone)
+      .maybeSingle();
+    if (existing && Date.now() - new Date(existing.last_sent_at).getTime() < 60_000)
+      return { ok: false, reason: "cooldown" };
 
-    const code = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0");
+    const code = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(
+      6,
+      "0",
+    );
     const params = new URLSearchParams({
       api_key: process.env["BULKSMSBD_API_KEY"] ?? "",
       type: "text",
@@ -34,7 +42,11 @@ export const sendPhoneOtp = createServerFn({ method: "POST" })
       const res = await fetch(`http://bulksmsbd.net/api/smsapi?${params}`);
       const text = await res.text();
       let codeVal: unknown;
-      try { codeVal = (JSON.parse(text) as { response_code?: unknown }).response_code; } catch { codeVal = undefined; }
+      try {
+        codeVal = (JSON.parse(text) as { response_code?: unknown }).response_code;
+      } catch {
+        codeVal = undefined;
+      }
       if (String(codeVal) !== "202") {
         console.error("BulkSMSBD send failed", res.status, text);
         return { ok: false, reason: "sms_failed" };
@@ -59,23 +71,38 @@ export const verifyPhoneOtp = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<VerifyResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const phone = `88${data.mobile}`;
-    const { data: row } = await supabaseAdmin.from("phone_otps").select("*").eq("phone", phone).maybeSingle();
+    const { data: row } = await supabaseAdmin
+      .from("phone_otps")
+      .select("*")
+      .eq("phone", phone)
+      .maybeSingle();
     if (!row) return { ok: false, reason: "expired" };
     if (new Date(row.expires_at).getTime() < Date.now()) return { ok: false, reason: "expired" };
     if (row.attempts >= 5) return { ok: false, reason: "too_many" };
     if ((await hashCode(phone, data.code)) !== row.code_hash) {
-      await supabaseAdmin.from("phone_otps").update({ attempts: row.attempts + 1 }).eq("phone", phone);
+      await supabaseAdmin
+        .from("phone_otps")
+        .update({ attempts: row.attempts + 1 })
+        .eq("phone", phone);
       return { ok: false, reason: "invalid" };
     }
     await supabaseAdmin.from("phone_otps").delete().eq("phone", phone);
 
     const email = `${phone}@phone.login.local`;
-    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({ email, phone, email_confirm: true, phone_confirm: true });
+    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      phone,
+      email_confirm: true,
+      phone_confirm: true,
+    });
     if (createErr && !/already|registered|exists/i.test(createErr.message)) {
       console.error("createUser failed", createErr);
       return { ok: false, reason: "server" };
     }
-    const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({ type: "magiclink", email });
+    const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
     if (linkErr || !link.properties?.hashed_token) {
       console.error("generateLink failed", linkErr);
       return { ok: false, reason: "server" };
