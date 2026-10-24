@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   LogOut,
   MapPin,
+  RefreshCw,
   RotateCcw,
   ShieldCheck,
   UserRound,
@@ -19,11 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
+import { SvpReschedulePanel } from "@/components/app/SvpReschedulePanel";
 import { supabase } from "@/integrations/supabase/client";
 import {
   checkSvpBookingEligibility,
   createSvpBooking,
   downloadSvpTicket,
+  getSvpAccountOverview,
   getSvpBookingSetup,
   listSvpAvailableDates,
   listSvpBookingOccupations,
@@ -132,6 +135,7 @@ export function SvpBookingWizard() {
   const [occupationId, setOccupationId] = useState<number | null>(null);
   const [languageCode, setLanguageCode] = useState("");
   const [city, setCity] = useState("");
+  const [cityCountryId, setCityCountryId] = useState<number | null>(null);
   const [occupationSearch, setOccupationSearch] = useState("");
   const [occupationOpen, setOccupationOpen] = useState(false);
   const [selectedOccupation, setSelectedOccupation] = useState<SvpOccupation | null>(null);
@@ -145,6 +149,7 @@ export function SvpBookingWizard() {
   const [accepted, setAccepted] = useState(false);
   const [result, setResult] = useState<SvpBookingResult | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
   const requireSignIn = () => {
     setNeedsLogin(true);
@@ -220,12 +225,33 @@ export function SvpBookingWizard() {
   });
   const setup = setupQuery.data?.ok ? setupQuery.data.data : null;
 
+  const overviewQuery = useQuery({
+    queryKey: ["svp-account-overview", occupationId],
+    queryFn: () => getSvpAccountOverview({ data: { occupationId } }),
+    enabled: signedIn,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const overview = overviewQuery.data?.ok ? overviewQuery.data.data : null;
+
+  // Any SVP call can invalidate the stored session (refresh cookie expired/revoked).
+  useEffect(() => {
+    const results = [occupationsQuery.data, citiesQuery.data, setupQuery.data, overviewQuery.data];
+    if (results.some((result) => result && !result.ok && result.needsSignIn)) {
+      setNeedsLogin(true);
+      void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+    }
+  }, [citiesQuery.data, occupationsQuery.data, overviewQuery.data, queryClient, setupQuery.data]);
+
   const categoryId = occupation?.categoryId ?? null;
   const datesQuery = useQuery({
-    queryKey: ["svp-dates", categoryId, setup?.permissions.countryId ?? null],
+    queryKey: ["svp-dates", categoryId, cityCountryId ?? setup?.permissions.countryId ?? null],
     queryFn: () =>
       listSvpAvailableDates({
-        data: { categoryId: categoryId as number, countryId: setup?.permissions.countryId ?? null },
+        data: {
+          categoryId: categoryId as number,
+          countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
+        },
       }),
     enabled: signedIn && checked && categoryId !== null,
     retry: false,
@@ -290,6 +316,7 @@ export function SvpBookingWizard() {
     setSelectedOccupation(null);
     setLanguageCode("");
     setCity("");
+    setCityCountryId(null);
     setOccupationSearch("");
     setOccupationOpen(false);
     setEligibility(null);
@@ -325,6 +352,22 @@ export function SvpBookingWizard() {
     } finally {
       setDownloadingId(null);
     }
+  };
+
+  const syncLocalReschedule = async (
+    reservationId: string,
+    updated: { startAt: string; city: string | null; centerName: string | null },
+  ) => {
+    const { date, time } = splitDateTime(updated.startAt);
+    const { error } = await supabase
+      .from("svp_bookings")
+      .update({
+        exam_date: date || null,
+        exam_time: time || null,
+        center: updated.centerName ?? updated.city ?? null,
+      })
+      .eq("reference_no", reservationId);
+    if (!error) toast.success("Local record updated with the new appointment");
   };
 
   const saveLocalRecord = async (booking: SvpBookingResult) => {
@@ -389,7 +432,7 @@ export function SvpBookingWizard() {
           siteId: selectedSession.siteId,
           // The portal only sends site_city for non-targeted (site-based) sessions.
           siteCity: selectedSession.siteId ? (selectedSession.city ?? sessionCity) : null,
-          countryId: setup?.permissions.countryId ?? null,
+          countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
         },
       });
       if (!response.ok) {
@@ -403,6 +446,7 @@ export function SvpBookingWizard() {
       setStage("done");
       await saveLocalRecord(booking);
       void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
+      void queryClient.invalidateQueries({ queryKey: ["svp-account-overview"] });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "The SVP reservation failed."),
@@ -461,46 +505,120 @@ export function SvpBookingWizard() {
 
   return (
     <div className="space-y-4">
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-            <ShieldCheck className="h-5 w-5" />
+      <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold">
+                Signed in to SVP{status?.userName ? ` as ${status.userName}` : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {status?.login}
+                {overview?.permissions.countryName
+                  ? ` · ${overview.permissions.countryName}`
+                  : setup?.permissions.countryName
+                    ? ` · ${setup.permissions.countryName}`
+                    : ""}
+                {status?.expiresAt
+                  ? ` · session valid until ${new Date(status.expiresAt * 1000).toLocaleTimeString(
+                      "en-GB",
+                      { hour: "2-digit", minute: "2-digit" },
+                    )}`
+                  : ""}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold">
-              Signed in to SVP{status?.userName ? ` as ${status.userName}` : ""}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {status?.login}
-              {setup?.permissions.countryName ? ` · ${setup.permissions.countryName}` : ""}
-              {status?.expiresAt
-                ? ` · session valid until ${new Date(status.expiresAt * 1000).toLocaleTimeString(
-                    "en-GB",
-                    { hour: "2-digit", minute: "2-digit" },
-                  )}`
-                : ""}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <a href={SVP_PORTAL_BOOKING_URL} target="_blank" rel="noreferrer">
-            <Button type="button" variant="outline" size="sm">
-              <ExternalLink className="mr-1 h-4 w-4" /> Portal
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void overviewQuery.refetch()}
+              disabled={overviewQuery.isFetching}
+            >
+              <RefreshCw
+                className={`mr-1 h-4 w-4 ${overviewQuery.isFetching ? "animate-spin" : ""}`}
+              />
+              Permissions
             </Button>
-          </a>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => signOutMutation.mutate()}
-            disabled={signOutMutation.isPending}
-          >
-            <LogOut className="mr-1 h-4 w-4" /> Sign out of SVP
-          </Button>
+            <a href={SVP_PORTAL_BOOKING_URL} target="_blank" rel="noreferrer">
+              <Button type="button" variant="outline" size="sm">
+                <ExternalLink className="mr-1 h-4 w-4" /> Portal
+              </Button>
+            </a>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => signOutMutation.mutate()}
+              disabled={signOutMutation.isPending}
+            >
+              <LogOut className="mr-1 h-4 w-4" /> Sign out of SVP
+            </Button>
+          </div>
         </div>
+
+        {overview && (
+          <div className="space-y-2 border-t pt-3 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-1.5">
+              <span className="rounded-full border px-2.5 py-0.5">
+                Country: {overview.permissions.countryName ?? "—"}
+              </span>
+              <span className="rounded-full border px-2.5 py-0.5">
+                Free reservations: {overview.permissions.freeReservations ? "yes" : "no"}
+              </span>
+              <span className="rounded-full border px-2.5 py-0.5">Credits: {overview.credits}</span>
+              <span className="rounded-full border px-2.5 py-0.5">
+                Reschedules left: {overview.constraints.rescheduleTimes}
+              </span>
+              <span className="rounded-full border px-2.5 py-0.5">
+                Hold: {overview.constraints.bookingHoldSeconds}s
+              </span>
+              <span className="rounded-full border px-2.5 py-0.5">
+                Reschedule flow: {overview.flags.rescheduleEnabled ? "enabled" : "off"}
+              </span>
+            </div>
+            {overview.permissions.permissionKeys.length > 0 && (
+              <p className="truncate" title={overview.permissions.permissionKeys.join(", ")}>
+                SVP account permissions: {overview.permissions.permissionKeys.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+        {overviewQuery.data && !overviewQuery.data.ok && (
+          <p role="alert" className="text-sm text-destructive">
+            {overviewQuery.data.message}
+          </p>
+        )}
+        {overview && !overview.permissions.targeted && (
+          <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-950">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            This SVP country uses the site-based booking flow. This workspace books targeted
+            sessions, so complete site-based bookings in the official portal.
+          </p>
+        )}
       </section>
 
-      {stage === "select" && (
+      {rescheduleId && (
+        <SvpReschedulePanel
+          reservationId={rescheduleId}
+          rescheduleTimes={overview?.constraints.rescheduleTimes ?? null}
+          countryId={overview?.permissions.countryId ?? null}
+          onCancel={() => setRescheduleId(null)}
+          onDone={(updated) => {
+            const reservationId = rescheduleId;
+            setRescheduleId(null);
+            void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
+            void queryClient.invalidateQueries({ queryKey: ["svp-account-overview"] });
+            if (updated && reservationId) void syncLocalReschedule(reservationId, updated);
+          }}
+        />
+      )}
+
+      {!rescheduleId && stage === "select" && (
         <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div>
             <h2 className="text-xl font-bold">Step 1 · Occupation and test center</h2>
@@ -589,7 +707,13 @@ export function SvpBookingWizard() {
               {cities.length > 0 ? (
                 <NativeSelect
                   value={city}
-                  onChange={(event) => setCity(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setCity(value);
+                    setCityCountryId(
+                      cities.find((entry) => entry.city === value)?.countryId ?? null,
+                    );
+                  }}
                   required
                 >
                   <option value="">Select a city</option>
@@ -700,7 +824,7 @@ export function SvpBookingWizard() {
         </section>
       )}
 
-      {stage === "dates" && (
+      {!rescheduleId && stage === "dates" && (
         <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div>
             <h2 className="text-xl font-bold">Step 2 · Choose the exam session</h2>
@@ -755,7 +879,13 @@ export function SvpBookingWizard() {
                           ) ?? null;
                         setSelectedDate(nextDate);
                         setSelectedSession(null);
-                        if (entry.city) setCity(entry.city);
+                        if (entry.city) {
+                          setCity(entry.city);
+                          setCityCountryId(
+                            cities.find((candidate) => candidate.city === entry.city)?.countryId ??
+                              null,
+                          );
+                        }
                       }}
                     >
                       <CalendarDays className="mr-1 h-3.5 w-3.5" /> {formatDateOnly(entry.date)}
@@ -826,7 +956,7 @@ export function SvpBookingWizard() {
         </section>
       )}
 
-      {stage === "confirm" && selectedSession && occupation && (
+      {!rescheduleId && stage === "confirm" && selectedSession && occupation && (
         <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div>
             <h2 className="text-xl font-bold">Step 3 · Confirm the booking</h2>
@@ -941,7 +1071,7 @@ export function SvpBookingWizard() {
         </section>
       )}
 
-      {stage === "done" && result && (
+      {!rescheduleId && stage === "done" && result && (
         <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
@@ -1043,6 +1173,19 @@ export function SvpBookingWizard() {
                     >
                       {entry.status ?? "unknown"}
                     </span>
+                    {entry.canBeRescheduled &&
+                      (overview === null ||
+                        (overview.flags.rescheduleEnabled &&
+                          overview.constraints.rescheduleTimes > 0)) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setRescheduleId(entry.id)}
+                        >
+                          <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reschedule
+                        </Button>
+                      )}
                     {ticketReady && (
                       <Button
                         type="button"

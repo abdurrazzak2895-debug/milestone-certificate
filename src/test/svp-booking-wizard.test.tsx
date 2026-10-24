@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   search: vi.fn(),
   cities: vi.fn(),
   setup: vi.fn(),
+  overview: vi.fn(),
   dates: vi.fn(),
   sessions: vi.fn(),
   reservations: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   searchSvpOccupations: mocks.search,
   listSvpTestCenterCities: mocks.cities,
   getSvpBookingSetup: mocks.setup,
+  getSvpAccountOverview: mocks.overview,
   listSvpAvailableDates: mocks.dates,
   listSvpExamSessions: mocks.sessions,
   listSvpReservations: mocks.reservations,
@@ -94,6 +96,21 @@ beforeEach(() => {
       },
       credits: 0,
       svpUserId: "969955",
+    },
+  });
+  mocks.overview.mockResolvedValue({
+    ok: true,
+    data: {
+      permissions: {
+        freeReservations: true,
+        targeted: true,
+        countryId: 4,
+        countryName: "Bangladesh",
+        permissionKeys: ["book_appointment", "reschedule_appointment"],
+      },
+      constraints: { rescheduleTimes: 1, bookingHoldSeconds: 600, cancellationLimitHours: 48 },
+      flags: { rescheduleEnabled: true, creditsEnabled: true },
+      credits: 0,
     },
   });
   mocks.dates.mockResolvedValue({

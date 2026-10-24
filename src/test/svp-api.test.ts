@@ -7,7 +7,11 @@ import {
   parseSvpExamSessions,
   parseSvpOccupations,
   parseSvpPermissions,
+  parseSvpAccountPermissions,
+  parseSvpConstraints,
+  parseSvpFeatureFlags,
   parseSvpReservation,
+  parseSvpReservationDetail,
   parseSvpReservations,
   svpTicketFileName,
 } from "@/lib/svp-api.shared";
@@ -158,9 +162,13 @@ describe("SVP response parsers", () => {
           {
             id: 987,
             reservation_status: "reserved",
+            can_be_rescheduled: true,
+            category_id: 159,
             occupation: { name: "Welder", english_name: "Welder" },
             labor: { full_name: "Noor Rahman" },
             exam_session: {
+              id: 501,
+              duration: 3600,
               start_at: "2026-11-05 09:30:00",
               test_center: { city: "Dhaka", name: "Dhaka Center" },
             },
@@ -178,6 +186,10 @@ describe("SVP response parsers", () => {
         centerName: "Dhaka Center",
         startAt: "2026-11-05 09:30:00",
         methodology: null,
+        canBeRescheduled: true,
+        categoryId: 159,
+        examSessionId: 501,
+        duration: 3600,
       },
     ]);
   });
@@ -218,5 +230,88 @@ describe("SVP ticket file name", () => {
   it("falls back safely when a value is missing or not Latin text", () => {
     expect(svpTicketFileName(null, undefined)).toBe("Candidate_Occupation_SVP_Ticket.pdf");
     expect(svpTicketFileName("  ", "")).toBe("Candidate_Occupation_SVP_Ticket.pdf");
+  });
+});
+
+describe("SVP reschedule and account parsers", () => {
+  it("reads reservation details needed for rescheduling", () => {
+    const detail = parseSvpReservationDetail({
+      data: {
+        id: 987,
+        reservation_status: "reserved",
+        can_be_rescheduled: true,
+        occupation_id: 11,
+        occupation: { name: "Welder", english_name: "Welder" },
+        category: {
+          id: 159,
+          name: "Welding",
+          prometric_codes: [{ code: "en", name: "English" }],
+        },
+        exam_session: {
+          id: 501,
+          duration: 3600,
+          start_at_in_tc_time_zone: "2026-11-05 09:30:00",
+          test_center: { city: "Dhaka", name: "Dhaka Center" },
+        },
+      },
+    });
+
+    expect(detail).toEqual({
+      id: "987",
+      status: "reserved",
+      laborName: null,
+      occupationName: "Welder",
+      occupationEnglishName: "Welder",
+      city: "Dhaka",
+      centerName: "Dhaka Center",
+      startAt: "2026-11-05 09:30:00",
+      methodology: null,
+      canBeRescheduled: true,
+      categoryId: 159,
+      examSessionId: 501,
+      duration: 3600,
+      occupationId: 11,
+      categoryName: "Welding",
+      languages: [{ code: "en", label: "English", questionCount: null }],
+      countryId: null,
+    });
+  });
+
+  it("reads constraints, feature flags and labor permission keys", () => {
+    expect(
+      parseSvpConstraints({
+        data: {
+          reservation_rescheduling: 2,
+          reservation_duration: 600,
+          labor_reservation_cancellation_limit: 48,
+        },
+      }),
+    ).toEqual({ rescheduleTimes: 2, bookingHoldSeconds: 600, cancellationLimitHours: 48 });
+
+    expect(
+      parseSvpFeatureFlags({
+        feature_flags: [
+          { name: "enable_labor_rescheduling_flow", state: "true" },
+          { name: "labor_reservation_credits", state: "false" },
+        ],
+      }),
+    ).toEqual({ rescheduleEnabled: true, creditsEnabled: false });
+
+    const permissions = parseSvpAccountPermissions({
+      country: { id: 4, english_name: "Bangladesh", free_reservations: false, targeted: true },
+      permissions: {
+        legislator: {
+          labors: {
+            book_appointment: true,
+            reschedule_appointment: true,
+            cancel_appointment: false,
+          },
+        },
+      },
+    });
+
+    expect(permissions.freeReservations).toBe(false);
+    expect(permissions.targeted).toBe(true);
+    expect(permissions.permissionKeys).toEqual(["book_appointment", "reschedule_appointment"]);
   });
 });

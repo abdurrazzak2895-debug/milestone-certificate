@@ -63,6 +63,32 @@ export type SvpReservation = {
   centerName: string | null;
   startAt: string | null;
   methodology: string | null;
+  canBeRescheduled: boolean;
+  categoryId: number | null;
+  examSessionId: number | null;
+  duration: number | null;
+};
+
+export type SvpReservationDetail = SvpReservation & {
+  occupationId: number | null;
+  categoryName: string | null;
+  languages: SvpLanguage[];
+  countryId: number | null;
+};
+
+export type SvpConstraints = {
+  rescheduleTimes: number;
+  bookingHoldSeconds: number;
+  cancellationLimitHours: number | null;
+};
+
+export type SvpFeatureFlags = {
+  rescheduleEnabled: boolean;
+  creditsEnabled: boolean;
+};
+
+export type SvpAccountPermissions = SvpBookingPermissions & {
+  permissionKeys: string[];
 };
 
 export type SvpCreateReservationInput = {
@@ -119,6 +145,23 @@ function pickRecord(payload: unknown, key: string): Record<string, unknown> | nu
   const root = asRecord(payload);
   if (!root) return null;
   return asRecord(root[key]) ?? asRecord(asRecord(root["data"])?.[key]);
+}
+
+function parseLanguages(category: Record<string, unknown> | null): SvpLanguage[] {
+  const languages: SvpLanguage[] = [];
+  for (const code of asArray(category?.["prometric_codes"])) {
+    const item = asRecord(code);
+    const languageCode = text(item?.["code"]);
+    if (!item || !languageCode || languages.some((entry) => entry.code === languageCode)) {
+      continue;
+    }
+    languages.push({
+      code: languageCode,
+      label: text(item["name"]) ?? text(item["english_name"]) ?? languageCode.toUpperCase(),
+      questionCount: number(item["question_count"]),
+    });
+  }
+  return languages;
 }
 
 export function parseSvpOccupations(payload: unknown): SvpOccupation[] {
@@ -297,6 +340,10 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
         centerName: text(center?.["name"]),
         startAt: text(session?.["start_at_in_tc_time_zone"]) ?? text(session?.["start_at"]),
         methodology: text(record["methodology"]),
+        canBeRescheduled: Boolean(record["can_be_rescheduled"]),
+        categoryId: number(record["category_id"]) ?? number(asRecord(record["category"])?.["id"]),
+        examSessionId: number(session?.["id"]),
+        duration: number(session?.["duration"]) ?? number(record["duration"]),
       };
     })
     .filter((entry): entry is SvpReservation => entry !== null);
@@ -323,4 +370,107 @@ export function svpTicketFileName(
     return cleaned || fallback;
   };
   return `${slug(name, "Candidate")}_${slug(occupationEnglishName, "Occupation")}_SVP_Ticket.pdf`;
+}
+
+/** Reservation detail used by the reschedule flow. */
+export function parseSvpReservationDetail(payload: unknown): SvpReservationDetail | null {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  const reservation = asRecord(data?.["reservation"]) ?? data;
+  if (!reservation) return null;
+  const idValue = reservation["id"] ?? data?.["id"];
+  if (idValue === undefined || idValue === null) return null;
+
+  const session = asRecord(reservation["exam_session"]);
+  const category =
+    asRecord(reservation["category"]) ??
+    asRecord(session?.["category"]) ??
+    asRecord(asRecord(reservation["occupation"])?.["category"]);
+  const occupation = asRecord(reservation["occupation"]);
+  const center = asRecord(session?.["test_center"]);
+  const labor = asRecord(reservation["labor"]) ?? asRecord(reservation["individual_labor"]);
+
+  return {
+    id: String(idValue),
+    status: text(reservation["reservation_status"]) ?? text(reservation["status"]),
+    laborName: text(labor?.["full_name"]) ?? text(labor?.["name"]),
+    occupationName: text(occupation?.["name"]) ?? text(occupation?.["english_name"]),
+    occupationEnglishName: text(occupation?.["english_name"]),
+    city: text(center?.["city"]),
+    centerName: text(center?.["name"]),
+    startAt: text(session?.["start_at_in_tc_time_zone"]) ?? text(session?.["start_at"]),
+    methodology: text(reservation["methodology"]),
+    canBeRescheduled: Boolean(reservation["can_be_rescheduled"]),
+    categoryId: number(reservation["category_id"]) ?? number(category?.["id"]),
+    examSessionId: number(session?.["id"]),
+    duration: number(session?.["duration"]) ?? number(reservation["duration"]),
+    occupationId: number(reservation["occupation_id"]) ?? number(occupation?.["id"]),
+    categoryName: text(category?.["name"]) ?? text(category?.["english_name"]),
+    languages: parseLanguages(category),
+    countryId: number(reservation["country_id"]),
+  };
+}
+
+/** `/exam_constraints` values that gate booking and rescheduling. */
+export function parseSvpConstraints(payload: unknown): SvpConstraints {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  return {
+    rescheduleTimes: number(data?.["reservation_rescheduling"]) ?? 1,
+    bookingHoldSeconds: number(data?.["reservation_duration"]) ?? 0,
+    cancellationLimitHours: number(data?.["labor_reservation_cancellation_limit"]),
+  };
+}
+
+/** Flipper flags relevant to booking/rescheduling (`[{name, state}]` or a map). */
+export function parseSvpFeatureFlags(payload: unknown): SvpFeatureFlags {
+  const root = asRecord(payload);
+  const container =
+    root?.["feature_flags"] ??
+    asRecord(root?.["data"])?.["feature_flags"] ??
+    root?.["data"] ??
+    root;
+
+  const isOn = (value: unknown) =>
+    value === true || value === "true" || value === 1 || value === "1";
+
+  const lookup = (name: string): boolean => {
+    if (Array.isArray(container)) {
+      const entry = container
+        .map(asRecord)
+        .find((item) => item && String(item["name"] ?? "").toLowerCase() === name.toLowerCase());
+      return entry ? isOn(entry["state"]) : false;
+    }
+    const record = asRecord(container);
+    if (!record) return false;
+    const key = Object.keys(record).find((entry) => entry.toLowerCase() === name.toLowerCase());
+    return key ? isOn(record[key]) : false;
+  };
+
+  return {
+    rescheduleEnabled: lookup("enable_labor_rescheduling_flow"),
+    creditsEnabled: lookup("labor_reservation_credits"),
+  };
+}
+
+function collectTrueKeys(value: unknown, depth = 0, keys: string[] = []): string[] {
+  if (depth > 4 || !value || typeof value !== "object" || Array.isArray(value)) return keys;
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (entry === true) keys.push(key);
+    else collectTrueKeys(entry, depth + 1, keys);
+  }
+  return keys.slice(0, 40);
+}
+
+/** Country permissions plus the true boolean permission keys of the labor role. */
+export function parseSvpAccountPermissions(payload: unknown): SvpAccountPermissions {
+  const permissions = parseSvpPermissions(payload);
+  const root = asRecord(payload);
+  const raw = asRecord(root?.["permissions"]);
+  const legislator = asRecord(raw?.["legislator"]) ?? raw;
+  const labors = asRecord(legislator?.["labors"]);
+  return {
+    ...permissions,
+    permissionKeys: collectTrueKeys(labors ?? legislator),
+  };
 }

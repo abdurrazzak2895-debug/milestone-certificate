@@ -3,22 +3,30 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildSvpReservationBody,
+  parseSvpAccountPermissions,
   parseSvpAvailableDates,
   parseSvpCities,
+  parseSvpConstraints,
   parseSvpCredits,
   parseSvpError,
   parseSvpExamSessions,
+  parseSvpFeatureFlags,
   parseSvpOccupations,
   parseSvpPermissions,
   parseSvpReservation,
+  parseSvpReservationDetail,
   parseSvpReservations,
+  type SvpAccountPermissions,
   type SvpAvailableDate,
   type SvpBookingPermissions,
   type SvpCity,
+  type SvpConstraints,
   type SvpEligibility,
   type SvpExamSession,
+  type SvpFeatureFlags,
   type SvpOccupation,
   type SvpReservation,
+  type SvpReservationDetail,
 } from "@/lib/svp-api.shared";
 import {
   readStoredSvpSession,
@@ -511,5 +519,237 @@ export const downloadSvpTicket = createServerFn({ method: "POST" })
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("The SVP ticket could not be downloaded.");
+    }
+  });
+
+export type SvpAccountOverview = {
+  permissions: SvpAccountPermissions;
+  constraints: SvpConstraints;
+  flags: SvpFeatureFlags;
+  credits: number;
+};
+
+/** Everything the SVP account is allowed to do: country permissions, policies and flags. */
+export const getSvpAccountOverview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ occupationId: z.number().int().positive().nullable().optional() }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpAccountOverview>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const [permissionsResponse, constraintsResponse, flagsResponse] = await Promise.all([
+        svpAuthedRequest(context.userId, "/individual_labor_space/permissions", {
+          query: LOCALE_QUERY,
+        }),
+        svpAuthedRequest(context.userId, "/individual_labor_space/exam_constraints", {
+          query: LOCALE_QUERY,
+        }),
+        svpAuthedRequest(context.userId, "/flipper/feature_flags", { query: LOCALE_QUERY }),
+      ]);
+      if (!permissionsResponse.ok) {
+        return failure(
+          apiFailure(permissionsResponse.payload, "SVP account permissions could not be loaded."),
+        );
+      }
+      const permissions = parseSvpAccountPermissions(permissionsResponse.payload);
+      const constraints = constraintsResponse.ok
+        ? parseSvpConstraints(constraintsResponse.payload)
+        : { rescheduleTimes: 0, bookingHoldSeconds: 0, cancellationLimitHours: null };
+      const flags = flagsResponse.ok
+        ? parseSvpFeatureFlags(flagsResponse.payload)
+        : { rescheduleEnabled: false, creditsEnabled: false };
+
+      const session = readStoredSvpSession(context.userId);
+      let credits = 0;
+      if (session?.svpUserId && data.occupationId) {
+        const creditsResponse = await svpAuthedRequest(
+          context.userId,
+          `/users/${encodeURIComponent(session.svpUserId)}/balance`,
+          {
+            query: {
+              ...LOCALE_QUERY,
+              methodology_type: "in_person",
+              occupation_id: data.occupationId,
+            },
+          },
+        );
+        if (creditsResponse.ok) credits = parseSvpCredits(creditsResponse.payload);
+      }
+      return { ok: true, data: { permissions, constraints, flags, credits } };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("SVP account permissions could not be loaded.");
+    }
+  });
+
+/** Full reservation record, including whether SVP allows rescheduling it. */
+export const getSvpReservationDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpReservationDetail>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        `/individual_labor_space/exam_reservations/${encodeURIComponent(data.reservationId)}`,
+        { query: LOCALE_QUERY },
+      );
+      if (!response.ok) {
+        return failure(apiFailure(response.payload, "The reservation could not be loaded."));
+      }
+      const detail = parseSvpReservationDetail(response.payload);
+      if (!detail) return failure("SVP did not return reservation details.");
+      return { ok: true, data: detail };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The reservation could not be loaded.");
+    }
+  });
+
+/** Available dates for rescheduling, starting two days ahead like the portal. */
+export const listSvpRescheduleDates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+        categoryId: z.number().int().positive(),
+        countryId: z.number().int().positive().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpAvailableDate[]>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const from = new Date();
+      from.setUTCDate(from.getUTCDate() + 2);
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/exam_sessions/available_dates",
+        {
+          query: {
+            ...LOCALE_QUERY,
+            reservation_id: data.reservationId,
+            category_id: data.categoryId,
+            ...(data.countryId ? { country_id: data.countryId } : {}),
+            start_at_date_from: from.toISOString().slice(0, 10),
+            available_seats: "greater_than::0",
+            status: "scheduled",
+            per_page: 1000,
+          },
+        },
+      );
+      if (!response.ok) {
+        return failure(apiFailure(response.payload, "Reschedule dates could not be loaded."));
+      }
+      return { ok: true, data: parseSvpAvailableDates(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("Reschedule dates could not be loaded.");
+    }
+  });
+
+/**
+ * Real SVP reschedule: hold the new seat, then POST exam_reservations/{id}/reschedule
+ * with { id, exam_session_id, language_code } exactly like the portal.
+ */
+export const rescheduleSvpBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+        examSessionId: z.number().int().positive(),
+        languageCode: z.string().trim().min(1).max(20),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<{ message: string }>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const [detailResponse, constraintsResponse, flagsResponse] = await Promise.all([
+        svpAuthedRequest(
+          context.userId,
+          `/individual_labor_space/exam_reservations/${encodeURIComponent(data.reservationId)}`,
+          { query: LOCALE_QUERY },
+        ),
+        svpAuthedRequest(context.userId, "/individual_labor_space/exam_constraints", {
+          query: LOCALE_QUERY,
+        }),
+        svpAuthedRequest(context.userId, "/flipper/feature_flags", { query: LOCALE_QUERY }),
+      ]);
+
+      if (detailResponse.ok) {
+        const detail = parseSvpReservationDetail(detailResponse.payload);
+        if (detail && !detail.canBeRescheduled) {
+          return failure("SVP does not allow rescheduling this reservation.");
+        }
+      }
+      if (flagsResponse.ok) {
+        const flags = parseSvpFeatureFlags(flagsResponse.payload);
+        if (!flags.rescheduleEnabled) {
+          return failure("SVP rescheduling is disabled for this account.");
+        }
+      }
+      if (constraintsResponse.ok) {
+        const constraints = parseSvpConstraints(constraintsResponse.payload);
+        if (constraints.rescheduleTimes <= 0) {
+          return failure("No reschedules are left for this reservation.");
+        }
+      }
+
+      const hold = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/temporary_seats",
+        {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: { exam_session_id: data.examSessionId },
+        },
+      );
+      if (!hold.ok) {
+        return failure(
+          apiFailure(hold.payload, "SVP could not hold the new seat. Choose another session."),
+        );
+      }
+
+      const response = await svpAuthedRequest(
+        context.userId,
+        `/individual_labor_space/exam_reservations/${encodeURIComponent(data.reservationId)}/reschedule`,
+        {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: {
+            id: data.reservationId,
+            exam_session_id: data.examSessionId,
+            language_code: data.languageCode,
+          },
+        },
+      );
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "SVP did not accept the reschedule. Check the policy."),
+        );
+      }
+      return { ok: true, data: { message: "Appointment rescheduled with SVP." } };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The appointment could not be rescheduled.");
     }
   });
