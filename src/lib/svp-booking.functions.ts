@@ -900,3 +900,147 @@ export const createSvpPrometricHold = createServerFn({ method: "POST" })
       }
     },
   );
+
+/** Shared reschedule gates: reservation flag, feature flag and remaining quota. */
+async function assertRescheduleAllowed(
+  userId: string,
+  reservationId: string,
+): Promise<{ ok: false; message: string; needsSignIn: boolean } | null> {
+  const [detailResponse, constraintsResponse, flagsResponse] = await Promise.all([
+    svpAuthedRequest(
+      userId,
+      `/individual_labor_space/exam_reservations/${encodeURIComponent(reservationId)}`,
+      { query: LOCALE_QUERY },
+    ),
+    svpAuthedRequest(userId, "/individual_labor_space/exam_constraints", { query: LOCALE_QUERY }),
+    svpAuthedRequest(userId, "/flipper/feature_flags", { query: LOCALE_QUERY }),
+  ]);
+
+  if (detailResponse.ok) {
+    const detail = parseSvpReservationDetail(detailResponse.payload);
+    if (detail && !detail.canBeRescheduled) {
+      return failure("SVP does not allow rescheduling this reservation.");
+    }
+  }
+  if (flagsResponse.ok) {
+    const flags = parseSvpFeatureFlags(flagsResponse.payload);
+    if (!flags.rescheduleEnabled) {
+      return failure("SVP rescheduling is disabled for this account.");
+    }
+  }
+  if (constraintsResponse.ok) {
+    const constraints = parseSvpConstraints(constraintsResponse.payload);
+    if (constraints.rescheduleTimes <= 0) {
+      return failure("No reschedules are left for this reservation.");
+    }
+  }
+  return null;
+}
+
+/**
+ * Site-based (non-targeted) reschedule: hold the new slot, then reschedule with
+ * the prometric exam id + site/hold fields. Some SVP deployments expect the
+ * slot id instead, so a rejected request is retried with that shape.
+ */
+export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+        examId: z.string().trim().min(1).max(40),
+        slotId: z.string().trim().min(1).max(64),
+        siteId: z.number().int().positive(),
+        siteCity: z.string().trim().max(120).nullable().optional(),
+        languageCode: z.string().trim().min(1).max(20),
+        duration: z.number().nonnegative(),
+        startAt: z.string().trim().min(1).max(64),
+        categoryId: z.number().int().positive(),
+        countryId: z.number().int().positive().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<{ message: string }>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const blocked = await assertRescheduleAllowed(context.userId, data.reservationId);
+      if (blocked) return blocked;
+
+      const hold = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/prometric_scheduling/slots_availabilities",
+        {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: { slot_id: data.slotId, site_id: data.siteId },
+        },
+      );
+      if (!hold.ok) {
+        return failure(apiFailure(hold.payload, "SVP could not hold the new slot."));
+      }
+      const holdRoot = record(hold.payload);
+      const holdPayload = record(holdRoot?.["data"]) ?? holdRoot;
+      const holdValue = holdPayload?.["id"] ?? holdRoot?.["id"];
+      const holdId = holdValue === undefined || holdValue === null ? null : String(holdValue);
+
+      if (holdId) {
+        await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: {
+            exam_session_id: holdId,
+            country_id: data.countryId ?? null,
+            category_id: data.categoryId,
+          },
+        }).catch(() => undefined);
+      }
+
+      const path = `/individual_labor_space/exam_reservations/${encodeURIComponent(
+        data.reservationId,
+      )}/reschedule`;
+
+      let response = await svpAuthedRequest(context.userId, path, {
+        method: "POST",
+        query: LOCALE_QUERY,
+        body: {
+          id: data.reservationId,
+          exam_session_id: data.examId,
+          language_code: data.languageCode,
+          site_id: data.siteId,
+          site_city: data.siteCity ?? null,
+          hold_id: holdId,
+          duration: data.duration,
+          start_at: data.startAt,
+          country_id: data.countryId ?? null,
+        },
+      });
+
+      if (!response.ok) {
+        response = await svpAuthedRequest(context.userId, path, {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: {
+            id: data.reservationId,
+            exam_session_id: data.slotId,
+            language_code: data.languageCode,
+            site_id: data.siteId,
+            site_city: data.siteCity ?? null,
+            hold_id: holdId,
+          },
+        });
+      }
+
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "SVP did not accept the site-based reschedule."),
+        );
+      }
+      return { ok: true, data: { message: "Appointment rescheduled with SVP." } };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The appointment could not be rescheduled.");
+    }
+  });

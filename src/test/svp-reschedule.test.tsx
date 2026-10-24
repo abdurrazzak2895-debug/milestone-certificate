@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   dates: vi.fn(),
   sessions: vi.fn(),
   reschedule: vi.fn(),
+  cities: vi.fn(),
+  sites: vi.fn(),
+  slots: vi.fn(),
+  siteReschedule: vi.fn(),
 }));
 
 vi.mock("@/lib/svp-booking.functions", () => ({
@@ -15,6 +19,10 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpRescheduleDates: mocks.dates,
   listSvpExamSessions: mocks.sessions,
   rescheduleSvpBooking: mocks.reschedule,
+  listSvpTestCenterCities: mocks.cities,
+  listSvpPrometricSites: mocks.sites,
+  listSvpPrometricSlots: mocks.slots,
+  rescheduleSvpSiteBooking: mocks.siteReschedule,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -67,9 +75,33 @@ beforeEach(() => {
     ok: true,
     data: { message: "Appointment rescheduled with SVP." },
   });
+  mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 4 }] });
+  mocks.sites.mockResolvedValue({
+    ok: true,
+    data: {
+      examId: "555",
+      sites: [
+        {
+          siteId: 9,
+          name: "Site A",
+          city: "Dhaka",
+          address: "1 Test Road",
+          dates: ["2026-12-01"],
+        },
+      ],
+    },
+  });
+  mocks.slots.mockResolvedValue({
+    ok: true,
+    data: [{ id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 }],
+  });
+  mocks.siteReschedule.mockResolvedValue({
+    ok: true,
+    data: { message: "Appointment rescheduled with SVP." },
+  });
 });
 
-function renderPanel(props?: { canBeRescheduled?: boolean }) {
+function renderPanel(props?: { canBeRescheduled?: boolean; isTargeted?: boolean }) {
   if (props?.canBeRescheduled === false) {
     mocks.detail.mockResolvedValue({ ok: true, data: { ...detail, canBeRescheduled: false } });
   }
@@ -79,6 +111,7 @@ function renderPanel(props?: { canBeRescheduled?: boolean }) {
       <SvpReschedulePanel
         reservationId="987"
         rescheduleTimes={1}
+        isTargeted={props?.isTargeted ?? true}
         onCancel={vi.fn()}
         onDone={vi.fn()}
       />
@@ -115,5 +148,37 @@ describe("SVP reschedule panel", () => {
       await screen.findByText(/SVP does not allow rescheduling this reservation/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm reschedule" })).not.toBeInTheDocument();
+  });
+});
+
+describe("SVP site-based reschedule", () => {
+  it("holds a slot and reschedules with the prometric exam id and site", async () => {
+    renderPanel({ isTargeted: false });
+
+    expect(await screen.findByText(/site-based flow/)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("New city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
+
+    await waitFor(() =>
+      expect(mocks.siteReschedule).toHaveBeenCalledWith({
+        data: {
+          reservationId: "987",
+          examId: "555",
+          slotId: "slot-1",
+          siteId: 9,
+          siteCity: "Dhaka",
+          languageCode: "en",
+          duration: 30,
+          startAt: "2026-12-01T10:00:00",
+          categoryId: 159,
+          countryId: 4,
+        },
+      }),
+    );
+    expect(await screen.findByText("Appointment rescheduled")).toBeInTheDocument();
   });
 });
