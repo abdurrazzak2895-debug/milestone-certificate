@@ -1,42 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { buildSvpLoginBody, buildSvpOtpBody, summarizeSvpResponse } from "@/lib/svp-session.shared";
 
-describe("SVP session draft request contracts", () => {
-  it("maps login inputs to the exact collection body fields", () => {
-    expect(
-      buildSvpLoginBody({
-        login: "login-value",
-        password: "password-value",
-        feApp: "fe-app-value",
-        otpMethod: "otp-method-value",
-        locale: "locale-value",
-      }),
-    ).toEqual({
-      user: {
-        fe_app: "fe-app-value",
-        login: "login-value",
-        otp_method: "otp-method-value",
-        password: "password-value",
+const system = { feApp: "legislator", otpMethod: "email" };
+
+describe("SVP session request contracts", () => {
+  it("maps username/password to the exact login body with system fields", () => {
+    expect(buildSvpLoginBody({ login: "login-value", password: "password-value" }, system)).toEqual(
+      {
+        user: {
+          fe_app: "legislator",
+          login: "login-value",
+          otp_method: "email",
+          password: "password-value",
+        },
       },
-    });
+    );
   });
 
-  it("maps OTP inputs to the exact collection body fields", () => {
+  it("maps the OTP attempt to the exact collection body", () => {
     expect(
-      buildSvpOtpBody({
-        login: "login-value",
-        password: "password-value",
-        feApp: "fe-app-value",
-        otpMethod: "otp-method-value",
-        locale: "locale-value",
-        otpAttempt: "otp-attempt-value",
-      }),
+      buildSvpOtpBody(
+        { login: "login-value", password: "password-value", otpAttempt: "otp-value" },
+        system,
+      ),
     ).toEqual({
       user: {
-        fe_app: "fe-app-value",
+        fe_app: "legislator",
         login: "login-value",
-        otp_attempt: "otp-attempt-value",
-        otp_method: "otp-method-value",
+        otp_attempt: "otp-value",
+        otp_method: "email",
         password: "password-value",
       },
     });
@@ -86,13 +78,13 @@ describe("SVP response sanitization", () => {
     expect(JSON.stringify(summary)).not.toContain("SECRET_HTML_BODY");
   });
 
-  it("does not parse response bodies larger than the safety cap", async () => {
-    const response = new Response("x".repeat(64 * 1024 + 1), {
+  it("does not parse or reveal oversized provider bodies", async () => {
+    const response = new Response("x".repeat(65 * 1024), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
 
-    await expect(summarizeSvpResponse(response)).resolves.toEqual({
+    expect(await summarizeSvpResponse(response)).toEqual({
       httpStatus: 200,
       ok: true,
       contentType: "application/json",

@@ -8,6 +8,7 @@ import {
   summarizeSvpResponse,
   svpSessionDraftInputSchema,
   type SvpResponseSummary,
+  type SvpSystemConfig,
 } from "@/lib/svp-session.shared";
 
 const SVP_API_ORIGIN = "https://svp-international-api.pacc.sa";
@@ -16,11 +17,20 @@ const SVP_OTP_PATH = "/api/v1/sessions/otp";
 const SVP_PORTAL_ORIGIN = "https://svp-international.qiwa.sa";
 const SVP_REQUEST_TIMEOUT_MS = 15_000;
 
+// Fixed values from the supplied Postman login/OTP request. They are server-managed, not form fields.
+const SVP_SYSTEM_CONFIG: SvpSystemConfig & { locale: string } = {
+  feApp: "legislator",
+  otpMethod: "email",
+  locale: "en",
+};
+
 const SVP_HEADERS = {
   Accept: "application/json",
   "Content-Type": "application/json",
   Origin: SVP_PORTAL_ORIGIN,
   Referer: `${SVP_PORTAL_ORIGIN}/`,
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
 } as const;
 
 async function requireAllowedRole(supabase: SupabaseClient<Database>, userId: string) {
@@ -37,9 +47,9 @@ async function requireAllowedRole(supabase: SupabaseClient<Database>, userId: st
   }
 }
 
-async function postToSvp(path: string, locale: string, body: unknown): Promise<SvpResponseSummary> {
+async function postToSvp(path: string, body: unknown): Promise<SvpResponseSummary> {
   const url = new URL(path, SVP_API_ORIGIN);
-  url.searchParams.set("locale", locale);
+  url.searchParams.set("locale", SVP_SYSTEM_CONFIG.locale);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SVP_REQUEST_TIMEOUT_MS);
@@ -65,7 +75,7 @@ export const submitSvpSessionDraft = createServerFn({ method: "POST" })
     await requireAllowedRole(context.supabase, context.userId);
 
     if (data.step === "login") {
-      return postToSvp(SVP_LOGIN_PATH, data.locale, buildSvpLoginBody(data));
+      return postToSvp(SVP_LOGIN_PATH, buildSvpLoginBody(data, SVP_SYSTEM_CONFIG));
     }
-    return postToSvp(SVP_OTP_PATH, data.locale, buildSvpOtpBody(data));
+    return postToSvp(SVP_OTP_PATH, buildSvpOtpBody(data, SVP_SYSTEM_CONFIG));
   });

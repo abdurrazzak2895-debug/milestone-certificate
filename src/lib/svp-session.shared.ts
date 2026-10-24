@@ -3,9 +3,6 @@ import { z } from "zod";
 export const svpLoginInputSchema = z.object({
   login: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(512),
-  feApp: z.string().trim().min(1).max(128),
-  otpMethod: z.string().trim().min(1).max(64),
-  locale: z.string().trim().min(1).max(32),
 });
 
 export const svpOtpInputSchema = svpLoginInputSchema.extend({
@@ -20,6 +17,11 @@ export const svpSessionDraftInputSchema = z.discriminatedUnion("step", [
 export type SvpLoginInput = z.infer<typeof svpLoginInputSchema>;
 export type SvpOtpInput = z.infer<typeof svpOtpInputSchema>;
 export type SvpSessionDraftInput = z.infer<typeof svpSessionDraftInputSchema>;
+
+export type SvpSystemConfig = {
+  feApp: string;
+  otpMethod: string;
+};
 
 export type SvpLoginBody = {
   user: {
@@ -40,24 +42,24 @@ export type SvpOtpBody = {
   };
 };
 
-export function buildSvpLoginBody(input: SvpLoginInput): SvpLoginBody {
+export function buildSvpLoginBody(input: SvpLoginInput, system: SvpSystemConfig): SvpLoginBody {
   return {
     user: {
-      fe_app: input.feApp,
+      fe_app: system.feApp,
       login: input.login,
-      otp_method: input.otpMethod,
+      otp_method: system.otpMethod,
       password: input.password,
     },
   };
 }
 
-export function buildSvpOtpBody(input: SvpOtpInput): SvpOtpBody {
+export function buildSvpOtpBody(input: SvpOtpInput, system: SvpSystemConfig): SvpOtpBody {
   return {
     user: {
-      fe_app: input.feApp,
+      fe_app: system.feApp,
       login: input.login,
       otp_attempt: input.otpAttempt,
-      otp_method: input.otpMethod,
+      otp_method: system.otpMethod,
       password: input.password,
     },
   };
