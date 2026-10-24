@@ -4,13 +4,11 @@ import { toast } from "sonner";
 import {
   AlertCircle,
   BriefcaseBusiness,
-  Building2,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
   Clock3,
-  CreditCard,
   Download,
   ExternalLink,
   LoaderCircle,
@@ -189,120 +187,6 @@ function BookingStepper({ stage }: { stage: Stage }) {
   );
 }
 
-function SummaryRow({
-  icon: Icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: typeof BriefcaseBusiness;
-  label: string;
-  value: string;
-  detail?: string | null;
-}) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {label}
-        </p>
-        <p className="truncate text-sm font-medium">{value}</p>
-        {detail && <p className="truncate text-xs text-muted-foreground">{detail}</p>}
-      </div>
-    </div>
-  );
-}
-
-function BookingSummary({
-  accountName,
-  accountLogin,
-  countryName,
-  flow,
-  occupation,
-  city,
-  date,
-  session,
-  price,
-  credits,
-  freeReservations,
-}: {
-  accountName: string | null;
-  accountLogin: string | null;
-  countryName: string | null;
-  flow: string;
-  occupation: SvpOccupation | null;
-  city: string;
-  date: string;
-  session: SvpExamSession | null;
-  price: number | null;
-  credits: number;
-  freeReservations: boolean;
-}) {
-  return (
-    <aside className="card-surface space-y-4 p-4 xl:sticky xl:top-4" aria-label="Booking summary">
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Live booking
-        </p>
-        <h2 className="text-lg font-bold">Booking summary</h2>
-      </div>
-
-      <div className="space-y-3 border-t pt-3">
-        <SummaryRow
-          icon={UserRound}
-          label="SVP account"
-          value={accountName ?? accountLogin ?? "Not signed in"}
-          detail={accountLogin}
-        />
-        <SummaryRow
-          icon={Building2}
-          label="Country · flow"
-          value={countryName ?? "—"}
-          detail={flow}
-        />
-        <SummaryRow
-          icon={BriefcaseBusiness}
-          label="Occupation"
-          value={occupation?.name ?? "Choose an occupation"}
-          detail={occupation?.categoryName ?? null}
-        />
-        <SummaryRow
-          icon={Building2}
-          label="Test center"
-          value={city || "Any city"}
-          detail={session?.centerName ?? null}
-        />
-        <SummaryRow
-          icon={CalendarDays}
-          label="Date & session"
-          value={date ? formatDateOnly(date) : "Choose a date"}
-          detail={session ? formatSlot(session.startAt) : null}
-        />
-        <SummaryRow
-          icon={CreditCard}
-          label="Payment"
-          value={
-            freeReservations
-              ? "Free reservation"
-              : credits > 0
-                ? `${credits} SVP credit(s)`
-                : "SVP payment"
-          }
-          detail={price !== null ? `Test price: ${price} SAR` : null}
-        />
-      </div>
-
-      <p className="rounded-lg border border-border/70 bg-muted/40 p-2.5 text-[11px] leading-relaxed text-muted-foreground">
-        Reservations and seat holds are created directly through the official SVP API for the active
-        account.
-      </p>
-    </aside>
-  );
-}
-
 export function SvpBookingWizard() {
   const queryClient = useQueryClient();
 
@@ -320,6 +204,7 @@ export function SvpBookingWizard() {
   });
   const accounts = accountsQuery.data?.accounts ?? [];
   const [addAccountOpen, setAddAccountOpen] = useState(false);
+  const [forceTargeted, setForceTargeted] = useState(false);
   const signedIn = Boolean(status?.signedIn);
 
   const [stage, setStage] = useState<Stage>("select");
@@ -348,6 +233,7 @@ export function SvpBookingWizard() {
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
   const invalidateSvpData = useCallback(() => {
+    setForceTargeted(false);
     queryClient.removeQueries({
       predicate: (query) => {
         const key = query.queryKey[0];
@@ -437,7 +323,7 @@ export function SvpBookingWizard() {
   const overview = overviewQuery.data?.ok ? overviewQuery.data.data : null;
   // Session country flags come straight from the OTP user and are the most reliable source.
   const isTargeted =
-    status?.countryTargeted ??
+    (forceTargeted || status?.countryTargeted) ??
     overview?.permissions.targeted ??
     setup?.permissions.targeted ??
     true;
@@ -473,6 +359,11 @@ export function SvpBookingWizard() {
     refetchOnWindowFocus: false,
   });
   const cities = citiesQuery.data?.ok ? citiesQuery.data.data : [];
+
+  useEffect(() => {
+    if (!citiesQuery.data || citiesQuery.data.ok) return;
+    if (/404/.test(citiesQuery.data.message)) setForceTargeted(true);
+  }, [citiesQuery.data]);
 
   // Any SVP call can invalidate the stored session (refresh cookie expired/revoked).
   useEffect(() => {
@@ -1074,7 +965,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live
+              Official SVP API · live · v4
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1275,790 +1166,782 @@ export function SvpBookingWizard() {
         />
       )}
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-4">
-          {!addAccountOpen && !rescheduleId && stage === "select" && (
+      <div className="space-y-4">
+        {!addAccountOpen && !rescheduleId && stage === "select" && (
+          <section className="card-surface space-y-4 p-4 sm:p-5">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <BriefcaseBusiness className="h-5 w-5" />
+                </span>
+                <h2 className="text-xl font-bold">Step 1 · Occupation and test center</h2>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use the signed-in candidate&apos;s SVP account. Only occupations linked to an SVP
+                category can be booked.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Occupation *">
+                <div className="relative">
+                  <Input
+                    value={occupationSearch}
+                    onChange={(event) => {
+                      setOccupationSearch(event.target.value);
+                      setOccupationOpen(true);
+                    }}
+                    onFocus={() => setOccupationOpen(true)}
+                    onBlur={() => window.setTimeout(() => setOccupationOpen(false), 180)}
+                    placeholder="Type a name, e.g. welder or loading"
+                    autoComplete="off"
+                    aria-autocomplete="list"
+                    required
+                  />
+                  {occupationOpen && (
+                    <div
+                      className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+                      aria-label="Similar occupations"
+                    >
+                      {occupationSearchPending && (
+                        <p
+                          className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"
+                          role="status"
+                        >
+                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Searching similar
+                          occupations…
+                        </p>
+                      )}
+                      {occupationSearchQuery.data && !occupationSearchQuery.data.ok && (
+                        <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
+                          {occupationSearchQuery.data.message}
+                        </p>
+                      )}
+                      {!occupationSearchPending &&
+                        debouncedOccupationSearch.length >= 1 &&
+                        suggestions.length === 0 &&
+                        occupationSearchQuery.data?.ok && (
+                          <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                            No similar occupation found for “{debouncedOccupationSearch}”.
+                          </p>
+                        )}
+                      {suggestions.length > 0 && (
+                        <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          {suggestions.length} similar occupation
+                          {suggestions.length === 1 ? "" : "s"}
+                        </p>
+                      )}
+                      {suggestions.map((entry) => (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectOccupation(entry)}
+                          className="flex w-full items-start justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{entry.name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {entry.occupationKey ? `${entry.occupationKey} · ` : ""}
+                              {entry.categoryName ?? "No SVP category"}
+                            </span>
+                          </span>
+                          {occupationId === entry.id && (
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {occupation && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Selected: {occupation.name}
+                    {occupation.occupationKey ? ` · ${occupation.occupationKey}` : ""}
+                    {occupation.categoryId ? ` · category ${occupation.categoryId}` : ""}
+                  </p>
+                )}
+              </Field>
+              <Field label={isTargeted ? "Test center city" : "Test center city *"}>
+                {isTargeted ? (
+                  <NativeSelect
+                    value={city}
+                    onChange={(event) => {
+                      setCity(event.target.value);
+                      setPrometricDate(null);
+                      setSelectedSlot(null);
+                      setSelectedSession(null);
+                      setHoldId(null);
+                      setPrometricHoldExpiresAt(null);
+                      setTargetedHoldExpiresAt(null);
+                    }}
+                  >
+                    <option value="">All cities (from SVP availability)</option>
+                    {targetedCities.map((entry) => (
+                      <option key={entry} value={entry}>
+                        {entry}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                ) : cities.length > 0 ? (
+                  <NativeSelect
+                    value={city}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setCity(value);
+                      setCityCountryId(
+                        cities.find((entry) => entry.city === value)?.countryId ?? null,
+                      );
+                      setPrometricDate(null);
+                      setSelectedSlot(null);
+                      setSelectedSession(null);
+                      setHoldId(null);
+                      setPrometricHoldExpiresAt(null);
+                      setTargetedHoldExpiresAt(null);
+                    }}
+                    required
+                  >
+                    <option value="">Select a city</option>
+                    {cities.map((entry) => (
+                      <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city}>
+                        {entry.city}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                ) : (
+                  <Input
+                    value={city}
+                    onChange={(event) => setCity(event.target.value)}
+                    placeholder="City name, e.g. Dhaka"
+                    required
+                  />
+                )}
+              </Field>
+              {languageOptions.length > 1 && (
+                <Field label="Exam language">
+                  <NativeSelect
+                    value={activeLanguageCode}
+                    onChange={(event) => {
+                      setLanguageCode(event.target.value);
+                      setSelectedDate(null);
+                      setSelectedSession(null);
+                      setSelectedSlot(null);
+                      setHoldId(null);
+                      setPrometricHoldExpiresAt(null);
+                      setTargetedHoldExpiresAt(null);
+                      setChecked(false);
+                      setEligibility(null);
+                      setStage("select");
+                    }}
+                  >
+                    {languageOptions.map((entry) => (
+                      <option key={entry.code} value={entry.code}>
+                        {entry.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              )}
+            </div>
+
+            {occupationsQuery.isPending && (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading occupations from SVP…
+              </p>
+            )}
+            {occupationsQuery.isError && (
+              <div
+                className="flex flex-wrap items-center gap-2 text-sm text-destructive"
+                role="alert"
+              >
+                <span>
+                  Occupations could not be loaded:{" "}
+                  {occupationsQuery.error instanceof Error
+                    ? occupationsQuery.error.message
+                    : "unknown error"}
+                </span>
+                <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                  Retry
+                </Button>
+              </div>
+            )}
+            {occupationsQuery.data && !occupationsQuery.data.ok && (
+              <div
+                className="flex flex-wrap items-center gap-2 text-sm text-destructive"
+                role="alert"
+              >
+                <span>{occupationsQuery.data.message}</span>
+                <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                  Retry
+                </Button>
+              </div>
+            )}
+            {occupationsQuery.data?.ok && occupations.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {occupations.length} occupations loaded from SVP.
+              </p>
+            )}
+            {occupationsQuery.data?.ok && occupations.length === 0 && (
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm" role="status">
+                <p className="font-medium">SVP returned no occupations for this account.</p>
+                <p className="text-xs text-muted-foreground">
+                  Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"} ·
+                  Country: {overview?.permissions.countryName ?? "—"} · Build: v4
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
+                  Occupation field to search SVP directly.
+                </p>
+                <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                  Reload occupations
+                </Button>
+              </div>
+            )}
+            {citiesQuery.data && !citiesQuery.data.ok && !isTargeted && (
+              <div
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
+                role="status"
+              >
+                <span>
+                  City list unavailable — type the city manually. ({citiesQuery.data.message})
+                </span>
+                <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                  Retry
+                </Button>
+              </div>
+            )}
+            {occupation && !occupation.categoryId && (
+              <p role="alert" className="text-sm text-destructive">
+                This occupation has no SVP category, so it cannot be booked online.
+              </p>
+            )}
+            {setupQuery.isPending && occupationId !== null && (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading SVP permissions…
+              </p>
+            )}
+            {setupQuery.data && !setupQuery.data.ok && (
+              <p role="alert" className="text-sm text-destructive">
+                {setupQuery.data.message}
+              </p>
+            )}
+            {setup && (
+              <p className="text-xs text-muted-foreground">
+                Free reservations: {setup.permissions.freeReservations ? "yes" : "no"} · SVP
+                credits: {setup.credits}
+              </p>
+            )}
+
+            {eligibility && (
+              <div className="space-y-2">
+                {eligibility.map((check) => (
+                  <div
+                    key={check.key}
+                    className={`flex items-start gap-2 rounded-lg border p-2 text-sm ${
+                      check.passed
+                        ? "border-border bg-muted/30"
+                        : "border-destructive/30 bg-destructive/5 text-destructive"
+                    }`}
+                  >
+                    {check.passed ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    )}
+                    <span>
+                      <strong>{check.label}:</strong> {check.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={() => eligibilityMutation.mutate()}
+                disabled={
+                  !occupation ||
+                  !occupation.categoryId ||
+                  (!isTargeted && !city.trim()) ||
+                  eligibilityMutation.isPending
+                }
+              >
+                {eligibilityMutation.isPending ? (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Check eligibility
+              </Button>
+              {checked && (
+                <Button type="button" variant="outline" onClick={() => setStage("dates")}>
+                  <CalendarDays className="mr-2 h-4 w-4" /> Continue
+                </Button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {!addAccountOpen && !rescheduleId && stage === "dates" && (
+          <section className="card-surface space-y-4 p-4 sm:p-5">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <CalendarDays className="h-5 w-5" />
+                </span>
+                <h2 className="text-xl font-bold">Step 2 · Choose the exam session</h2>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {occupation?.name} · {city}
+                {activeDateValue ? ` · ${formatDateOnly(activeDateValue)}` : ""}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Dates and sessions come live from SVP; refresh if availability changes.
+              </p>
+              <Button type="button" size="sm" variant="ghost" onClick={refreshAvailability}>
+                <RefreshCw className="mr-1 h-3.5 w-3.5" /> Refresh availability
+              </Button>
+            </div>
+
+            {eligibility && eligibility.every((entry) => entry.passed) && (
+              <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2 text-xs">
+                <CheckCircle2 className="h-4 w-4 text-success" /> All SVP checks passed.
+              </p>
+            )}
+
+            {datesLoading && (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                <LoaderCircle className="h-4 w-4 animate-spin" /> Loading available dates…
+              </p>
+            )}
+            {datesError && (
+              <p role="alert" className="text-sm text-destructive">
+                {datesError}
+              </p>
+            )}
+            {!datesLoading && datesLoaded && shownDateOptions.length === 0 && (
+              <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                {isTargeted
+                  ? "No dates with free seats are available for this occupation right now."
+                  : "No test center sites have free dates this month for this city. Try another city."}
+              </p>
+            )}
+
+            {shownDateOptions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Available dates</p>
+                <div className="flex flex-wrap gap-2">
+                  {shownDateOptions.map((entry) => {
+                    const active = activeDateValue === entry.date;
+                    return (
+                      <Button
+                        key={entry.date}
+                        type="button"
+                        size="sm"
+                        variant={active ? "default" : "outline"}
+                        onClick={() => selectDateOption(entry)}
+                      >
+                        <CalendarDays className="mr-1 h-3.5 w-3.5" /> {formatDateOnly(entry.date)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeDateValue && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  {isTargeted ? "Exam sessions" : "Available slots"}
+                </p>
+                {sessionsLoading && (
+                  <p
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    <LoaderCircle className="h-4 w-4 animate-spin" /> Loading sessions…
+                  </p>
+                )}
+                {sessionsError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {sessionsError}
+                  </p>
+                )}
+                {!sessionsLoading && sessionsLoaded && sessionViews.length === 0 && (
+                  <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {isTargeted
+                      ? "No sessions with free seats on this date."
+                      : "No slots with free seats on this date."}
+                  </p>
+                )}
+                <div className="grid gap-2 md:grid-cols-2">
+                  {sessionViews.map((view) => (
+                    <button
+                      key={view.key}
+                      type="button"
+                      onClick={view.onSelect}
+                      className={`rounded-xl border p-3 text-left text-sm transition-colors ${
+                        view.selected
+                          ? "border-primary bg-primary-soft"
+                          : "bg-card hover:border-primary/50"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">{formatSlot(view.startAt)}</span>
+                        {view.selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                      </span>
+                      <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" /> {view.center}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {view.seats !== null ? `Seats: ${view.seats} · ` : ""}Duration:{" "}
+                        {view.duration || "—"}
+                        {isTargeted ? "s" : " min"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {isTargeted && isLoadBalancer && examSessions.length > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    SVP will assign one of these {examSessions.length} sessions for the selected
+                    date.
+                  </p>
+                )}
+                {!isTargeted && holdId && (
+                  <p className="text-xs text-muted-foreground">
+                    SVP has held this slot for you. Continue to confirm the booking.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setStage("select")}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Back
+              </Button>
+              <Button
+                type="button"
+                onClick={continueFromDates}
+                disabled={
+                  (isTargeted && isLoadBalancer ? examSessions.length === 0 : !selectedSession) ||
+                  holdMutation.isPending ||
+                  targetedHoldMutation.isPending
+                }
+              >
+                {(holdMutation.isPending || targetedHoldMutation.isPending) && (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Continue
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {!addAccountOpen &&
+          !rescheduleId &&
+          stage === "confirm" &&
+          selectedSession &&
+          occupation && (
             <section className="card-surface space-y-4 p-4 sm:p-5">
               <div>
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <BriefcaseBusiness className="h-5 w-5" />
+                    <ShieldCheck className="h-5 w-5" />
                   </span>
-                  <h2 className="text-xl font-bold">Step 1 · Occupation and test center</h2>
+                  <h2 className="text-xl font-bold">Step 3 · Confirm the booking</h2>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Use the signed-in candidate&apos;s SVP account. Only occupations linked to an SVP
-                  category can be booked.
+                  The reservation is created with the real SVP API for this signed-in account.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Field label="Occupation *">
-                  <div className="relative">
-                    <Input
-                      value={occupationSearch}
-                      onChange={(event) => {
-                        setOccupationSearch(event.target.value);
-                        setOccupationOpen(true);
-                      }}
-                      onFocus={() => setOccupationOpen(true)}
-                      onBlur={() => window.setTimeout(() => setOccupationOpen(false), 180)}
-                      placeholder="Type a name, e.g. welder or loading"
-                      autoComplete="off"
-                      aria-autocomplete="list"
-                      required
-                    />
-                    {occupationOpen && (
-                      <div
-                        className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg"
-                        aria-label="Similar occupations"
-                      >
-                        {occupationSearchPending && (
-                          <p
-                            className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"
-                            role="status"
-                          >
-                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Searching similar
-                            occupations…
-                          </p>
-                        )}
-                        {occupationSearchQuery.data && !occupationSearchQuery.data.ok && (
-                          <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
-                            {occupationSearchQuery.data.message}
-                          </p>
-                        )}
-                        {!occupationSearchPending &&
-                          debouncedOccupationSearch.length >= 1 &&
-                          suggestions.length === 0 &&
-                          occupationSearchQuery.data?.ok && (
-                            <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                              No similar occupation found for “{debouncedOccupationSearch}”.
-                            </p>
-                          )}
-                        {suggestions.map((entry) => (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => selectOccupation(entry)}
-                            className="flex w-full items-start justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate font-medium">{entry.name}</span>
-                              <span className="block truncate text-xs text-muted-foreground">
-                                {entry.occupationKey ? `${entry.occupationKey} · ` : ""}
-                                {entry.categoryName ?? "No SVP category"}
-                              </span>
-                            </span>
-                            {occupationId === entry.id && (
-                              <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {occupation && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Selected: {occupation.name}
-                      {occupation.occupationKey ? ` · ${occupation.occupationKey}` : ""}
-                      {occupation.categoryId ? ` · category ${occupation.categoryId}` : ""}
-                    </p>
-                  )}
+              <dl className="grid gap-2 rounded-xl border bg-muted/20 p-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Occupation</dt>
+                  <dd className="font-medium">{occupation.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Date and time</dt>
+                  <dd className="font-medium">{formatSlot(selectedSession.startAt)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Test center</dt>
+                  <dd className="font-medium">
+                    {selectedSession.centerName ?? selectedSession.city ?? city}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Language</dt>
+                  <dd className="font-medium">{activeLanguageCode}</dd>
+                </div>
+              </dl>
+
+              {isTargeted && targetedHoldExpiresAt && (
+                <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
+                  <Clock3 className="h-3.5 w-3.5" /> Seat held by SVP until{" "}
+                  {formatHoldExpiry(targetedHoldExpiresAt)}. Complete the booking to confirm it.
+                </p>
+              )}
+              {!isTargeted && holdId && (
+                <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
+                  <Clock3 className="h-3.5 w-3.5" /> Slot held by SVP
+                  {prometricHoldExpiresAt
+                    ? ` until ${formatHoldExpiry(prometricHoldExpiresAt)}`
+                    : ""}
+                  . Complete the booking to confirm it.
+                </p>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Field label="Candidate name *">
+                  <Input
+                    value={candidateName}
+                    maxLength={120}
+                    autoComplete="off"
+                    required
+                    onChange={(event) => setCandidateName(event.target.value)}
+                    placeholder="Full name"
+                  />
                 </Field>
-                <Field label={isTargeted ? "Test center city" : "Test center city *"}>
-                  {isTargeted ? (
-                    <NativeSelect
-                      value={city}
-                      onChange={(event) => {
-                        setCity(event.target.value);
-                        setPrometricDate(null);
-                        setSelectedSlot(null);
-                        setSelectedSession(null);
-                        setHoldId(null);
-                        setPrometricHoldExpiresAt(null);
-                        setTargetedHoldExpiresAt(null);
-                      }}
-                    >
-                      <option value="">All cities (from SVP availability)</option>
-                      {targetedCities.map((entry) => (
-                        <option key={entry} value={entry}>
-                          {entry}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  ) : cities.length > 0 ? (
-                    <NativeSelect
-                      value={city}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setCity(value);
-                        setCityCountryId(
-                          cities.find((entry) => entry.city === value)?.countryId ?? null,
-                        );
-                        setPrometricDate(null);
-                        setSelectedSlot(null);
-                        setSelectedSession(null);
-                        setHoldId(null);
-                        setPrometricHoldExpiresAt(null);
-                        setTargetedHoldExpiresAt(null);
-                      }}
-                      required
-                    >
-                      <option value="">Select a city</option>
-                      {cities.map((entry) => (
-                        <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city}>
-                          {entry.city}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  ) : (
-                    <Input
-                      value={city}
-                      onChange={(event) => setCity(event.target.value)}
-                      placeholder="City name, e.g. Dhaka"
-                      required
-                    />
-                  )}
+                <Field label="Passport *">
+                  <Input
+                    value={passport}
+                    maxLength={20}
+                    autoComplete="off"
+                    required
+                    pattern="[A-Za-z0-9]{5,20}"
+                    onChange={(event) => setPassport(event.target.value)}
+                    placeholder="Passport number"
+                  />
                 </Field>
-                {languageOptions.length > 1 && (
-                  <Field label="Exam language">
-                    <NativeSelect
-                      value={activeLanguageCode}
-                      onChange={(event) => {
-                        setLanguageCode(event.target.value);
-                        setSelectedDate(null);
-                        setSelectedSession(null);
-                        setSelectedSlot(null);
-                        setHoldId(null);
-                        setPrometricHoldExpiresAt(null);
-                        setTargetedHoldExpiresAt(null);
-                        setChecked(false);
-                        setEligibility(null);
-                        setStage("select");
-                      }}
-                    >
-                      {languageOptions.map((entry) => (
-                        <option key={entry.code} value={entry.code}>
-                          {entry.label}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </Field>
-                )}
+                <Field label="Agency">
+                  <Input
+                    value={agency}
+                    maxLength={120}
+                    onChange={(event) => setAgency(event.target.value)}
+                    placeholder="Optional"
+                  />
+                </Field>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Candidate name and passport are required for the local record that is saved after
+                the SVP booking succeeds.
+              </p>
 
-              {occupationsQuery.isPending && (
-                <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading occupations from
-                  SVP…
-                </p>
-              )}
-              {occupationsQuery.isError && (
-                <div
-                  className="flex flex-wrap items-center gap-2 text-sm text-destructive"
+              {occupation.driverLicenseRequired && (
+                <p
                   role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
                 >
-                  <span>
-                    Occupations could not be loaded:{" "}
-                    {occupationsQuery.error instanceof Error
-                      ? occupationsQuery.error.message
-                      : "unknown error"}
-                  </span>
-                  <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-              {occupationsQuery.data && !occupationsQuery.data.ok && (
-                <div
-                  className="flex flex-wrap items-center gap-2 text-sm text-destructive"
-                  role="alert"
-                >
-                  <span>{occupationsQuery.data.message}</span>
-                  <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-              {occupationsQuery.data?.ok && occupations.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {occupations.length} occupations loaded from SVP.
-                </p>
-              )}
-              {occupationsQuery.data?.ok && occupations.length === 0 && (
-                <div
-                  className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
-                  role="status"
-                >
-                  <span>SVP returned no occupations for this account.</span>
-                  <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                    Reload
-                  </Button>
-                </div>
-              )}
-              {citiesQuery.data && !citiesQuery.data.ok && !isTargeted && (
-                <div
-                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
-                  role="status"
-                >
-                  <span>
-                    City list unavailable — type the city manually. ({citiesQuery.data.message})
-                  </span>
-                  <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-              {occupation && !occupation.categoryId && (
-                <p role="alert" className="text-sm text-destructive">
-                  This occupation has no SVP category, so it cannot be booked online.
-                </p>
-              )}
-              {setupQuery.isPending && occupationId !== null && (
-                <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading SVP permissions…
-                </p>
-              )}
-              {setupQuery.data && !setupQuery.data.ok && (
-                <p role="alert" className="text-sm text-destructive">
-                  {setupQuery.data.message}
-                </p>
-              )}
-              {setup && (
-                <p className="text-xs text-muted-foreground">
-                  Free reservations: {setup.permissions.freeReservations ? "yes" : "no"} · SVP
-                  credits: {setup.credits}
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  This occupation requires a driver license upload. Complete this booking in the
+                  official SVP portal instead.
                 </p>
               )}
 
-              {eligibility && (
-                <div className="space-y-2">
-                  {eligibility.map((check) => (
-                    <div
-                      key={check.key}
-                      className={`flex items-start gap-2 rounded-lg border p-2 text-sm ${
-                        check.passed
-                          ? "border-border bg-muted/30"
-                          : "border-destructive/30 bg-destructive/5 text-destructive"
-                      }`}
-                    >
-                      {check.passed ? (
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                      ) : (
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                      )}
-                      <span>
-                        <strong>{check.label}:</strong> {check.message}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <label className="flex items-start gap-2 rounded-lg border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4"
+                  checked={accepted}
+                  onChange={(event) => setAccepted(event.target.checked)}
+                />
+                <span>
+                  I confirm the candidate details are correct and accept the SVP booking and refund
+                  rules.
+                </span>
+              </label>
 
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  onClick={() => eligibilityMutation.mutate()}
-                  disabled={
-                    !occupation ||
-                    !occupation.categoryId ||
-                    (!isTargeted && !city.trim()) ||
-                    eligibilityMutation.isPending
-                  }
+                  variant="outline"
+                  onClick={() => setStage("dates")}
+                  disabled={bookingMutation.isPending}
                 >
-                  {eligibilityMutation.isPending ? (
-                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Check eligibility
-                </Button>
-                {checked && (
-                  <Button type="button" variant="outline" onClick={() => setStage("dates")}>
-                    <CalendarDays className="mr-2 h-4 w-4" /> Continue
-                  </Button>
-                )}
-              </div>
-            </section>
-          )}
-
-          {!addAccountOpen && !rescheduleId && stage === "dates" && (
-            <section className="card-surface space-y-4 p-4 sm:p-5">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <CalendarDays className="h-5 w-5" />
-                  </span>
-                  <h2 className="text-xl font-bold">Step 2 · Choose the exam session</h2>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {occupation?.name} · {city}
-                  {activeDateValue ? ` · ${formatDateOnly(activeDateValue)}` : ""}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">
-                  Dates and sessions come live from SVP; refresh if availability changes.
-                </p>
-                <Button type="button" size="sm" variant="ghost" onClick={refreshAvailability}>
-                  <RefreshCw className="mr-1 h-3.5 w-3.5" /> Refresh availability
-                </Button>
-              </div>
-
-              {eligibility && eligibility.every((entry) => entry.passed) && (
-                <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2 text-xs">
-                  <CheckCircle2 className="h-4 w-4 text-success" /> All SVP checks passed.
-                </p>
-              )}
-
-              {datesLoading && (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-                  <LoaderCircle className="h-4 w-4 animate-spin" /> Loading available dates…
-                </p>
-              )}
-              {datesError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {datesError}
-                </p>
-              )}
-              {!datesLoading && datesLoaded && shownDateOptions.length === 0 && (
-                <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                  {isTargeted
-                    ? "No dates with free seats are available for this occupation right now."
-                    : "No test center sites have free dates this month for this city. Try another city."}
-                </p>
-              )}
-
-              {shownDateOptions.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Available dates</p>
-                  <div className="flex flex-wrap gap-2">
-                    {shownDateOptions.map((entry) => {
-                      const active = activeDateValue === entry.date;
-                      return (
-                        <Button
-                          key={entry.date}
-                          type="button"
-                          size="sm"
-                          variant={active ? "default" : "outline"}
-                          onClick={() => selectDateOption(entry)}
-                        >
-                          <CalendarDays className="mr-1 h-3.5 w-3.5" /> {formatDateOnly(entry.date)}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {activeDateValue && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">
-                    {isTargeted ? "Exam sessions" : "Available slots"}
-                  </p>
-                  {sessionsLoading && (
-                    <p
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
-                      role="status"
-                    >
-                      <LoaderCircle className="h-4 w-4 animate-spin" /> Loading sessions…
-                    </p>
-                  )}
-                  {sessionsError && (
-                    <p role="alert" className="text-sm text-destructive">
-                      {sessionsError}
-                    </p>
-                  )}
-                  {!sessionsLoading && sessionsLoaded && sessionViews.length === 0 && (
-                    <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                      {isTargeted
-                        ? "No sessions with free seats on this date."
-                        : "No slots with free seats on this date."}
-                    </p>
-                  )}
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {sessionViews.map((view) => (
-                      <button
-                        key={view.key}
-                        type="button"
-                        onClick={view.onSelect}
-                        className={`rounded-xl border p-3 text-left text-sm transition-colors ${
-                          view.selected
-                            ? "border-primary bg-primary-soft"
-                            : "bg-card hover:border-primary/50"
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-semibold">{formatSlot(view.startAt)}</span>
-                          {view.selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                        </span>
-                        <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5" /> {view.center}
-                        </span>
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {view.seats !== null ? `Seats: ${view.seats} · ` : ""}Duration:{" "}
-                          {view.duration || "—"}
-                          {isTargeted ? "s" : " min"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  {isTargeted && isLoadBalancer && examSessions.length > 1 && (
-                    <p className="text-xs text-muted-foreground">
-                      SVP will assign one of these {examSessions.length} sessions for the selected
-                      date.
-                    </p>
-                  )}
-                  {!isTargeted && holdId && (
-                    <p className="text-xs text-muted-foreground">
-                      SVP has held this slot for you. Continue to confirm the booking.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={() => setStage("select")}>
                   <RotateCcw className="mr-2 h-4 w-4" /> Back
                 </Button>
                 <Button
                   type="button"
-                  onClick={continueFromDates}
+                  onClick={() => bookingMutation.mutate()}
                   disabled={
-                    (isTargeted && isLoadBalancer ? examSessions.length === 0 : !selectedSession) ||
-                    holdMutation.isPending ||
-                    targetedHoldMutation.isPending
+                    !candidateName.trim() ||
+                    !passport.trim() ||
+                    !accepted ||
+                    bookingMutation.isPending
                   }
                 >
-                  {(holdMutation.isPending || targetedHoldMutation.isPending) && (
+                  {bookingMutation.isPending && (
                     <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Continue
+                  Create SVP booking
                 </Button>
               </div>
             </section>
           )}
 
-          {!addAccountOpen &&
-            !rescheduleId &&
-            stage === "confirm" &&
-            selectedSession &&
-            occupation && (
-              <section className="card-surface space-y-4 p-4 sm:p-5">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                      <ShieldCheck className="h-5 w-5" />
-                    </span>
-                    <h2 className="text-xl font-bold">Step 3 · Confirm the booking</h2>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    The reservation is created with the real SVP API for this signed-in account.
-                  </p>
-                </div>
-
-                <dl className="grid gap-2 rounded-xl border bg-muted/20 p-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Occupation</dt>
-                    <dd className="font-medium">{occupation.name}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Date and time</dt>
-                    <dd className="font-medium">{formatSlot(selectedSession.startAt)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Test center</dt>
-                    <dd className="font-medium">
-                      {selectedSession.centerName ?? selectedSession.city ?? city}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Language</dt>
-                    <dd className="font-medium">{activeLanguageCode}</dd>
-                  </div>
-                </dl>
-
-                {isTargeted && targetedHoldExpiresAt && (
-                  <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
-                    <Clock3 className="h-3.5 w-3.5" /> Seat held by SVP until{" "}
-                    {formatHoldExpiry(targetedHoldExpiresAt)}. Complete the booking to confirm it.
-                  </p>
-                )}
-                {!isTargeted && holdId && (
-                  <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
-                    <Clock3 className="h-3.5 w-3.5" /> Slot held by SVP
-                    {prometricHoldExpiresAt
-                      ? ` until ${formatHoldExpiry(prometricHoldExpiresAt)}`
-                      : ""}
-                    . Complete the booking to confirm it.
-                  </p>
-                )}
-
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Candidate name *">
-                    <Input
-                      value={candidateName}
-                      maxLength={120}
-                      autoComplete="off"
-                      required
-                      onChange={(event) => setCandidateName(event.target.value)}
-                      placeholder="Full name"
-                    />
-                  </Field>
-                  <Field label="Passport *">
-                    <Input
-                      value={passport}
-                      maxLength={20}
-                      autoComplete="off"
-                      required
-                      pattern="[A-Za-z0-9]{5,20}"
-                      onChange={(event) => setPassport(event.target.value)}
-                      placeholder="Passport number"
-                    />
-                  </Field>
-                  <Field label="Agency">
-                    <Input
-                      value={agency}
-                      maxLength={120}
-                      onChange={(event) => setAgency(event.target.value)}
-                      placeholder="Optional"
-                    />
-                  </Field>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Candidate name and passport are required for the local record that is saved after
-                  the SVP booking succeeds.
-                </p>
-
-                {occupation.driverLicenseRequired && (
-                  <p
-                    role="alert"
-                    className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
-                  >
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    This occupation requires a driver license upload. Complete this booking in the
-                    official SVP portal instead.
-                  </p>
-                )}
-
-                <label className="flex items-start gap-2 rounded-lg border p-3 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4"
-                    checked={accepted}
-                    onChange={(event) => setAccepted(event.target.checked)}
-                  />
-                  <span>
-                    I confirm the candidate details are correct and accept the SVP booking and
-                    refund rules.
-                  </span>
-                </label>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStage("dates")}
-                    disabled={bookingMutation.isPending}
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" /> Back
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => bookingMutation.mutate()}
-                    disabled={
-                      !candidateName.trim() ||
-                      !passport.trim() ||
-                      !accepted ||
-                      bookingMutation.isPending
-                    }
-                  >
-                    {bookingMutation.isPending && (
-                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Create SVP booking
-                  </Button>
-                </div>
-              </section>
-            )}
-
-          {!addAccountOpen && !rescheduleId && stage === "done" && result && (
-            <section className="card-surface space-y-3 p-4 sm:p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
-                  <CheckCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Reservation created</h2>
-                  <p className="text-sm text-muted-foreground">
-                    SVP reservation number: {result.reservationId}
-                  </p>
-                </div>
+        {!addAccountOpen && !rescheduleId && stage === "done" && result && (
+          <section className="card-surface space-y-3 p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success-soft text-success">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
-              <p className="rounded-lg border bg-muted/30 p-3 text-sm">{result.message}</p>
-              {result.paymentRequired && (
-                <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  The reservation is not confirmed until payment is completed in the official SVP
-                  portal.
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={resetFlow}>
-                  Book another
-                </Button>
-                {!result.paymentRequired && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      void downloadTicketById(
-                        result.reservationId,
-                        status?.userName ?? candidateName,
-                        occupation?.name ?? null,
-                      )
-                    }
-                    disabled={downloadingId === result.reservationId}
-                  >
-                    {downloadingId === result.reservationId ? (
-                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="mr-2 h-4 w-4" />
-                    )}
-                    Download ticket PDF
-                  </Button>
-                )}
-                <a href={SVP_PORTAL_BOOKING_URL} target="_blank" rel="noreferrer">
-                  <Button type="button" variant="outline">
-                    <ExternalLink className="mr-2 h-4 w-4" /> Open SVP portal
-                  </Button>
-                </a>
-              </div>
-            </section>
-          )}
-
-          <section
-            className="card-surface space-y-3 p-4 sm:p-5"
-            aria-labelledby="svp-account-bookings"
-          >
-            <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Official reservations
-                </p>
-                <h2 id="svp-account-bookings" className="text-lg font-bold">
-                  SVP bookings on this account
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  {reservations.length} total
-                  {cancelledReservations > 0 ? ` · ${cancelledReservations} cancelled` : ""}
+                <h2 className="text-xl font-bold">Reservation created</h2>
+                <p className="text-sm text-muted-foreground">
+                  SVP reservation number: {result.reservationId}
                 </p>
               </div>
-              {reservationsQuery.isFetching && (
-                <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
-              )}
             </div>
-            {reservationsQuery.data && !reservationsQuery.data.ok && (
-              <p role="alert" className="text-sm text-destructive">
-                {reservationsQuery.data.message}
+            <p className="rounded-lg border bg-muted/30 p-3 text-sm">{result.message}</p>
+            {result.paymentRequired && (
+              <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                The reservation is not confirmed until payment is completed in the official SVP
+                portal.
               </p>
             )}
-            {reservations.length === 0 ? (
-              <p className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                No SVP bookings found for this account.
-              </p>
-            ) : (
-              <div className="divide-y overflow-hidden rounded-xl border bg-background/40">
-                {reservations.map((entry) => {
-                  const ticketReady = entry.status
-                    ? /reserved|completed|confirmed/i.test(entry.status)
-                    : false;
-                  return (
-                    <div
-                      key={entry.id}
-                      className="flex flex-wrap items-center justify-between gap-3 p-3.5 text-sm transition-colors hover:bg-muted/30"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-semibold">
-                          <UserRound className="mr-1 inline h-4 w-4" />{" "}
-                          {entry.occupationName ?? "Occupation"} · #{entry.id}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {entry.startAt ? formatSlot(entry.startAt) : "Date not set"}
-                          {(entry.centerName ?? entry.city)
-                            ? ` · ${entry.centerName ?? entry.city}`
-                            : ""}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone(entry.status)}`}
-                        >
-                          {entry.status ?? "unknown"}
-                        </span>
-                        {entry.canBeRescheduled ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setRescheduleId(entry.id)}
-                          >
-                            <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reschedule
-                          </Button>
-                        ) : (
-                          <span
-                            className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground"
-                            title="SVP marks this booking as not reschedulable"
-                          >
-                            Not reschedulable
-                          </span>
-                        )}
-                        {ticketReady && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              void downloadTicketById(
-                                entry.id,
-                                entry.laborName ?? status?.userName ?? candidateName,
-                                entry.occupationEnglishName ?? entry.occupationName,
-                              )
-                            }
-                            disabled={downloadingId === entry.id}
-                          >
-                            {downloadingId === entry.id ? (
-                              <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Download className="mr-1 h-3.5 w-3.5" />
-                            )}
-                            Ticket PDF
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={resetFlow}>
+                Book another
+              </Button>
+              {!result.paymentRequired && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    void downloadTicketById(
+                      result.reservationId,
+                      status?.userName ?? candidateName,
+                      occupation?.name ?? null,
+                    )
+                  }
+                  disabled={downloadingId === result.reservationId}
+                >
+                  {downloadingId === result.reservationId ? (
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Download ticket PDF
+                </Button>
+              )}
+              <a href={SVP_PORTAL_BOOKING_URL} target="_blank" rel="noreferrer">
+                <Button type="button" variant="outline">
+                  <ExternalLink className="mr-2 h-4 w-4" /> Open SVP portal
+                </Button>
+              </a>
+            </div>
           </section>
-        </div>
+        )}
 
-        <BookingSummary
-          accountName={status?.userName ?? null}
-          accountLogin={status?.login ?? null}
-          countryName={overview?.permissions.countryName ?? setup?.permissions.countryName ?? null}
-          flow={isTargeted ? `Targeted${isLoadBalancer ? " · load balanced" : ""}` : "Site-based"}
-          occupation={occupation}
-          city={city}
-          date={activeDateValue}
-          session={selectedSession}
-          price={overview?.permissions.testPrice ?? null}
-          credits={overview?.credits ?? 0}
-          freeReservations={
-            overview?.permissions.freeReservations ?? setup?.permissions.freeReservations ?? false
-          }
-        />
+        <section
+          className="card-surface space-y-3 p-4 sm:p-5"
+          aria-labelledby="svp-account-bookings"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Official reservations
+              </p>
+              <h2 id="svp-account-bookings" className="text-lg font-bold">
+                SVP bookings on this account
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {reservations.length} total
+                {cancelledReservations > 0 ? ` · ${cancelledReservations} cancelled` : ""}
+              </p>
+            </div>
+            {reservationsQuery.isFetching && (
+              <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
+          {reservationsQuery.data && !reservationsQuery.data.ok && (
+            <p role="alert" className="text-sm text-destructive">
+              {reservationsQuery.data.message}
+            </p>
+          )}
+          {reservations.length === 0 ? (
+            <p className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+              No SVP bookings found for this account.
+            </p>
+          ) : (
+            <div className="divide-y overflow-hidden rounded-xl border bg-background/40">
+              {reservations.map((entry) => {
+                const ticketReady = entry.status
+                  ? /reserved|completed|confirmed/i.test(entry.status)
+                  : false;
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex flex-wrap items-center justify-between gap-3 p-3.5 text-sm transition-colors hover:bg-muted/30"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold">
+                        <UserRound className="mr-1 inline h-4 w-4" />{" "}
+                        {entry.occupationName ?? "Occupation"} · #{entry.id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {entry.startAt ? formatSlot(entry.startAt) : "Date not set"}
+                        {(entry.centerName ?? entry.city)
+                          ? ` · ${entry.centerName ?? entry.city}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone(entry.status)}`}
+                      >
+                        {entry.status ?? "unknown"}
+                      </span>
+                      {entry.canBeRescheduled ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setRescheduleId(entry.id)}
+                        >
+                          <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reschedule
+                        </Button>
+                      ) : (
+                        <span
+                          className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground"
+                          title="SVP marks this booking as not reschedulable"
+                        >
+                          Not reschedulable
+                        </span>
+                      )}
+                      {ticketReady && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            void downloadTicketById(
+                              entry.id,
+                              entry.laborName ?? status?.userName ?? candidateName,
+                              entry.occupationEnglishName ?? entry.occupationName,
+                            )
+                          }
+                          disabled={downloadingId === entry.id}
+                        >
+                          {downloadingId === entry.id ? (
+                            <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Download className="mr-1 h-3.5 w-3.5" />
+                          )}
+                          Ticket PDF
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
