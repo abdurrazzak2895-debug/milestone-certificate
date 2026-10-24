@@ -217,9 +217,15 @@ async function refreshStoredSession(
   }
   let response: Response;
   try {
+    // The portal sends the current access token to /refresh (cookies are only a fallback).
+    const headers: Record<string, string> = {
+      ...BASE_HEADERS,
+      Authorization: `Bearer ${session.access}`,
+    };
+    if (session.refreshCookies) headers["Cookie"] = session.refreshCookies;
     response = await timedFetch(apiUrl("/refresh"), {
       method: "POST",
-      headers: { ...BASE_HEADERS, Cookie: session.refreshCookies },
+      headers,
     });
   } catch {
     throw new SvpSessionMissingError();
