@@ -169,11 +169,17 @@ const BASE_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
 } as const;
 
-function apiUrl(path: string, query?: Record<string, string | number | null | undefined>) {
+type SvpQueryValue = string | number | null | undefined | Array<string | number>;
+
+export function apiUrl(path: string, query?: Record<string, SvpQueryValue>) {
   const url = new URL(path.replace(/^\//, ""), `${SVP_API_BASE}/`);
   url.searchParams.set("locale", "en");
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === null || value === undefined || value === "") continue;
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(`${key}[]`, String(item));
+      continue;
+    }
     url.searchParams.set(key, String(value));
   }
   return url.toString();
@@ -266,7 +272,7 @@ const MAX_BINARY_BYTES = 5 * 1024 * 1024;
 
 type AuthedOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
-  query?: Record<string, string | number | null | undefined>;
+  query?: Record<string, SvpQueryValue>;
   body?: unknown;
 };
 

@@ -25,12 +25,15 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   checkSvpBookingEligibility,
   createSvpBooking,
+  createSvpPrometricHold,
   downloadSvpTicket,
   getSvpAccountOverview,
   getSvpBookingSetup,
   listSvpAvailableDates,
   listSvpBookingOccupations,
   listSvpExamSessions,
+  listSvpPrometricSites,
+  listSvpPrometricSlots,
   listSvpReservations,
   listSvpTestCenterCities,
   searchSvpOccupations,
@@ -43,6 +46,7 @@ import type {
   SvpEligibility,
   SvpExamSession,
   SvpOccupation,
+  SvpPrometricSlot,
   SvpReservation,
 } from "@/lib/svp-api.shared";
 import { normalizeSvpBookingForm, toSvpBookingInsert } from "@/lib/svp-booking.shared";
@@ -89,6 +93,12 @@ function useDebouncedValue<T>(value: T, delay = 300): T {
     return () => window.clearTimeout(timer);
   }, [value, delay]);
   return debounced;
+}
+
+function hashSlotId(value: string): number {
+  let hash = 0;
+  for (const character of value) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return hash || 1;
 }
 
 function formatDateOnly(date: string): string {
@@ -143,6 +153,9 @@ export function SvpBookingWizard() {
   const [checked, setChecked] = useState(false);
   const [selectedDate, setSelectedDate] = useState<SvpAvailableDate | null>(null);
   const [selectedSession, setSelectedSession] = useState<SvpExamSession | null>(null);
+  const [prometricDate, setPrometricDate] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<SvpPrometricSlot | null>(null);
+  const [holdId, setHoldId] = useState<string | null>(null);
   const [candidateName, setCandidateName] = useState("");
   const [passport, setPassport] = useState("");
   const [agency, setAgency] = useState("");
@@ -233,6 +246,9 @@ export function SvpBookingWizard() {
     refetchOnWindowFocus: false,
   });
   const overview = overviewQuery.data?.ok ? overviewQuery.data.data : null;
+  const isTargeted = overview
+    ? overview.permissions.targeted
+    : (setup?.permissions.targeted ?? true);
 
   // Any SVP call can invalidate the stored session (refresh cookie expired/revoked).
   useEffect(() => {
@@ -286,6 +302,60 @@ export function SvpBookingWizard() {
   });
   const examSessions = sessionsQuery.data?.ok ? sessionsQuery.data.data : [];
 
+  const prometricCode = languageCode || occupation?.languages[0]?.code || "en";
+  const sitesQuery = useQuery({
+    queryKey: ["svp-sites", prometricCode, city, cityCountryId],
+    queryFn: () =>
+      listSvpPrometricSites({
+        data: {
+          prometricCode,
+          city,
+          countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
+        },
+      }),
+    enabled: signedIn && checked && !isTargeted && Boolean(city),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const prometricSites = useMemo(
+    () => (sitesQuery.data?.ok ? sitesQuery.data.data.sites : []),
+    [sitesQuery.data],
+  );
+  const prometricExamId = sitesQuery.data?.ok ? sitesQuery.data.data.examId : null;
+  const siteDateOptions = useMemo(() => {
+    const map = new Map<string, { date: string; city: string | null }>();
+    for (const site of prometricSites) {
+      for (const date of site.dates) {
+        if (date && !map.has(date)) map.set(date, { date, city: site.city });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+  }, [prometricSites]);
+  const siteIdsForDate = prometricSites
+    .filter((site) => prometricDate && site.dates.includes(prometricDate))
+    .map((site) => site.siteId);
+  const slotsQuery = useQuery({
+    queryKey: ["svp-slots", prometricExamId, prometricDate, siteIdsForDate.join(",")],
+    queryFn: () =>
+      listSvpPrometricSlots({
+        data: {
+          examId: prometricExamId as string,
+          siteIds: siteIdsForDate,
+          date: prometricDate as string,
+        },
+      }),
+    enabled:
+      signedIn &&
+      checked &&
+      !isTargeted &&
+      Boolean(prometricExamId) &&
+      Boolean(prometricDate) &&
+      siteIdsForDate.length > 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const prometricSlots = slotsQuery.data?.ok ? slotsQuery.data.data : [];
+
   const reservationsQuery = useQuery({
     queryKey: ["svp-reservations"],
     queryFn: () => listSvpReservations(),
@@ -307,7 +377,78 @@ export function SvpBookingWizard() {
     setEligibility(null);
     setSelectedDate(null);
     setSelectedSession(null);
+    setPrometricDate(null);
+    setSelectedSlot(null);
+    setHoldId(null);
     setStage("select");
+  };
+
+  const chooseSlot = (slot: SvpPrometricSlot) => {
+    const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
+    const numeric = Number(slot.id);
+    setSelectedSlot(slot);
+    setSelectedSession({
+      id: Number.isFinite(numeric) ? numeric : hashSlotId(slot.id),
+      startAt: slot.startAt,
+      endAt: null,
+      duration: slot.duration,
+      availableSeats: null,
+      city: site?.city ?? city,
+      centerName: site?.name ?? null,
+      siteId: slot.siteId,
+    });
+    setHoldId(null);
+  };
+
+  const holdMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedSlot?.siteId) throw new Error("Select a slot first.");
+      const response = await createSvpPrometricHold({
+        data: { slotId: selectedSlot.id, siteId: selectedSlot.siteId },
+      });
+      if (!response.ok) {
+        if (response.needsSignIn) requireSignIn();
+        throw new Error(response.message);
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setHoldId(data.holdId);
+      setStage("confirm");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "SVP could not hold the slot."),
+  });
+
+  const continueFromDates = () => {
+    if (isTargeted) {
+      setStage("confirm");
+      return;
+    }
+    holdMutation.mutate();
+  };
+
+  const selectDateOption = (entry: { date: string; city: string | null }) => {
+    setSelectedSession(null);
+    setSelectedSlot(null);
+    setHoldId(null);
+    if (isTargeted) {
+      const nextDate =
+        availableDates.find(
+          (candidate) =>
+            splitDateTime(candidate.startAt).date === entry.date &&
+            (!entry.city || candidate.city === entry.city),
+        ) ?? null;
+      setSelectedDate(nextDate);
+      if (entry.city) {
+        setCity(entry.city);
+        setCityCountryId(
+          cities.find((candidate) => candidate.city === entry.city)?.countryId ?? null,
+        );
+      }
+      return;
+    }
+    setPrometricDate(entry.date);
   };
 
   const resetFlow = () => {
@@ -323,6 +464,9 @@ export function SvpBookingWizard() {
     setChecked(false);
     setSelectedDate(null);
     setSelectedSession(null);
+    setPrometricDate(null);
+    setSelectedSlot(null);
+    setHoldId(null);
     setCandidateName("");
     setPassport("");
     setAgency("");
@@ -425,13 +569,14 @@ export function SvpBookingWizard() {
         data: {
           occupationId: occupation.id,
           categoryId: occupation.categoryId as number,
-          examSessionId: selectedSession.id,
+          examSessionId: isTargeted ? selectedSession.id : (prometricExamId ?? selectedSession.id),
           languageCode: languageCode || occupation.languages[0]?.code || "en",
           duration: selectedSession.duration,
           startAt: selectedSession.startAt,
           siteId: selectedSession.siteId,
           // The portal only sends site_city for non-targeted (site-based) sessions.
           siteCity: selectedSession.siteId ? (selectedSession.city ?? sessionCity) : null,
+          holdId: isTargeted ? null : holdId,
           countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
         },
       });
@@ -465,6 +610,59 @@ export function SvpBookingWizard() {
     },
     onError: () => toast.error("Could not sign out of SVP."),
   });
+
+  const shownDateOptions = isTargeted ? dateOptions : siteDateOptions;
+  const datesLoading = isTargeted ? datesQuery.isPending : sitesQuery.isPending;
+  const datesError = isTargeted
+    ? datesQuery.data && !datesQuery.data.ok
+      ? datesQuery.data.message
+      : null
+    : sitesQuery.data && !sitesQuery.data.ok
+      ? sitesQuery.data.message
+      : null;
+  const datesLoaded = isTargeted ? Boolean(datesQuery.data?.ok) : Boolean(sitesQuery.data?.ok);
+  const activeDateValue = isTargeted
+    ? selectedDate
+      ? splitDateTime(selectedDate.startAt).date
+      : ""
+    : (prometricDate ?? "");
+  const sessionViews = isTargeted
+    ? examSessions.map((entry) => ({
+        key: `s-${entry.id}`,
+        startAt: entry.startAt,
+        center: entry.centerName ?? entry.city ?? city,
+        seats: entry.availableSeats,
+        duration: entry.duration,
+        selected: selectedSession?.id === entry.id && !selectedSlot,
+        onSelect: () => {
+          setSelectedSession(entry);
+          setSelectedSlot(null);
+          setHoldId(null);
+        },
+      }))
+    : prometricSlots.map((slot) => {
+        const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
+        return {
+          key: `p-${slot.id}`,
+          startAt: slot.startAt,
+          center: site?.name ?? site?.city ?? city,
+          seats: null as number | null,
+          duration: slot.duration,
+          selected: selectedSlot?.id === slot.id,
+          onSelect: () => chooseSlot(slot),
+        };
+      });
+  const sessionsLoading = isTargeted ? sessionsQuery.isPending : slotsQuery.isPending;
+  const sessionsError = isTargeted
+    ? sessionsQuery.data && !sessionsQuery.data.ok
+      ? sessionsQuery.data.message
+      : null
+    : slotsQuery.data && !slotsQuery.data.ok
+      ? slotsQuery.data.message
+      : null;
+  const sessionsLoaded = isTargeted
+    ? Boolean(sessionsQuery.data?.ok)
+    : Boolean(slotsQuery.data?.ok);
 
   if (sessionQuery.isPending) {
     return (
@@ -568,6 +766,9 @@ export function SvpBookingWizard() {
                 Country: {overview.permissions.countryName ?? "—"}
               </span>
               <span className="rounded-full border px-2.5 py-0.5">
+                Flow: {overview.permissions.targeted ? "targeted" : "site-based"}
+              </span>
+              <span className="rounded-full border px-2.5 py-0.5">
                 Free reservations: {overview.permissions.freeReservations ? "yes" : "no"}
               </span>
               <span className="rounded-full border px-2.5 py-0.5">Credits: {overview.credits}</span>
@@ -593,13 +794,6 @@ export function SvpBookingWizard() {
             {overviewQuery.data.message}
           </p>
         )}
-        {overview && !overview.permissions.targeted && (
-          <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-950">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            This SVP country uses the site-based booking flow. This workspace books targeted
-            sessions, so complete site-based bookings in the official portal.
-          </p>
-        )}
       </section>
 
       {rescheduleId && (
@@ -607,6 +801,7 @@ export function SvpBookingWizard() {
           reservationId={rescheduleId}
           rescheduleTimes={overview?.constraints.rescheduleTimes ?? null}
           countryId={overview?.permissions.countryId ?? null}
+          isTargeted={isTargeted}
           onCancel={() => setRescheduleId(null)}
           onDone={(updated) => {
             const reservationId = rescheduleId;
@@ -713,6 +908,10 @@ export function SvpBookingWizard() {
                     setCityCountryId(
                       cities.find((entry) => entry.city === value)?.countryId ?? null,
                     );
+                    setPrometricDate(null);
+                    setSelectedSlot(null);
+                    setSelectedSession(null);
+                    setHoldId(null);
                   }}
                   required
                 >
@@ -830,7 +1029,7 @@ export function SvpBookingWizard() {
             <h2 className="text-xl font-bold">Step 2 · Choose the exam session</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {occupation?.name} · {city}
-              {selectedDate ? ` · ${formatDateOnly(splitDateTime(selectedDate.startAt).date)}` : ""}
+              {activeDateValue ? ` · ${formatDateOnly(activeDateValue)}` : ""}
             </p>
           </div>
 
@@ -840,53 +1039,37 @@ export function SvpBookingWizard() {
             </p>
           )}
 
-          {datesQuery.isPending && (
+          {datesLoading && (
             <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
               <LoaderCircle className="h-4 w-4 animate-spin" /> Loading available dates…
             </p>
           )}
-          {datesQuery.data && !datesQuery.data.ok && (
+          {datesError && (
             <p role="alert" className="text-sm text-destructive">
-              {datesQuery.data.message}
+              {datesError}
             </p>
           )}
-          {!datesQuery.isPending && datesQuery.data?.ok && dateOptions.length === 0 && (
+          {!datesLoading && datesLoaded && shownDateOptions.length === 0 && (
             <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-              No dates with free seats are available for this occupation right now.
+              {isTargeted
+                ? "No dates with free seats are available for this occupation right now."
+                : "No test center sites have free dates this month for this city. Try another city."}
             </p>
           )}
 
-          {dateOptions.length > 0 && (
+          {shownDateOptions.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">Available dates</p>
               <div className="flex flex-wrap gap-2">
-                {dateOptions.map((entry) => {
-                  const active = selectedDate
-                    ? splitDateTime(selectedDate.startAt).date === entry.date
-                    : false;
+                {shownDateOptions.map((entry) => {
+                  const active = activeDateValue === entry.date;
                   return (
                     <Button
                       key={entry.date}
                       type="button"
                       size="sm"
                       variant={active ? "default" : "outline"}
-                      onClick={() => {
-                        const nextDate =
-                          availableDates.find(
-                            (candidate) =>
-                              splitDateTime(candidate.startAt).date === entry.date &&
-                              (!entry.city || candidate.city === entry.city),
-                          ) ?? null;
-                        setSelectedDate(nextDate);
-                        setSelectedSession(null);
-                        if (entry.city) {
-                          setCity(entry.city);
-                          setCityCountryId(
-                            cities.find((candidate) => candidate.city === entry.city)?.countryId ??
-                              null,
-                          );
-                        }
-                      }}
+                      onClick={() => selectDateOption(entry)}
                     >
                       <CalendarDays className="mr-1 h-3.5 w-3.5" /> {formatDateOnly(entry.date)}
                     </Button>
@@ -896,52 +1079,60 @@ export function SvpBookingWizard() {
             </div>
           )}
 
-          {selectedDate && (
+          {activeDateValue && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">Exam sessions</p>
-              {sessionsQuery.isPending && (
+              <p className="text-sm font-medium">
+                {isTargeted ? "Exam sessions" : "Available slots"}
+              </p>
+              {sessionsLoading && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
                   <LoaderCircle className="h-4 w-4 animate-spin" /> Loading sessions…
                 </p>
               )}
-              {sessionsQuery.data && !sessionsQuery.data.ok && (
+              {sessionsError && (
                 <p role="alert" className="text-sm text-destructive">
-                  {sessionsQuery.data.message}
+                  {sessionsError}
                 </p>
               )}
-              {sessionsQuery.data?.ok && examSessions.length === 0 && (
+              {!sessionsLoading && sessionsLoaded && sessionViews.length === 0 && (
                 <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                  No sessions with free seats on this date.
+                  {isTargeted
+                    ? "No sessions with free seats on this date."
+                    : "No slots with free seats on this date."}
                 </p>
               )}
               <div className="grid gap-2 md:grid-cols-2">
-                {examSessions.map((entry) => {
-                  const active = selectedSession?.id === entry.id;
-                  return (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() => setSelectedSession(entry)}
-                      className={`rounded-xl border p-3 text-left text-sm transition-colors ${
-                        active
-                          ? "border-primary bg-primary-soft"
-                          : "bg-card hover:border-primary/50"
-                      }`}
-                    >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="font-semibold">{formatSlot(entry.startAt)}</span>
-                        {active && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                      </span>
-                      <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5" /> {entry.centerName ?? entry.city ?? city}
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        Seats: {entry.availableSeats ?? "—"} · Duration: {entry.duration || "—"}s
-                      </span>
-                    </button>
-                  );
-                })}
+                {sessionViews.map((view) => (
+                  <button
+                    key={view.key}
+                    type="button"
+                    onClick={view.onSelect}
+                    className={`rounded-xl border p-3 text-left text-sm transition-colors ${
+                      view.selected
+                        ? "border-primary bg-primary-soft"
+                        : "bg-card hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-semibold">{formatSlot(view.startAt)}</span>
+                      {view.selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                    </span>
+                    <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" /> {view.center}
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {view.seats !== null ? `Seats: ${view.seats} · ` : ""}Duration:{" "}
+                      {view.duration || "—"}
+                      {isTargeted ? "s" : " min"}
+                    </span>
+                  </button>
+                ))}
               </div>
+              {!isTargeted && holdId && (
+                <p className="text-xs text-muted-foreground">
+                  SVP has held this slot for you. Continue to confirm the booking.
+                </p>
+              )}
             </div>
           )}
 
@@ -949,7 +1140,12 @@ export function SvpBookingWizard() {
             <Button type="button" variant="outline" onClick={() => setStage("select")}>
               <RotateCcw className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button type="button" onClick={() => setStage("confirm")} disabled={!selectedSession}>
+            <Button
+              type="button"
+              onClick={continueFromDates}
+              disabled={!selectedSession || holdMutation.isPending}
+            >
+              {holdMutation.isPending && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
               Continue
             </Button>
           </div>

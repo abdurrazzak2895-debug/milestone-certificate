@@ -7,6 +7,8 @@ import {
   parseSvpExamSessions,
   parseSvpOccupations,
   parseSvpPermissions,
+  parseSvpPrometricSites,
+  parseSvpPrometricSlots,
   parseSvpAccountPermissions,
   parseSvpConstraints,
   parseSvpFeatureFlags,
@@ -313,5 +315,49 @@ describe("SVP reschedule and account parsers", () => {
     expect(permissions.freeReservations).toBe(false);
     expect(permissions.targeted).toBe(true);
     expect(permissions.permissionKeys).toEqual(["book_appointment", "reschedule_appointment"]);
+  });
+});
+
+describe("SVP site-based booking parsers", () => {
+  it("reads sites, exam id and available dates", () => {
+    expect(
+      parseSvpPrometricSites({
+        data: {
+          exam_id: "555",
+          sites: [
+            {
+              site_id: 9,
+              test_center: {
+                name: "Site A",
+                address: { locality: "Dhaka", formattedAddress: "1 Test Road, Dhaka" },
+              },
+              available_dates: ["2026-12-01", "2026-12-02T00:00:00"],
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      examId: "555",
+      sites: [
+        {
+          siteId: 9,
+          name: "Site A",
+          city: "Dhaka",
+          address: "1 Test Road, Dhaka",
+          dates: ["2026-12-01", "2026-12-02"],
+        },
+      ],
+    });
+  });
+
+  it("reads slots grouped by site", () => {
+    expect(
+      parseSvpPrometricSlots([
+        {
+          site_id: 9,
+          slots: [{ id: "slot-1", startDateTime: "2026-12-01T10:00:00", duration: 30 }],
+        },
+      ]),
+    ).toEqual([{ id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 }]);
   });
 });

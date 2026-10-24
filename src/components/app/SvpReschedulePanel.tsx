@@ -47,12 +47,14 @@ export function SvpReschedulePanel({
   reservationId,
   rescheduleTimes,
   countryId,
+  isTargeted = true,
   onCancel,
   onDone,
 }: {
   reservationId: string;
   rescheduleTimes: number | null;
   countryId?: number | null;
+  isTargeted?: boolean;
   onCancel: () => void;
   onDone: (
     result: { startAt: string; city: string | null; centerName: string | null } | null,
@@ -151,6 +153,22 @@ export function SvpReschedulePanel({
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "The reschedule failed."),
   });
+
+  if (!isTargeted) {
+    return (
+      <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-bold">Reschedule appointment</h2>
+        <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          This account uses SVP&apos;s site-based flow. Site-based rescheduling must be completed in
+          the official SVP portal.
+        </p>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Close
+        </Button>
+      </section>
+    );
+  }
 
   if (detailQuery.isPending) {
     return (

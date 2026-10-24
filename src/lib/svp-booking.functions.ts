@@ -13,6 +13,8 @@ import {
   parseSvpFeatureFlags,
   parseSvpOccupations,
   parseSvpPermissions,
+  parseSvpPrometricSites,
+  parseSvpPrometricSlots,
   parseSvpReservation,
   parseSvpReservationDetail,
   parseSvpReservations,
@@ -25,6 +27,8 @@ import {
   type SvpExamSession,
   type SvpFeatureFlags,
   type SvpOccupation,
+  type SvpPrometricSiteList,
+  type SvpPrometricSlot,
   type SvpReservation,
   type SvpReservationDetail,
 } from "@/lib/svp-api.shared";
@@ -328,12 +332,13 @@ export const createSvpBooking = createServerFn({ method: "POST" })
       .object({
         occupationId: z.number().int().positive(),
         categoryId: z.number().int().positive(),
-        examSessionId: z.number().int().positive(),
+        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(40)]),
         languageCode: z.string().trim().min(1).max(20),
         duration: z.number().nonnegative(),
         startAt: z.string().trim().min(1).max(64),
         siteId: z.number().int().positive().nullable().optional(),
         siteCity: z.string().trim().max(120).nullable().optional(),
+        holdId: z.string().trim().max(64).nullable().optional(),
         countryId: z.number().int().positive().nullable().optional(),
       })
       .parse(input),
@@ -358,6 +363,19 @@ export const createSvpBooking = createServerFn({ method: "POST" })
         );
       }
 
+      if (data.holdId) {
+        // The portal holds the temporary seat again for a held slot; best effort, like the portal.
+        await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
+          method: "POST",
+          query: LOCALE_QUERY,
+          body: {
+            exam_session_id: data.holdId,
+            country_id: data.countryId ?? null,
+            category_id: data.categoryId,
+          },
+        }).catch(() => undefined);
+      }
+
       const create = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/exam_reservations",
@@ -372,7 +390,7 @@ export const createSvpBooking = createServerFn({ method: "POST" })
             startAt: data.startAt,
             siteId: data.siteId ?? null,
             siteCity: data.siteCity ?? null,
-            holdId: null,
+            holdId: data.holdId ?? null,
             countryId: data.countryId ?? null,
           }),
         },
@@ -675,7 +693,7 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
           .string()
           .trim()
           .regex(/^[A-Za-z0-9-]{1,64}$/),
-        examSessionId: z.number().int().positive(),
+        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(40)]),
         languageCode: z.string().trim().min(1).max(20),
       })
       .parse(input),
@@ -753,3 +771,132 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
       return failure("The appointment could not be rescheduled.");
     }
   });
+
+/** Site availability for non-targeted (site-based) countries. */
+export const listSvpPrometricSites = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        prometricCode: z.string().trim().min(1).max(20),
+        city: z.string().trim().min(1).max(120),
+        countryId: z.number().int().positive().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpPrometricSiteList>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const now = new Date();
+      const start = now.toISOString().slice(0, 10);
+      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0))
+        .toISOString()
+        .slice(0, 10);
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/prometric_scheduling/sites_availabilities",
+        {
+          query: {
+            ...LOCALE_QUERY,
+            prometric_code: data.prometricCode,
+            city: data.city,
+            start_date: start,
+            end_date: end,
+            ...(data.countryId ? { country_id: data.countryId } : {}),
+          },
+        },
+      );
+      if (!response.ok) {
+        return failure(apiFailure(response.payload, "Test center sites could not be loaded."));
+      }
+      return { ok: true, data: parseSvpPrometricSites(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("Test center sites could not be loaded.");
+    }
+  });
+
+/** Free slots for the selected day across the given sites. */
+export const listSvpPrometricSlots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        examId: z.string().trim().min(1).max(40),
+        siteIds: z.array(z.number().int().positive()).min(1).max(200),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpPrometricSlot[]>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/prometric_scheduling/slots_availabilities",
+        {
+          query: {
+            ...LOCALE_QUERY,
+            site_ids: data.siteIds,
+            exam_id: data.examId,
+            start_date: data.date,
+            end_date: data.date,
+          },
+        },
+      );
+      if (!response.ok) {
+        return failure(apiFailure(response.payload, "Slots could not be loaded."));
+      }
+      return { ok: true, data: parseSvpPrometricSlots(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("Slots could not be loaded.");
+    }
+  });
+
+/** Hold a selected slot before creating the site-based reservation. */
+export const createSvpPrometricHold = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        slotId: z.string().trim().min(1).max(64),
+        siteId: z.number().int().positive(),
+      })
+      .parse(input),
+  )
+  .handler(
+    async ({ context, data }): Promise<SvpResult<{ holdId: string; expiresAt: string | null }>> => {
+      await requireSvpAllowedRole(context.supabase, context.userId);
+      try {
+        const response = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/prometric_scheduling/slots_availabilities",
+          {
+            method: "POST",
+            query: LOCALE_QUERY,
+            body: { slot_id: data.slotId, site_id: data.siteId },
+          },
+        );
+        if (!response.ok) {
+          return failure(apiFailure(response.payload, "SVP could not hold this slot."));
+        }
+        const root = record(response.payload);
+        const payload = record(root?.["data"]) ?? root;
+        const holdValue = payload?.["id"] ?? root?.["id"];
+        if (holdValue === undefined || holdValue === null) {
+          return failure("SVP did not return a seat hold. Choose another slot.");
+        }
+        return {
+          ok: true,
+          data: {
+            holdId: String(holdValue),
+            expiresAt: typeof payload?.["expired_at"] === "string" ? payload["expired_at"] : null,
+          },
+        };
+      } catch (error) {
+        if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+        return failure("SVP could not hold this slot.");
+      }
+    },
+  );

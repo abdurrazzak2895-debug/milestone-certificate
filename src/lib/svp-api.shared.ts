@@ -43,6 +43,23 @@ export type SvpExamSession = {
   siteId: number | null;
 };
 
+export type SvpPrometricSite = {
+  siteId: number;
+  name: string | null;
+  city: string | null;
+  address: string | null;
+  dates: string[];
+};
+
+export type SvpPrometricSiteList = { examId: string | null; sites: SvpPrometricSite[] };
+
+export type SvpPrometricSlot = {
+  id: string;
+  siteId: number | null;
+  startAt: string;
+  duration: number;
+};
+
 export type SvpEligibilityKey =
   "passport_expiration_condition" | "booking_availability_condition" | "already_existing_booking";
 
@@ -92,7 +109,7 @@ export type SvpAccountPermissions = SvpBookingPermissions & {
 };
 
 export type SvpCreateReservationInput = {
-  examSessionId: number;
+  examSessionId: number | string;
   occupationId: number;
   languageCode: string;
   duration: number;
@@ -473,4 +490,81 @@ export function parseSvpAccountPermissions(payload: unknown): SvpAccountPermissi
     ...permissions,
     permissionKeys: collectTrueKeys(labors ?? legislator),
   };
+}
+
+/** Site availability list from `/prometric_scheduling/sites_availabilities`. */
+export function parseSvpPrometricSites(payload: unknown): SvpPrometricSiteList {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  const sites: SvpPrometricSite[] = [];
+  for (const entry of asArray(data?.["sites"])) {
+    const record = asRecord(entry);
+    const siteId = number(record?.["site_id"]) ?? number(record?.["id"]);
+    if (!record || siteId === null) continue;
+    const center = asRecord(record["test_center"]);
+    const address = asRecord(center?.["address"]);
+    const dates = asArray(record["available_dates"])
+      .map((value) => {
+        if (typeof value === "string") return value.slice(0, 10);
+        const item = asRecord(value);
+        return (text(item?.["date"]) ?? text(item?.["start_at"]) ?? "").slice(0, 10);
+      })
+      .filter((value) => Boolean(value));
+    sites.push({
+      siteId,
+      name: text(center?.["name"]) ?? text(record["site_name"]),
+      city: text(address?.["locality"]) ?? text(center?.["city"]) ?? text(record["city"]),
+      address: text(address?.["formattedAddress"]) ?? text(record["address"]),
+      dates: [...new Set(dates)],
+    });
+  }
+  return {
+    examId: text(data?.["exam_id"]) ?? text(root?.["exam_id"]),
+    sites,
+  };
+}
+
+/** Slot list from `/prometric_scheduling/slots_availabilities` (`[{site_id, slots}]`). */
+export function parseSvpPrometricSlots(payload: unknown): SvpPrometricSlot[] {
+  let groups: unknown[] = [];
+  if (Array.isArray(payload)) {
+    groups = payload;
+  } else {
+    const root = asRecord(payload);
+    if (root) {
+      if (Array.isArray(root["data"])) groups = root["data"];
+      else {
+        const data = asRecord(root["data"]);
+        for (const candidate of [root["slots"], data?.["slots"], data?.["sites"]]) {
+          if (Array.isArray(candidate)) {
+            groups = candidate;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  const slots: SvpPrometricSlot[] = [];
+  for (const entry of groups) {
+    const group = asRecord(entry);
+    if (!group) continue;
+    const siteId = number(group["site_id"]);
+    for (const value of asArray(group["slots"])) {
+      const slot = asRecord(value);
+      const id = slot?.["id"];
+      const startAt =
+        text(slot?.["startDateTime"]) ??
+        text(slot?.["start_at"]) ??
+        text(slot?.["start_at_in_tc_time_zone"]);
+      if (!slot || id === undefined || id === null || !startAt) continue;
+      slots.push({
+        id: String(id),
+        siteId: number(slot["site_id"]) ?? siteId,
+        startAt,
+        duration: number(slot["duration"]) ?? 0,
+      });
+    }
+  }
+  return slots.sort((a, b) => a.startAt.localeCompare(b.startAt));
 }

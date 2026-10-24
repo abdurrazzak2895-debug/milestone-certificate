@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   cities: vi.fn(),
   setup: vi.fn(),
   overview: vi.fn(),
+  sites: vi.fn(),
+  slots: vi.fn(),
+  hold: vi.fn(),
   dates: vi.fn(),
   sessions: vi.fn(),
   reservations: vi.fn(),
@@ -32,6 +35,9 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpTestCenterCities: mocks.cities,
   getSvpBookingSetup: mocks.setup,
   getSvpAccountOverview: mocks.overview,
+  listSvpPrometricSites: mocks.sites,
+  listSvpPrometricSlots: mocks.slots,
+  createSvpPrometricHold: mocks.hold,
   listSvpAvailableDates: mocks.dates,
   listSvpExamSessions: mocks.sessions,
   listSvpReservations: mocks.reservations,
@@ -84,6 +90,26 @@ beforeEach(() => {
   });
   mocks.occupations.mockResolvedValue({ ok: true, data: [occupation] });
   mocks.search.mockResolvedValue({ ok: true, data: [occupation] });
+  mocks.sites.mockResolvedValue({
+    ok: true,
+    data: {
+      examId: "555",
+      sites: [
+        {
+          siteId: 9,
+          name: "Site A",
+          city: "Dhaka",
+          address: "1 Test Road",
+          dates: ["2026-12-01"],
+        },
+      ],
+    },
+  });
+  mocks.slots.mockResolvedValue({
+    ok: true,
+    data: [{ id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 }],
+  });
+  mocks.hold.mockResolvedValue({ ok: true, data: { holdId: "hold-1", expiresAt: null } });
   mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 4 }] });
   mocks.setup.mockResolvedValue({
     ok: true,
@@ -214,6 +240,7 @@ describe("SVP booking wizard", () => {
           occupationId: 11,
           categoryId: 159,
           examSessionId: 501,
+          holdId: null,
           languageCode: "en",
           duration: 3600,
           startAt: "2026-11-05 09:30:00",
@@ -295,6 +322,86 @@ describe("occupation auto-suggest", () => {
     fireEvent.click(suggestion);
 
     expect(screen.getByText(/Selected: Loading and Unloading Worker/)).toBeInTheDocument();
+  });
+});
+
+describe("site-based booking flow", () => {
+  it("holds a slot and creates the reservation with the prometric exam id and hold", async () => {
+    mocks.overview.mockResolvedValue({
+      ok: true,
+      data: {
+        permissions: {
+          freeReservations: true,
+          targeted: false,
+          countryId: 4,
+          countryName: "Bangladesh",
+          permissionKeys: ["book_appointment"],
+        },
+        constraints: { rescheduleTimes: 1, bookingHoldSeconds: 600, cancellationLimitHours: 48 },
+        flags: { rescheduleEnabled: true, creditsEnabled: true },
+        credits: 0,
+      },
+    });
+    mocks.setup.mockResolvedValue({
+      ok: true,
+      data: {
+        permissions: {
+          freeReservations: true,
+          targeted: false,
+          countryId: 4,
+          countryName: "Bangladesh",
+        },
+        credits: 0,
+        svpUserId: "969955",
+      },
+    });
+
+    renderWizard();
+
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    fireEvent.change(screen.getByLabelText("Test center city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+
+    expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() =>
+      expect(mocks.hold).toHaveBeenCalledWith({
+        data: { slotId: "slot-1", siteId: 9 },
+      }),
+    );
+    expect(await screen.findByText(/Step 3/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Candidate name *"), {
+      target: { value: "Noor Rahman" },
+    });
+    fireEvent.change(screen.getByLabelText("Passport *"), { target: { value: "AB123456" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Create SVP booking" }));
+
+    expect(await screen.findByText(/SVP reservation number: R-123/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith({
+        data: {
+          occupationId: 11,
+          categoryId: 159,
+          examSessionId: "555",
+          holdId: "hold-1",
+          languageCode: "en",
+          duration: 30,
+          startAt: "2026-12-01T10:00:00",
+          siteId: 9,
+          siteCity: "Dhaka",
+          countryId: 4,
+        },
+      }),
+    );
   });
 });
 
