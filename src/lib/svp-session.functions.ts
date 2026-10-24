@@ -17,6 +17,8 @@ import {
   readStoredSvpSession,
   requireSvpAllowedRole,
   responseCookies,
+  SvpSessionMissingError,
+  svpAuthedRequest,
   svpLoginRequest,
   writePendingSvpSession,
   writeStoredSvpSession,
@@ -121,6 +123,34 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
     writeStoredSvpSession(context.userId, session);
     clearPendingSvpSession(context.userId);
 
+    // Verify the stored bearer token before claiming a working session.
+    let verificationStatus: number | null = null;
+    try {
+      const verification = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/permissions",
+        { query: { locale: "en" } },
+      );
+      verificationStatus = verification.status;
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) verificationStatus = 401;
+    }
+    if (verificationStatus === 401 || verificationStatus === 403) {
+      clearStoredSvpSession(context.userId);
+      return {
+        step: "otp",
+        httpStatus: verificationStatus,
+        ok: false,
+        otpRequired: false,
+        authenticated: false,
+        message:
+          verificationStatus === 403
+            ? "SVP rejected this account's booking permissions. Check the SVP account."
+            : "SVP accepted the OTP but the session token was rejected. Try signing in again.",
+        session: null,
+      };
+    }
+
     return {
       step: "otp",
       httpStatus: response.status,
@@ -137,7 +167,7 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
   });
 
 /** Whether this app user currently holds an SVP web session. */
-export const getSvpSessionStatus = createServerFn({ method: "GET" })
+export const getSvpSessionStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SvpSessionStatus> => {
     const session = readStoredSvpSession(context.userId);

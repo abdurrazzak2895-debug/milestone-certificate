@@ -200,7 +200,7 @@ export function SvpBookingWizard() {
   const occupationSearchQuery = useQuery({
     queryKey: ["svp-occupation-search", debouncedOccupationSearch],
     queryFn: () => searchSvpOccupations({ data: { query: debouncedOccupationSearch } }),
-    enabled: signedIn && debouncedOccupationSearch.length >= 2,
+    enabled: signedIn && debouncedOccupationSearch.length >= 1,
     retry: false,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -210,7 +210,7 @@ export function SvpBookingWizard() {
     [occupationSearchQuery.data],
   );
   const suggestions = useMemo(() => {
-    if (debouncedOccupationSearch.length < 2) return filteredOccupations.slice(0, 12);
+    if (debouncedOccupationSearch.length < 1) return filteredOccupations.slice(0, 12);
     const merged = new Map<number, SvpOccupation>();
     for (const entry of [...searchResults, ...filteredOccupations]) {
       if (!merged.has(entry.id)) merged.set(entry.id, entry);
@@ -449,6 +449,12 @@ export function SvpBookingWizard() {
       return;
     }
     setPrometricDate(entry.date);
+  };
+
+  const retryOccupations = () => {
+    void occupationsQuery.refetch();
+    if (debouncedOccupationSearch) void occupationSearchQuery.refetch();
+    void citiesQuery.refetch();
   };
 
   const resetFlow = () => {
@@ -838,7 +844,6 @@ export function SvpBookingWizard() {
                   autoComplete="off"
                   aria-autocomplete="list"
                   required
-                  disabled={occupationsQuery.isPending}
                 />
                 {occupationOpen && (
                   <div
@@ -860,7 +865,7 @@ export function SvpBookingWizard() {
                       </p>
                     )}
                     {!occupationSearchPending &&
-                      debouncedOccupationSearch.length >= 2 &&
+                      debouncedOccupationSearch.length >= 1 &&
                       suggestions.length === 0 &&
                       occupationSearchQuery.data?.ok && (
                         <p className="px-2 py-1.5 text-xs text-muted-foreground">
@@ -947,10 +952,59 @@ export function SvpBookingWizard() {
             )}
           </div>
 
-          {occupationsQuery.data && !occupationsQuery.data.ok && (
-            <p role="alert" className="text-sm text-destructive">
-              {occupationsQuery.data.message}
+          {occupationsQuery.isPending && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading occupations from SVP…
             </p>
+          )}
+          {occupationsQuery.isError && (
+            <div
+              className="flex flex-wrap items-center gap-2 text-sm text-destructive"
+              role="alert"
+            >
+              <span>
+                Occupations could not be loaded:{" "}
+                {occupationsQuery.error instanceof Error
+                  ? occupationsQuery.error.message
+                  : "unknown error"}
+              </span>
+              <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                Retry
+              </Button>
+            </div>
+          )}
+          {occupationsQuery.data && !occupationsQuery.data.ok && (
+            <div
+              className="flex flex-wrap items-center gap-2 text-sm text-destructive"
+              role="alert"
+            >
+              <span>{occupationsQuery.data.message}</span>
+              <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                Retry
+              </Button>
+            </div>
+          )}
+          {occupationsQuery.data?.ok && occupations.length === 0 && (
+            <div
+              className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+              role="status"
+            >
+              <span>SVP returned no occupations for this account.</span>
+              <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                Reload
+              </Button>
+            </div>
+          )}
+          {citiesQuery.data && !citiesQuery.data.ok && (
+            <div
+              className="flex flex-wrap items-center gap-2 text-sm text-destructive"
+              role="alert"
+            >
+              <span>{citiesQuery.data.message}</span>
+              <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                Retry
+              </Button>
+            </div>
           )}
           {occupation && !occupation.categoryId && (
             <p role="alert" className="text-sm text-destructive">

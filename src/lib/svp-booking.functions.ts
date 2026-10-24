@@ -50,8 +50,9 @@ function failure(
   return { ok: false, message, needsSignIn };
 }
 
-function apiFailure(payload: unknown, fallback: string): string {
-  return parseSvpError(payload) ?? fallback;
+function apiFailure(payload: unknown, fallback: string, status?: number): string {
+  const message = parseSvpError(payload) ?? fallback;
+  return status ? `${message} (HTTP ${status})` : message;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -89,7 +90,11 @@ export const getSvpBookingSetup = createServerFn({ method: "POST" })
         );
         if (!permissionsResponse.ok) {
           return failure(
-            apiFailure(permissionsResponse.payload, "SVP permissions could not be loaded."),
+            apiFailure(
+              permissionsResponse.payload,
+              "SVP permissions could not be loaded.",
+              permissionsResponse.status,
+            ),
           );
         }
         const permissions = parseSvpPermissions(permissionsResponse.payload);
@@ -129,10 +134,12 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
       const response = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/occupations",
-        { query: { ...LOCALE_QUERY, per_page: 500, page: 1, name: "" } },
+        { query: { ...LOCALE_QUERY, per_page: 194, page: 1, name: "" } },
       );
       if (!response.ok) {
-        return failure(apiFailure(response.payload, "Occupations could not be loaded."));
+        return failure(
+          apiFailure(response.payload, "Occupations could not be loaded.", response.status),
+        );
       }
       return { ok: true, data: parseSvpOccupations(response.payload) };
     } catch (error) {
@@ -152,10 +159,12 @@ export const searchSvpOccupations = createServerFn({ method: "POST" })
       const response = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/occupations",
-        { query: { ...LOCALE_QUERY, per_page: 60, page: 1, name: data.query } },
+        { query: { ...LOCALE_QUERY, per_page: 50, page: 1, name: data.query } },
       );
       if (!response.ok) {
-        return failure(apiFailure(response.payload, "Similar occupations could not be loaded."));
+        return failure(
+          apiFailure(response.payload, "Similar occupations could not be loaded.", response.status),
+        );
       }
       return { ok: true, data: parseSvpOccupations(response.payload) };
     } catch (error) {
@@ -176,7 +185,9 @@ export const listSvpTestCenterCities = createServerFn({ method: "POST" })
         { query: { ...LOCALE_QUERY, per_page: 1000 } },
       );
       if (!response.ok) {
-        return failure(apiFailure(response.payload, "Test center cities could not be loaded."));
+        return failure(
+          apiFailure(response.payload, "Test center cities could not be loaded.", response.status),
+        );
       }
       return { ok: true, data: parseSvpCities(response.payload) };
     } catch (error) {

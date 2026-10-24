@@ -141,9 +141,11 @@ function number(value: unknown): number | null {
 
 /** Find a list under the root or a `data` envelope. */
 function pickList(payload: unknown, keys: string[]): unknown[] {
+  if (Array.isArray(payload)) return payload;
   const root = asRecord(payload);
   if (!root) return [];
   const data = asRecord(root["data"]);
+  if (Array.isArray(root["data"])) return root["data"];
   for (const source of [root, data]) {
     if (!source) continue;
     for (const key of keys) {

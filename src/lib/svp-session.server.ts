@@ -163,6 +163,7 @@ async function timedFetch(url: string, init: RequestInit): Promise<Response> {
 
 const BASE_HEADERS = {
   Accept: "application/json",
+  "Accept-Language": "en-US,en;q=0.9",
   Origin: SVP_PORTAL_URL,
   Referer: `${SVP_PORTAL_URL}/`,
   "User-Agent":
@@ -308,6 +309,18 @@ async function performAuthedResponse(
   if (response.status === 401) {
     session = await refreshStoredSession(appUserId, session);
     response = await send(session);
+  }
+
+  const method = options.method ?? "GET";
+  if (method === "GET" && [429, 502, 503, 504].includes(response.status)) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    response = await send(session);
+  }
+
+  // A rejected token means the stored SVP session is dead; force a fresh login.
+  if (response.status === 401) {
+    clearStoredSvpSession(appUserId);
+    throw new SvpSessionMissingError();
   }
 
   const rotated = responseCookies(response);
