@@ -3,6 +3,7 @@ import {
   parseAvailableDates,
   parseCities,
   parseOccupations,
+  parseSessionTableRows,
   parseSessions,
   parseTestCenters,
   redactTakamolPayload,
@@ -56,6 +57,72 @@ describe("Takamol selection data", () => {
         ],
       }),
     ).toEqual([{ id: "403", label: "Arkan Training Center", location: "Dhaka Arkan" }]);
+  });
+
+  it("maps provider sessions to the Center Name, Exam Slot, Exam Time, and Seats columns", () => {
+    expect(
+      parseSessionTableRows({
+        sessions: [
+          {
+            id: "slot-1",
+            center_name: "Rajshahi",
+            exam_slot: "available",
+            exam_time: "10:00 AM",
+            seats: 9,
+          },
+          {
+            session_id: "slot-2",
+            center_name: "Dhaka",
+            status: "Full",
+            start_time: "11:30 AM",
+            available_seats: 0,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: "slot-1",
+        centerName: "Rajshahi",
+        examSlot: "Available",
+        examTime: "10:00 AM",
+        seats: "9",
+      },
+      {
+        id: "slot-2",
+        centerName: "Dhaka",
+        examSlot: "Full",
+        examTime: "11:30 AM",
+        seats: "0",
+      },
+    ]);
+  });
+
+  it("uses a test-center label for nested sessions and the selected city as fallback", () => {
+    expect(
+      parseSessionTableRows(
+        {
+          sites: [
+            {
+              name: "Rajshahi",
+              sessions: [{ id: "nested-slot", status: "Available", time: "10:00 AM", seats: 9 }],
+            },
+          ],
+        },
+        "Selected city",
+      ),
+    ).toEqual([
+      {
+        id: "nested-slot",
+        centerName: "Rajshahi",
+        examSlot: "Available",
+        examTime: "10:00 AM",
+        seats: "9",
+      },
+    ]);
+    expect(
+      parseSessionTableRows({ sessions: [{ id: "fallback", status: "Available" }] }, "Rajshahi")[0]
+        ?.centerName,
+    ).toBe("Rajshahi");
   });
 
   it("reads session records and recursively removes private provider fields", () => {

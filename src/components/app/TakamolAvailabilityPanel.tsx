@@ -12,7 +12,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Field } from "@/components/app/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ import {
   parseAvailableDates,
   parseCities,
   parseOccupations,
-  parseSessions,
+  parseSessionTableRows,
   parseTestCenters,
   redactTakamolPayload,
   type OccupationChoice,
@@ -120,14 +120,27 @@ function InlineState({ children, error = false }: { children: string; error?: bo
 
 export function TakamolAvailabilityPanel() {
   const [occupationSearch, setOccupationSearch] = useState("");
+  const [debouncedOccupationSearch, setDebouncedOccupationSearch] = useState("");
   const [selectedOccupation, setSelectedOccupation] = useState<OccupationChoice | null>(null);
   const [city, setCity] = useState("");
   const [examDate, setExamDate] = useState("");
   const [testCenterId, setTestCenterId] = useState("all");
 
-  const occupationSearchMutation = useMutation({
-    mutationFn: (search: string) =>
-      getLookupData({ endpoint: "occupations", search: search.trim() || undefined }),
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => setDebouncedOccupationSearch(occupationSearch.trim()),
+      450,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [occupationSearch]);
+
+  const occupationSearchQuery = useQuery({
+    queryKey: ["takamol", "occupations", debouncedOccupationSearch],
+    queryFn: () => getLookupData({ endpoint: "occupations", search: debouncedOccupationSearch }),
+    enabled: debouncedOccupationSearch.length >= 2,
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const categoryId = selectedOccupation?.categoryId ?? "";
@@ -159,21 +172,37 @@ export function TakamolAvailabilityPanel() {
     mutationFn: (request: SessionRequest) => getLookupData(request),
   });
 
-  const occupations = parseOccupations(occupationSearchMutation.data);
+  const normalizedOccupationSearch = occupationSearch.trim();
+  const occupationSearchIsCurrent =
+    normalizedOccupationSearch.length >= 2 &&
+    normalizedOccupationSearch === debouncedOccupationSearch;
+  const occupationSearchIsLoading =
+    normalizedOccupationSearch.length >= 2 &&
+    (!occupationSearchIsCurrent || occupationSearchQuery.isFetching);
+  const occupations = occupationSearchIsCurrent ? parseOccupations(occupationSearchQuery.data) : [];
   const cities = parseCities(citiesQuery.data);
   const dates = parseAvailableDates(datesQuery.data);
   const centers = parseTestCenters(centersQuery.data);
-  const sessions = parseSessions(sessionsMutation.data);
+  const centerLabel = centers.find((center) => center.id === testCenterId)?.label;
+  const sessionRows = parseSessionTableRows(sessionsMutation.data, centerLabel ?? city);
 
   const searchOccupations = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (normalizedOccupationSearch.length < 2) return;
+    if (normalizedOccupationSearch === debouncedOccupationSearch) {
+      void occupationSearchQuery.refetch();
+    } else {
+      setDebouncedOccupationSearch(normalizedOccupationSearch);
+    }
+  };
+
+  const changeOccupationSearch = (value: string) => {
+    setOccupationSearch(value);
     setSelectedOccupation(null);
     setCity("");
     setExamDate("");
     setTestCenterId("all");
     sessionsMutation.reset();
-    occupationSearchMutation.reset();
-    occupationSearchMutation.mutate(occupationSearch);
   };
 
   const selectOccupation = (optionId: string) => {
@@ -207,15 +236,13 @@ export function TakamolAvailabilityPanel() {
 
   const clearSearch = () => {
     setOccupationSearch("");
+    setDebouncedOccupationSearch("");
     setSelectedOccupation(null);
     setCity("");
     setExamDate("");
     setTestCenterId("all");
-    occupationSearchMutation.reset();
     sessionsMutation.reset();
   };
-
-  const centerLabel = centers.find((center) => center.id === testCenterId)?.label;
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -294,14 +321,17 @@ export function TakamolAvailabilityPanel() {
               <Field label="Search occupation">
                 <Input
                   value={occupationSearch}
-                  onChange={(event) => setOccupationSearch(event.target.value)}
+                  onChange={(event) => changeOccupationSearch(event.target.value)}
                   maxLength={120}
-                  placeholder="e.g. Barber, Electrician"
+                  placeholder="Type an occupation, e.g. Barber"
                 />
               </Field>
               <div className="self-end">
-                <Button type="submit" disabled={occupationSearchMutation.isPending}>
-                  {occupationSearchMutation.isPending ? (
+                <Button
+                  type="submit"
+                  disabled={normalizedOccupationSearch.length < 2 || occupationSearchIsLoading}
+                >
+                  {occupationSearchIsLoading ? (
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <Search />
@@ -310,41 +340,67 @@ export function TakamolAvailabilityPanel() {
                 </Button>
               </div>
             </form>
-            {occupationSearchMutation.isError && (
-              <InlineState error>{errorText(occupationSearchMutation.error)}</InlineState>
+            {normalizedOccupationSearch.length < 2 && (
+              <p className="text-xs text-muted-foreground">
+                Type at least two characters. Matching occupations load automatically.
+              </p>
             )}
-            {occupationSearchMutation.isSuccess && occupations.length === 0 && (
-              <InlineState>
-                No matching occupations were returned. Try a broader search.
-              </InlineState>
+            {occupationSearchIsLoading && (
+              <InlineState>Searching the occupation catalogue…</InlineState>
             )}
+            {occupationSearchIsCurrent && occupationSearchQuery.isError && (
+              <InlineState error>{errorText(occupationSearchQuery.error)}</InlineState>
+            )}
+            {occupationSearchIsCurrent &&
+              occupationSearchQuery.isSuccess &&
+              !occupationSearchQuery.isFetching &&
+              occupations.length === 0 && (
+                <InlineState>No matches found. Try a broader occupation search.</InlineState>
+              )}
             {occupations.length > 0 && (
-              <Field label="Occupation result">
-                <Select value={selectedOccupation?.optionId ?? ""} onValueChange={selectOccupation}>
-                  <SelectTrigger aria-label="Select an occupation">
-                    <SelectValue placeholder={`Choose from ${occupations.length} results`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {occupations.map((occupation) => (
-                      <SelectItem key={occupation.optionId} value={occupation.optionId}>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate">{occupation.label}</span>
-                          {occupation.category && (
-                            <span className="truncate text-xs text-muted-foreground">
-                              · {occupation.category}
-                            </span>
-                          )}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedOccupation && (
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    Category ID {selectedOccupation.categoryId}
+              <div className="space-y-2" aria-live="polite">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Matching occupations</p>
+                  <span className="text-xs text-muted-foreground">
+                    {occupations.length} {occupations.length === 1 ? "match" : "matches"}
                   </span>
-                )}
-              </Field>
+                </div>
+                <div className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
+                  {occupations.map((occupation) => {
+                    const selected = selectedOccupation?.optionId === occupation.optionId;
+                    return (
+                      <button
+                        key={occupation.optionId}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => selectOccupation(occupation.optionId)}
+                        className={`flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                            : "border-border/70 bg-background/50 hover:border-primary/30 hover:bg-muted/40"
+                        }`}
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <BriefcaseBusiness className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">
+                            {occupation.label}
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {occupation.category ?? `Category ${occupation.categoryId}`}
+                          </span>
+                        </span>
+                        {selected ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                        ) : (
+                          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </section>
 
@@ -512,40 +568,76 @@ export function TakamolAvailabilityPanel() {
                   </p>
                 </div>
                 <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-                  {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
+                  {sessionRows.length} {sessionRows.length === 1 ? "session" : "sessions"}
                 </span>
               </div>
-              {sessions.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {sessions.map((session, index) => (
-                    <article
-                      key={`${String(session["id"] ?? session["session_id"] ?? index)}`}
-                      className="rounded-xl border border-border/70 bg-background/60 p-4"
-                    >
-                      <div className="mb-3 flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Clock3 className="h-4 w-4" />
-                        </span>
-                        <div>
-                          <h4 className="font-semibold">
-                            {String(
-                              session["session_name"] ??
-                                session["name"] ??
-                                session["title"] ??
-                                session["time"] ??
-                                `Session ${index + 1}`,
-                            )}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            {String(session["exam_time"] ?? session["start_time"] ?? "Available")}
-                          </p>
-                        </div>
-                      </div>
-                      <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted/60 p-3 text-[11px] leading-relaxed">
-                        {JSON.stringify(redactTakamolPayload(session), null, 2)}
-                      </pre>
-                    </article>
-                  ))}
+              {sessionRows.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-border/80">
+                  <table
+                    className="w-full min-w-[620px] border-collapse text-sm"
+                    aria-label="Exam session availability"
+                  >
+                    <caption className="sr-only">
+                      Available Takamol exam sessions for the selected city and date
+                    </caption>
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="border-b border-r border-border/80 px-4 py-3 text-center text-xs font-semibold text-muted-foreground"
+                        >
+                          Center Name
+                        </th>
+                        <th
+                          scope="col"
+                          className="border-b border-r border-border/80 px-4 py-3 text-center text-xs font-semibold text-muted-foreground"
+                        >
+                          Exam Slot
+                        </th>
+                        <th
+                          scope="col"
+                          className="border-b border-r border-border/80 px-4 py-3 text-center text-xs font-semibold text-muted-foreground"
+                        >
+                          Exam Time
+                        </th>
+                        <th
+                          scope="col"
+                          className="border-b border-border/80 px-4 py-3 text-center text-xs font-semibold text-muted-foreground"
+                        >
+                          Seats
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/70">
+                      {sessionRows.map((row, index) => (
+                        <tr
+                          key={`${row.id}-${index}`}
+                          className="bg-background/50 transition-colors hover:bg-muted/20"
+                        >
+                          <td className="border-r border-border/70 px-4 py-3 text-center font-medium">
+                            {row.centerName}
+                          </td>
+                          <td className="border-r border-border/70 px-4 py-3 text-center">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                row.examSlot === "Available"
+                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {row.examSlot}
+                            </span>
+                          </td>
+                          <td className="border-r border-border/70 px-4 py-3 text-center tabular-nums">
+                            {row.examTime}
+                          </td>
+                          <td className="px-4 py-3 text-center font-semibold tabular-nums">
+                            {row.seats}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">

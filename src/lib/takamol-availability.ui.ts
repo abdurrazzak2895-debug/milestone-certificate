@@ -124,7 +124,103 @@ export function parseTestCenters(payload: unknown): TestCenterChoice[] {
 }
 
 export function parseSessions(payload: unknown): RecordValue[] {
-  return rowsAt(payload, ["sessions", "exam_sessions"]);
+  const record = asRecord(payload);
+  if (!record) return rowsAt(payload, []);
+
+  for (const key of ["sessions", "exam_sessions"]) {
+    const rows = rowsAt(record, [key]);
+    if (rows.length > 0) return rows;
+  }
+
+  return rowsAt(record, ["sites"]).flatMap((site) => {
+    let nestedSessions: RecordValue[] = [];
+    for (const key of ["sessions", "exam_sessions"]) {
+      nestedSessions = rowsAt(site, [key]);
+      if (nestedSessions.length > 0) break;
+    }
+    const centerName = firstText(site, ["center_name", "test_center_name", "name", "title"]);
+    return nestedSessions.map((session) => ({
+      ...session,
+      center_name:
+        firstText(session, ["center_name", "test_center_name", "site_name"]) ?? centerName,
+    }));
+  });
+}
+
+export function parseSessionTableRows(payload: unknown, fallbackCenterName?: string) {
+  return parseSessions(payload).map((row, index) => {
+    const center = asRecord(row["test_center"]) ?? asRecord(row["site"]) ?? asRecord(row["center"]);
+    const session = asRecord(row["session"]) ?? asRecord(row["slot_details"]) ?? {};
+    const centerName =
+      firstText(row, [
+        "center_name",
+        "test_center_name",
+        "site_name",
+        "centerName",
+        "testCenterName",
+      ]) ??
+      firstText(center ?? {}, ["name", "center_name", "test_center_name", "title"]) ??
+      toText(row["center"]) ??
+      fallbackCenterName ??
+      "—";
+    const slot =
+      firstText(row, [
+        "exam_slot",
+        "exam_slot_status",
+        "slot_name",
+        "slot_status",
+        "status",
+        "availability_status",
+        "availability",
+      ]) ??
+      firstText(session, ["exam_slot", "slot_name", "status", "availability"]) ??
+      "Available";
+    const examSlot = /^available$/i.test(slot) ? "Available" : slot;
+    const examTime =
+      firstText(row, [
+        "exam_time",
+        "examTime",
+        "session_time",
+        "sessionTime",
+        "start_time",
+        "startTime",
+        "time",
+        "slot_time",
+        "slotTime",
+        "time_slot",
+        "timeSlot",
+      ]) ??
+      firstText(session, ["exam_time", "session_time", "start_time", "time", "slot_time"]) ??
+      "—";
+    const seats =
+      firstText(row, [
+        "available_seats",
+        "availableSeats",
+        "seats_available",
+        "seatsAvailable",
+        "remaining_seats",
+        "remainingSeats",
+        "free_seats",
+        "seats",
+        "seat_count",
+        "seatCount",
+        "number_of_seats",
+        "vacancies",
+      ]) ??
+      firstText(session, [
+        "available_seats",
+        "seats_available",
+        "remaining_seats",
+        "seats",
+        "seat_count",
+      ]) ??
+      "—";
+    const id =
+      firstText(row, ["session_id", "exam_session_id", "id"]) ??
+      `${index}-${centerName}-${examTime}`;
+
+    return { id, centerName, examSlot, examTime, seats };
+  });
 }
 
 const PRIVATE_FIELD = /token|api[_-]?key|secret|password|authorization|cookie/i;
