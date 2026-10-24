@@ -984,6 +984,11 @@ export function SvpBookingWizard() {
               </Button>
             </div>
           )}
+          {occupationsQuery.data?.ok && occupations.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {occupations.length} occupations loaded from SVP.
+            </p>
+          )}
           {occupationsQuery.data?.ok && occupations.length === 0 && (
             <div
               className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
