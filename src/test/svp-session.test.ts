@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSvpLoginBody, buildSvpOtpBody, summarizeSvpResponse } from "@/lib/svp-session.shared";
+import { buildSvpLoginBody, buildSvpOtpBody, readSvpSessionResult } from "@/lib/svp-session.shared";
 
 const system = { feApp: "legislator", otpMethod: "email" };
 
@@ -35,61 +35,71 @@ describe("SVP session request contracts", () => {
   });
 });
 
-describe("SVP response sanitization", () => {
-  it("keeps only metadata and top-level field names, never response values", async () => {
-    const response = new Response(
-      JSON.stringify({
-        access_token: "SECRET_TOKEN_VALUE",
-        user: { password: "SECRET_PASSWORD_VALUE" },
-        message: "SECRET_MESSAGE_VALUE",
-      }),
-      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
-    );
-
-    const summary = await summarizeSvpResponse(response);
-
-    expect(summary).toEqual({
-      httpStatus: 200,
-      ok: true,
-      contentType: "application/json",
-      responseKind: "json-object",
-      topLevelFieldNames: ["access_token", "user", "message"],
-    });
-    expect(JSON.stringify(summary)).not.toContain("SECRET_TOKEN_VALUE");
-    expect(JSON.stringify(summary)).not.toContain("SECRET_PASSWORD_VALUE");
-    expect(JSON.stringify(summary)).not.toContain("SECRET_MESSAGE_VALUE");
-  });
-
-  it("summarizes non-JSON bodies without exposing their contents", async () => {
-    const response = new Response("SECRET_HTML_BODY", {
-      status: 502,
-      headers: { "content-type": "text/html; charset=utf-8" },
-    });
-
-    const summary = await summarizeSvpResponse(response);
-
-    expect(summary).toEqual({
-      httpStatus: 502,
-      ok: false,
-      contentType: "text/html",
-      responseKind: "text",
-      topLevelFieldNames: [],
-    });
-    expect(JSON.stringify(summary)).not.toContain("SECRET_HTML_BODY");
-  });
-
-  it("does not parse or reveal oversized provider bodies", async () => {
-    const response = new Response("x".repeat(65 * 1024), {
+describe("SVP login outcomes", () => {
+  it("requires the OTP when the login request is accepted", async () => {
+    const response = new Response(JSON.stringify({ message: "OTP sent" }), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
 
-    expect(await summarizeSvpResponse(response)).toEqual({
+    const result = await readSvpSessionResult(response, "login", ["login-value", "password-value"]);
+
+    expect(result).toEqual({
+      step: "login",
       httpStatus: 200,
       ok: true,
-      contentType: "application/json",
-      responseKind: "unknown",
-      topLevelFieldNames: [],
+      otpRequired: true,
+      authenticated: false,
+      message: "OTP sent",
     });
+  });
+
+  it("reports a rejected login without echoing the credentials", async () => {
+    const response = new Response(
+      JSON.stringify({ errors: { login: ["Wrong password-value for login-value"] } }),
+      { status: 422, headers: { "content-type": "application/json" } },
+    );
+
+    const result = await readSvpSessionResult(response, "login", ["login-value", "password-value"]);
+
+    expect(result.ok).toBe(false);
+    expect(result.otpRequired).toBe(false);
+    expect(result.authenticated).toBe(false);
+    expect(result.message).toContain("[redacted]");
+    expect(result.message).not.toContain("password-value");
+    expect(result.message).not.toContain("login-value");
+  });
+
+  it("confirms the OTP but never returns the session token", async () => {
+    const response = new Response(
+      JSON.stringify({ access_token: "SECRET_TOKEN_VALUE", user: { id: 969955 } }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+
+    const result = await readSvpSessionResult(response, "otp", ["password-value"]);
+
+    expect(result.authenticated).toBe(true);
+    expect(result.otpRequired).toBe(false);
+    expect(result.message).toBe("Signed in to SVP.");
+    expect(JSON.stringify(result)).not.toContain("SECRET_TOKEN_VALUE");
+  });
+
+  it("falls back to a safe provider message when the body is empty", async () => {
+    const result = await readSvpSessionResult(new Response("", { status: 503 }), "otp");
+
+    expect(result.ok).toBe(false);
+    expect(result.authenticated).toBe(false);
+    expect(result.message).toMatch(/not responding/i);
+  });
+
+  it("strips HTML from provider messages", async () => {
+    const response = new Response(JSON.stringify({ error: "<b>Invalid</b> <i>OTP</i>" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+
+    const result = await readSvpSessionResult(response, "otp");
+
+    expect(result.message).toBe("Invalid OTP");
   });
 });

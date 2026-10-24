@@ -81,6 +81,26 @@ describe("SVP manual booking validation", () => {
     }
   });
 
+  it("always requires candidate name and passport, even for drafts", () => {
+    const draft = {
+      candidate_name: "Noor Rahman",
+      passport: "AB123456",
+      occupation: "",
+      center: "",
+      exam_date: "",
+      exam_time: "",
+      agency: "",
+      login_email: "",
+      reference_no: "",
+      notes: "",
+      status: "draft" as const,
+    };
+
+    expect(svpBookingFormSchema.safeParse({ ...draft, candidate_name: "   " }).success).toBe(false);
+    expect(svpBookingFormSchema.safeParse({ ...draft, passport: "" }).success).toBe(false);
+    expect(svpBookingFormSchema.safeParse(draft).success).toBe(true);
+  });
+
   it("keeps immutable database fields out of insert and update payloads", () => {
     const normalized = normalizeSvpBookingForm(base);
     const insert = toSvpBookingInsert(normalized);

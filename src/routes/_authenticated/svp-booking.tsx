@@ -2,29 +2,31 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/ui-bits";
-import { SvpOtpLoginDraft } from "@/components/app/SvpOtpLoginDraft";
+import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
+import { SvpManualRecordPanel } from "@/components/app/SvpManualRecordPanel";
 
 export const Route = createFileRoute("/_authenticated/svp-booking")({
   head: () => ({
     meta: [
-      { title: "SVP Login | Milestone Certificate Institute" },
+      { title: "SVP booking | Milestone Certificate Institute" },
       {
         name: "description",
-        content: "SVP username/password and OTP login flow for agent, staff, and admin users.",
+        content:
+          "Manual SVP record tracker plus SVP username/password login for agent, staff, and admin users.",
       },
     ],
   }),
-  component: SvpLoginWorkspace,
+  component: SvpBookingWorkspace,
 });
 
 const SVP_PORTAL_URL = "https://svp-international.pacc.sa/";
 
-function SvpLoginWorkspace() {
+function SvpBookingWorkspace() {
   return (
-    <div className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
       <PageHeader
-        title="SVP Login"
-        subtitle="Sign in with your SVP username and password, then enter the OTP if requested."
+        title="SVP booking"
+        subtitle="Record candidate reservations manually and sign in to the SVP portal with username and password."
         actions={
           <a href={SVP_PORTAL_URL} target="_blank" rel="noreferrer">
             <Button type="button" variant="outline" size="sm">
@@ -33,7 +35,8 @@ function SvpLoginWorkspace() {
           </a>
         }
       />
-      <SvpOtpLoginDraft />
+      <SvpManualRecordPanel />
+      <SvpLoginPanel />
     </div>
   );
 }

@@ -5,9 +5,9 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   buildSvpLoginBody,
   buildSvpOtpBody,
-  summarizeSvpResponse,
-  svpSessionDraftInputSchema,
-  type SvpResponseSummary,
+  readSvpSessionResult,
+  svpSessionInputSchema,
+  type SvpSessionResult,
   type SvpSystemConfig,
 } from "@/lib/svp-session.shared";
 
@@ -47,7 +47,12 @@ async function requireAllowedRole(supabase: SupabaseClient<Database>, userId: st
   }
 }
 
-async function postToSvp(path: string, body: unknown): Promise<SvpResponseSummary> {
+async function postToSvp(
+  path: string,
+  body: unknown,
+  step: "login" | "otp",
+  redact: string[],
+): Promise<SvpSessionResult> {
   const url = new URL(path, SVP_API_ORIGIN);
   url.searchParams.set("locale", SVP_SYSTEM_CONFIG.locale);
 
@@ -60,22 +65,29 @@ async function postToSvp(path: string, body: unknown): Promise<SvpResponseSummar
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    return await summarizeSvpResponse(response);
+    return await readSvpSessionResult(response, step, redact);
   } catch {
-    throw new Error("SVP request unavailable");
+    throw new Error("SVP could not be reached. Check the connection and try again.");
   } finally {
     clearTimeout(timeout);
   }
 }
 
-export const submitSvpSessionDraft = createServerFn({ method: "POST" })
+export const submitSvpLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => svpSessionDraftInputSchema.parse(input))
-  .handler(async ({ context, data }): Promise<SvpResponseSummary> => {
+  .inputValidator((input: unknown) => svpSessionInputSchema.parse(input))
+  .handler(async ({ context, data }): Promise<SvpSessionResult> => {
     await requireAllowedRole(context.supabase, context.userId);
 
     if (data.step === "login") {
-      return postToSvp(SVP_LOGIN_PATH, buildSvpLoginBody(data, SVP_SYSTEM_CONFIG));
+      return postToSvp(SVP_LOGIN_PATH, buildSvpLoginBody(data, SVP_SYSTEM_CONFIG), "login", [
+        data.login,
+        data.password,
+      ]);
     }
-    return postToSvp(SVP_OTP_PATH, buildSvpOtpBody(data, SVP_SYSTEM_CONFIG));
+    return postToSvp(SVP_OTP_PATH, buildSvpOtpBody(data, SVP_SYSTEM_CONFIG), "otp", [
+      data.login,
+      data.password,
+      data.otpAttempt,
+    ]);
   });
