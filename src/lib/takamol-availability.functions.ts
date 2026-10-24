@@ -23,21 +23,21 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
         return {
           success: false,
           status: 503,
-          message: "Admin/staff role lookup is not available on the server.",
+          message: "Authorized role lookup is not available on the server.",
         };
       }
-      if (!roles?.some(({ role }) => role === "admin" || role === "staff")) {
+      if (!roles?.some(({ role }) => role === "admin" || role === "staff" || role === "agent")) {
         return {
           success: false,
           status: 403,
-          message: "Only authorized admin or staff users may use this lookup.",
+          message: "Only authorized admin, staff, or agent users may use this lookup.",
         };
       }
     } catch {
       return {
         success: false,
         status: 503,
-        message: "Admin/staff role lookup is not available on the server.",
+        message: "Authorized role lookup is not available on the server.",
       };
     }
 

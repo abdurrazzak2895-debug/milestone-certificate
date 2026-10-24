@@ -27,12 +27,15 @@ const commonNav: readonly NavigationItem[] = [
   { to: "/candidates", label: "পরীক্ষার্থী", icon: Users },
   { to: "/exams", label: "পরীক্ষা", icon: CalendarDays },
   { to: "/results", label: "রেজাল্ট", icon: ClipboardCheck, desktopOnly: true },
-  { to: "/takamol", label: "Takamol", icon: Globe },
-  { to: "/svp-booking", label: "SVP বুকিং", icon: CalendarDays },
   { to: "/reports", label: "রিপোর্ট", icon: BarChart3 },
   { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users, desktopOnly: true },
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
+];
+
+const bookingNav: readonly NavigationItem[] = [
+  { to: "/takamol", label: "Takamol", icon: Globe },
+  { to: "/svp-booking", label: "SVP বুকিং", icon: CalendarDays },
 ];
 
 const adminNav: readonly NavigationItem[] = [
@@ -64,11 +67,12 @@ const managementNav: readonly NavigationItem[] = [
 /** Return the menu for a role set. Manager roles intentionally take precedence over agent menus. */
 export function navigationForRoles(roles: string[]): NavigationItem[] {
   if (isManager(roles)) {
-    return [...commonNav, ...(roles.includes("admin") ? adminNav : [])];
+    return [...commonNav, ...bookingNav, ...(roles.includes("admin") ? adminNav : [])];
   }
 
   return [
     ...(roles.includes("agent") ? agentNav : []),
+    ...(roles.includes("agent") ? bookingNav : []),
     ...(roles.includes("service_provider") ? providerNav : []),
     ...(roles.includes("management") ? managementNav : []),
   ];

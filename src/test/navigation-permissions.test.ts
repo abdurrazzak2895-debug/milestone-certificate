@@ -6,8 +6,8 @@ import { canAccessPath } from "@/lib/roles";
 const pathsFor = (roles: string[]) => navigationForRoles(roles).map((item) => item.to);
 
 describe("role-based navigation", () => {
-  it("shows Takamol and manual SVP booking to admins and staff", () => {
-    for (const roles of [["admin"], ["staff"]]) {
+  it("shows Takamol and manual SVP booking to admins, staff, and agents", () => {
+    for (const roles of [["admin"], ["staff"], ["agent"]]) {
       const paths = pathsFor(roles);
       expect(paths).toContain("/takamol");
       expect(paths).toContain("/svp-booking");
@@ -23,12 +23,22 @@ describe("role-based navigation", () => {
     expect(paths).not.toContain("/submit-job");
   });
 
-  it("does not expose manager-only navigation to agents", () => {
+  it("keeps agent navigation while excluding admin-only navigation", () => {
     const paths = pathsFor(["agent"]);
 
-    expect(paths).not.toContain("/takamol");
-    expect(paths).not.toContain("/svp-booking");
+    expect(paths).toContain("/submit-job");
+    expect(paths).toContain("/my-works");
+    expect(paths).toContain("/takamol");
+    expect(paths).toContain("/svp-booking");
     expect(paths).not.toContain("/finance");
+  });
+
+  it("does not expose booking navigation to provider or management-only roles", () => {
+    for (const roles of [["service_provider"], ["management"]]) {
+      const paths = pathsFor(roles);
+      expect(paths).not.toContain("/takamol");
+      expect(paths).not.toContain("/svp-booking");
+    }
   });
 });
 
@@ -40,11 +50,18 @@ describe("authenticated path policy", () => {
     expect(canAccessPath("/svp-booking", ["admin"])).toBe(true);
   });
 
-  it("denies agents manager pages while keeping finance admin-only", () => {
-    expect(canAccessPath("/takamol", ["agent"])).toBe(false);
-    expect(canAccessPath("/svp-booking", ["agent"])).toBe(false);
+  it("allows agents to use booking while keeping finance admin-only", () => {
+    expect(canAccessPath("/takamol", ["agent"])).toBe(true);
+    expect(canAccessPath("/svp-booking", ["agent"])).toBe(true);
     expect(canAccessPath("/finance", ["staff"])).toBe(false);
     expect(canAccessPath("/finance", ["admin"])).toBe(true);
+  });
+
+  it("denies booking to provider and management-only roles", () => {
+    for (const roles of [["service_provider"], ["management"]]) {
+      expect(canAccessPath("/takamol", roles)).toBe(false);
+      expect(canAccessPath("/svp-booking", roles)).toBe(false);
+    }
   });
 
   it("lets a mixed admin and agent account use manager routes", () => {

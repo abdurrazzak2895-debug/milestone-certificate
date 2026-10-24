@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, NativeSelect, PageHeader } from "@/components/app/ui-bits";
+import { SvpOtpLoginDraft } from "@/components/app/SvpOtpLoginDraft";
 import {
   SVP_BOOKING_STATUSES,
   SVP_BOOKING_STATUS_LABEL,
@@ -41,10 +42,10 @@ import {
 export const Route = createFileRoute("/_authenticated/svp-booking")({
   head: () => ({
     meta: [
-      { title: "SVP manual booking tracker | Milestone Certificate Institute" },
+      { title: "SVP booking workspace | Milestone Certificate Institute" },
       {
         name: "description",
-        content: "Record SVP reservation details locally for admin and staff follow-up.",
+        content: "Agent/staff SVP OTP draft and owner-scoped manual booking follow-up.",
       },
     ],
   }),
@@ -74,16 +75,17 @@ const bookingsQuery = {
 
 function SvpBooking() {
   const { roles } = Route.useRouteContext();
-  const canManage = roles.includes("admin") || roles.includes("staff");
+  const canAccess = roles.includes("admin") || roles.includes("staff") || roles.includes("agent");
 
-  if (!canManage) {
+  if (!canAccess) {
     return (
       <div className="mx-auto max-w-2xl p-4 sm:p-6">
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center">
           <ShieldAlert className="mx-auto mb-3 h-8 w-8 text-destructive" />
-          <h1 className="text-xl font-bold">Staff access required</h1>
+          <h1 className="text-xl font-bold">Agent or staff access required</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Only admin and staff accounts can view or edit manual SVP records.
+            Admin, staff and agent accounts can use this workspace. Agent accounts can access only
+            the manual records they create; admin and staff can view and edit all records.
           </p>
         </div>
       </div>
@@ -275,8 +277,8 @@ function SvpBookingManager() {
   return (
     <div className="svp-portal mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
       <PageHeader
-        title="SVP manual booking tracker"
-        subtitle="A shared local follow-up log for admin and staff — not an external booking tool."
+        title="SVP booking workspace"
+        subtitle="OTP login draft and manual follow-up records; external booking is not implemented."
         actions={
           <a href={SVP_PORTAL_URL} target="_blank" rel="noreferrer">
             <Button type="button" variant="outline" size="sm">
@@ -286,14 +288,17 @@ function SvpBookingManager() {
         }
       />
 
+      <SvpOtpLoginDraft />
+
       <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/20 dark:text-amber-100">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
         <div className="text-sm">
           <p className="font-semibold">Manual / local record only</p>
           <p className="mt-1 leading-relaxed">
-            Saving here does not book or cancel an SVP appointment, request OTP, issue a payment, or
-            create an official appointment slip. Confirm all actions in the official portal
-            separately.
+            Saving a manual record does not create or cancel an SVP appointment, issue payment, or
+            produce an official slip. The separate OTP panel above sends only the documented login
+            and OTP requests; it does not establish a reusable authenticated session or book an
+            appointment.
           </p>
         </div>
       </div>

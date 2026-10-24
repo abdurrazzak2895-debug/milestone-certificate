@@ -168,11 +168,11 @@ describe("SVP manual tracker UI without live writes", () => {
     expect(screen.queryByText("No local SVP records yet.")).not.toBeInTheDocument();
   });
 
-  it("denies an agent even if the page component is mounted directly", () => {
+  it("allows an agent to open the tracker UI with RLS-scoped records", () => {
     mocks.roles = ["agent"];
     showForm();
-    expect(screen.getByText("Staff access required")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save local record" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "SVP booking workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save local record" })).toBeInTheDocument();
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 });
