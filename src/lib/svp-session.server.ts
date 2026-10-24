@@ -211,9 +211,13 @@ async function readBoundedBody(response: Response): Promise<unknown> {
   }
 }
 
-async function timedFetch(url: string, init: RequestInit): Promise<Response> {
+async function timedFetch(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
   } finally {
@@ -345,6 +349,10 @@ type AuthedOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   query?: Record<string, SvpQueryValue>;
   body?: unknown;
+  /** Per-call timeout; the session-status heal uses a short one. */
+  timeoutMs?: number;
+  /** Retry budget for transient GET failures (default 2). */
+  retries?: number;
 };
 
 /** Fetch with the stored session, refresh once on 401, and persist rotated cookies. */
@@ -364,11 +372,15 @@ async function performAuthedResponse(
     };
     if (active.refreshCookies) headers["Cookie"] = active.refreshCookies;
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
-    return timedFetch(apiUrl(path, options.query), {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
+    return timedFetch(
+      apiUrl(path, options.query),
+      {
+        method: options.method ?? "GET",
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      },
+      options.timeoutMs,
+    );
   };
 
   let response = await send(session);
@@ -380,7 +392,8 @@ async function performAuthedResponse(
   const method = options.method ?? "GET";
   const retryable = new Set([429, 502, 503, 504, 529]);
   let retries = 0;
-  while (method === "GET" && retryable.has(response.status) && retries < 2) {
+  const maxRetries = options.retries ?? 2;
+  while (method === "GET" && retryable.has(response.status) && retries < maxRetries) {
     retries += 1;
     await new Promise((resolve) => setTimeout(resolve, retries * 1500));
     response = await send(session);

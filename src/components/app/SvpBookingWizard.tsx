@@ -1022,6 +1022,16 @@ export function SvpBookingWizard() {
   if (!signedIn) {
     return (
       <div className="space-y-3">
+        <div className="rounded-2xl border bg-card/80 p-4 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            SVP booking workspace
+          </p>
+          <h1 className="mt-1 text-xl font-bold">New booking</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sign in with the candidate&apos;s SVP account. After the OTP, this page opens the
+            booking form automatically.
+          </p>
+        </div>
         {sessionQuery.isError && (
           <p
             role="alert"
@@ -1099,8 +1109,7 @@ export function SvpBookingWizard() {
             <Button
               type="button"
               size="sm"
-              variant="secondary"
-              className="w-full"
+              className="w-full bg-emerald-400 font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
               onClick={startNewBooking}
             >
               <Plus className="mr-1 h-4 w-4" /> New booking
@@ -1136,6 +1145,9 @@ export function SvpBookingWizard() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={startNewBooking}>
+              <Plus className="mr-1 h-4 w-4" /> New booking
+            </Button>
             <Button
               type="button"
               variant="outline"

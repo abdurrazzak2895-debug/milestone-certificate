@@ -210,7 +210,7 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
         const permissionsResponse = await svpAuthedRequest(
           context.userId,
           "/individual_labor_space/permissions",
-          { query: { locale: "en" } },
+          { query: { locale: "en" }, timeoutMs: 5000, retries: 0 },
           active,
         );
         if (permissionsResponse.ok) {
