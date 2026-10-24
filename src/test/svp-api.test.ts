@@ -110,6 +110,7 @@ describe("SVP response parsers", () => {
       freeReservations: true,
       targeted: true,
       loadBalancer: false,
+      testPrice: null,
       countryId: 4,
       countryName: "Bangladesh",
     });

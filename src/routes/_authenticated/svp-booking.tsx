@@ -1,7 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/app/ui-bits";
 import { SvpBookingWizard } from "@/components/app/SvpBookingWizard";
 
 export const Route = createFileRoute("/_authenticated/svp-booking")({
@@ -18,22 +15,9 @@ export const Route = createFileRoute("/_authenticated/svp-booking")({
   component: SvpBookingWorkspace,
 });
 
-const SVP_PORTAL_URL = "https://svp-international.pacc.sa/";
-
 function SvpBookingWorkspace() {
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
-      <PageHeader
-        title="SVP booking"
-        subtitle="Sign in to SVP, choose an occupation and session, and create the reservation through the official SVP API."
-        actions={
-          <a href={SVP_PORTAL_URL} target="_blank" rel="noreferrer">
-            <Button type="button" variant="outline" size="sm">
-              <ExternalLink className="mr-2 h-4 w-4" /> Official portal
-            </Button>
-          </a>
-        }
-      />
+    <div className="mx-auto max-w-7xl p-4 sm:p-6">
       <SvpBookingWizard />
     </div>
   );

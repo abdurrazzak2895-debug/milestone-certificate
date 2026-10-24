@@ -25,6 +25,7 @@ export type SvpBookingPermissions = {
   freeReservations: boolean;
   targeted: boolean;
   loadBalancer: boolean;
+  testPrice: number | null;
   countryId: number | null;
   countryName: string | null;
 };
@@ -238,6 +239,7 @@ export function parseSvpPermissions(payload: unknown): SvpBookingPermissions {
     freeReservations: Boolean(country?.["free_reservations"]),
     targeted: Boolean(country?.["targeted"]),
     loadBalancer: Boolean(country?.["load_balancer"]),
+    testPrice: number(country?.["test_price"]),
     countryId: number(country?.["id"]),
     countryName: text(country?.["english_name"]) ?? text(country?.["name"]),
   };
