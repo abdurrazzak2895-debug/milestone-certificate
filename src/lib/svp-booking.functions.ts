@@ -9,6 +9,7 @@ import {
   parseSvpConstraints,
   parseSvpCredits,
   parseSvpError,
+  parseSvpExamSession,
   parseSvpExamSessions,
   parseSvpFeatureFlags,
   parseSvpOccupations,
@@ -345,8 +346,8 @@ export const createSvpBooking = createServerFn({ method: "POST" })
         categoryId: z.number().int().positive(),
         examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(40)]),
         languageCode: z.string().trim().min(1).max(20),
-        duration: z.number().nonnegative(),
-        startAt: z.string().trim().min(1).max(64),
+        duration: z.number().nonnegative().nullable().optional(),
+        startAt: z.string().trim().max(64).nullable().optional(),
         siteId: z.number().int().positive().nullable().optional(),
         siteCity: z.string().trim().max(120).nullable().optional(),
         holdId: z.string().trim().max(64).nullable().optional(),
@@ -980,8 +981,8 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
         siteId: z.number().int().positive(),
         siteCity: z.string().trim().max(120).nullable().optional(),
         languageCode: z.string().trim().min(1).max(20),
-        duration: z.number().nonnegative(),
-        startAt: z.string().trim().min(1).max(64),
+        duration: z.number().nonnegative().nullable().optional(),
+        startAt: z.string().trim().max(64).nullable().optional(),
         categoryId: z.number().int().positive(),
         countryId: z.number().int().positive().nullable().optional(),
       })
@@ -1075,39 +1076,84 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        examSessionId: z.number().int().positive(),
+        examSessionId: z.union([
+          z.number().int().positive(),
+          z.string().trim().min(1).max(80),
+          z
+            .array(z.union([z.number().int().positive(), z.string().trim().min(1).max(80)]))
+            .min(1)
+            .max(50),
+        ]),
         categoryId: z.number().int().positive(),
         countryId: z.number().int().positive().nullable().optional(),
       })
       .parse(input),
   )
-  .handler(async ({ context, data }): Promise<SvpResult<{ expiresAt: string | null }>> => {
+  .handler(
+    async ({
+      context,
+      data,
+    }): Promise<SvpResult<{ expiresAt: string | null; examSessionId: string | number | null }>> => {
+      await requireSvpAllowedRole(context.supabase, context.userId);
+      try {
+        const response = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/temporary_seats",
+          {
+            method: "POST",
+            query: LOCALE_QUERY,
+            body: {
+              exam_session_id: data.examSessionId,
+              country_id: data.countryId ?? null,
+              category_id: data.categoryId,
+            },
+          },
+        );
+        if (!response.ok) {
+          return failure(
+            apiFailure(response.payload, "SVP could not hold this seat.", response.status),
+          );
+        }
+        const root = record(response.payload);
+        const payload = record(root?.["data"]) ?? root;
+        const expires = payload?.["expired_at"] ?? root?.["expired_at"];
+        const chosen = payload?.["exam_session_id"] ?? root?.["exam_session_id"];
+        return {
+          ok: true,
+          data: {
+            expiresAt: typeof expires === "string" ? expires : null,
+            examSessionId: typeof chosen === "string" || typeof chosen === "number" ? chosen : null,
+          },
+        };
+      } catch (error) {
+        if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+        return failure("SVP could not hold this seat.");
+      }
+    },
+  );
+
+/** One targeted exam session by its (often string) token. */
+export const getSvpExamSessionById = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ examSessionId: z.string().trim().min(1).max(80) }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpExamSession>> => {
     await requireSvpAllowedRole(context.supabase, context.userId);
     try {
       const response = await svpAuthedRequest(
         context.userId,
-        "/individual_labor_space/temporary_seats",
-        {
-          method: "POST",
-          query: LOCALE_QUERY,
-          body: {
-            exam_session_id: data.examSessionId,
-            country_id: data.countryId ?? null,
-            category_id: data.categoryId,
-          },
-        },
+        `/individual_labor_space/exam_sessions/${encodeURIComponent(data.examSessionId)}`,
+        { query: LOCALE_QUERY },
       );
       if (!response.ok) {
-        return failure(
-          apiFailure(response.payload, "SVP could not hold this seat.", response.status),
-        );
+        return failure(apiFailure(response.payload, "The exam session could not be loaded."));
       }
-      const root = record(response.payload);
-      const payload = record(root?.["data"]) ?? root;
-      const expires = payload?.["expired_at"] ?? root?.["expired_at"];
-      return { ok: true, data: { expiresAt: typeof expires === "string" ? expires : null } };
+      const session = parseSvpExamSession(response.payload);
+      if (!session) return failure("SVP did not return the assigned session.");
+      return { ok: true, data: session };
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
-      return failure("SVP could not hold this seat.");
+      return failure("The exam session could not be loaded.");
     }
   });

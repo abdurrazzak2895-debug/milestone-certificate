@@ -371,8 +371,11 @@ async function performAuthedResponse(
   }
 
   const method = options.method ?? "GET";
-  if (method === "GET" && [429, 502, 503, 504].includes(response.status)) {
-    await new Promise((resolve) => setTimeout(resolve, 400));
+  const retryable = new Set([429, 502, 503, 504, 529]);
+  let retries = 0;
+  while (method === "GET" && retryable.has(response.status) && retries < 2) {
+    retries += 1;
+    await new Promise((resolve) => setTimeout(resolve, retries * 1500));
     response = await send(session);
   }
 

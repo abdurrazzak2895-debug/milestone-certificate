@@ -86,7 +86,26 @@ export function SvpReschedulePanel({
     refetchOnWindowFocus: false,
   });
   const detail = detailQuery.data?.ok ? detailQuery.data.data : null;
-  const activeLanguage = languageCode || detail?.languages[0]?.code || "en";
+  const languageOptions = useMemo(() => {
+    const all = detail?.languages ?? [];
+    const filtered = all.filter((entry) => entry.nonTargeted === !isTargeted);
+    const source = filtered.length > 0 ? filtered : all;
+    const byLabel = new Map<string, (typeof all)[number]>();
+    for (const entry of source) {
+      const key = entry.label.toLowerCase();
+      const existing = byLabel.get(key);
+      if (!existing || (entry.questionCount ?? 0) > (existing.questionCount ?? 0)) {
+        byLabel.set(key, entry);
+      }
+    }
+    return [...byLabel.values()];
+  }, [detail, isTargeted]);
+  const activeLanguage =
+    languageCode && languageOptions.some((entry) => entry.code === languageCode)
+      ? languageCode
+      : detail?.languageCode && languageOptions.some((entry) => entry.code === detail.languageCode)
+        ? detail.languageCode
+        : (languageOptions[0]?.code ?? "en");
   const effectiveCountryId = detail?.countryId ?? countryId ?? null;
 
   const datesQuery = useQuery({
@@ -465,9 +484,9 @@ export function SvpReschedulePanel({
               resetSelection();
             }}
           >
-            {(detail.languages.length > 0
-              ? detail.languages
-              : [{ code: "en", label: "English", questionCount: null }]
+            {(languageOptions.length > 0
+              ? languageOptions
+              : [{ code: "en", label: "English", questionCount: null, nonTargeted: false }]
             ).map((entry) => (
               <option key={entry.code} value={entry.code}>
                 {entry.label}

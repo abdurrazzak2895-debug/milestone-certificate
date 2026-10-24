@@ -4,6 +4,8 @@ export type SvpLanguage = {
   code: string;
   label: string;
   questionCount: number | null;
+  /** Prometric codes are either targeted (false) or site-based (true). */
+  nonTargeted: boolean;
 };
 
 export type SvpOccupation = {
@@ -22,6 +24,7 @@ export type SvpCity = { city: string; countryId: number | null };
 export type SvpBookingPermissions = {
   freeReservations: boolean;
   targeted: boolean;
+  loadBalancer: boolean;
   countryId: number | null;
   countryName: string | null;
 };
@@ -33,7 +36,7 @@ export type SvpAvailableDate = {
 };
 
 export type SvpExamSession = {
-  id: number;
+  id: string | number;
   startAt: string;
   endAt: string | null;
   duration: number;
@@ -82,8 +85,9 @@ export type SvpReservation = {
   methodology: string | null;
   canBeRescheduled: boolean;
   categoryId: number | null;
-  examSessionId: number | null;
+  examSessionId: string | number | null;
   duration: number | null;
+  languageCode: string | null;
 };
 
 export type SvpReservationDetail = SvpReservation & {
@@ -112,8 +116,8 @@ export type SvpCreateReservationInput = {
   examSessionId: number | string;
   occupationId: number;
   languageCode: string;
-  duration: number;
-  startAt: string;
+  duration?: number | null;
+  startAt?: string | null;
   siteId: number | null;
   siteCity: string | null;
   holdId: string | null;
@@ -178,6 +182,7 @@ function parseLanguages(category: Record<string, unknown> | null): SvpLanguage[]
       code: languageCode,
       label: text(item["name"]) ?? text(item["english_name"]) ?? languageCode.toUpperCase(),
       questionCount: number(item["question_count"]),
+      nonTargeted: Boolean(item["non_targeted"]),
     });
   }
   return languages;
@@ -192,19 +197,7 @@ export function parseSvpOccupations(payload: unknown): SvpOccupation[] {
       const category = asRecord(record["category"]);
       if (id === null) return null;
       const categoryId = number(record["category_id"]) ?? number(category?.["id"]);
-      const languages: SvpLanguage[] = [];
-      for (const code of asArray(category?.["prometric_codes"])) {
-        const item = asRecord(code);
-        const languageCode = text(item?.["code"]);
-        if (!item || !languageCode || languages.some((entry) => entry.code === languageCode)) {
-          continue;
-        }
-        languages.push({
-          code: languageCode,
-          label: text(item["name"]) ?? text(item["english_name"]) ?? languageCode.toUpperCase(),
-          questionCount: number(item["question_count"]),
-        });
-      }
+      const languages = parseLanguages(category);
       return {
         id,
         name: text(record["name"]) ?? text(record["english_name"]) ?? `Occupation ${String(id)}`,
@@ -244,6 +237,7 @@ export function parseSvpPermissions(payload: unknown): SvpBookingPermissions {
   return {
     freeReservations: Boolean(country?.["free_reservations"]),
     targeted: Boolean(country?.["targeted"]),
+    loadBalancer: Boolean(country?.["load_balancer"]),
     countryId: number(country?.["id"]),
     countryName: text(country?.["english_name"]) ?? text(country?.["name"]),
   };
@@ -289,8 +283,9 @@ export function parseSvpExamSessions(payload: unknown): SvpExamSession[] {
   return pickList(payload, ["exam_sessions", "sessions"])
     .map((entry) => {
       const record = asRecord(entry);
-      const id = number(record?.["id"]);
-      if (!record || id === null) return null;
+      const idValue = record?.["id"];
+      if (!record || idValue === undefined || idValue === null) return null;
+      const id = typeof idValue === "number" ? idValue : String(idValue);
       const center = asRecord(record["test_center"]);
       return {
         id,
@@ -298,6 +293,8 @@ export function parseSvpExamSessions(payload: unknown): SvpExamSession[] {
           text(record["startDateTime"]) ??
           text(record["start_at"]) ??
           text(record["start_at_in_tc_time_zone"]) ??
+          text(record["start_date_in_tc_time_zone"]) ??
+          text(record["start_date_in_browser_time_zone"]) ??
           "",
         endAt: text(record["end_at"]) ?? text(record["end_at_in_tc_time_zone"]),
         duration: number(record["duration"]) ?? 0,
@@ -312,17 +309,19 @@ export function parseSvpExamSessions(payload: unknown): SvpExamSession[] {
 }
 
 export function buildSvpReservationBody(input: SvpCreateReservationInput) {
-  return {
+  const body: Record<string, unknown> = {
     exam_session_id: input.examSessionId,
     occupation_id: input.occupationId,
     language_code: input.languageCode,
     site_id: input.siteId ?? null,
     site_city: input.siteCity ?? null,
     hold_id: input.holdId ?? null,
-    duration: input.duration,
-    start_at: input.startAt,
     country_id: input.countryId ?? null,
   };
+  // Load-balancer sessions are date-only tokens; the portal omits these fields.
+  if (input.duration !== null && input.duration !== undefined) body["duration"] = input.duration;
+  if (input.startAt) body["start_at"] = input.startAt;
+  return body;
 }
 
 export function parseSvpReservation(payload: unknown): {
@@ -348,7 +347,7 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
       const occupation = asRecord(record["occupation"]);
       const labor = asRecord(record["labor"]) ?? asRecord(record["individual_labor"]);
       const session = asRecord(record["exam_session"]);
-      const center = asRecord(session?.["test_center"]);
+      const center = asRecord(session?.["test_center"]) ?? asRecord(record["test_center"]);
       return {
         id: String(id),
         status: text(record["reservation_status"]) ?? text(record["status"]),
@@ -361,8 +360,10 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
         methodology: text(record["methodology"]),
         canBeRescheduled: Boolean(record["can_be_rescheduled"]),
         categoryId: number(record["category_id"]) ?? number(asRecord(record["category"])?.["id"]),
-        examSessionId: number(session?.["id"]),
+        examSessionId:
+          typeof session?.["id"] === "string" ? session["id"] : (number(session?.["id"]) ?? null),
         duration: number(session?.["duration"]) ?? number(record["duration"]),
+        languageCode: text(record["language_code"]),
       };
     })
     .filter((entry): entry is SvpReservation => entry !== null);
@@ -406,7 +407,7 @@ export function parseSvpReservationDetail(payload: unknown): SvpReservationDetai
     asRecord(session?.["category"]) ??
     asRecord(asRecord(reservation["occupation"])?.["category"]);
   const occupation = asRecord(reservation["occupation"]);
-  const center = asRecord(session?.["test_center"]);
+  const center = asRecord(session?.["test_center"]) ?? asRecord(reservation["test_center"]);
   const labor = asRecord(reservation["labor"]) ?? asRecord(reservation["individual_labor"]);
 
   return {
@@ -421,12 +422,15 @@ export function parseSvpReservationDetail(payload: unknown): SvpReservationDetai
     methodology: text(reservation["methodology"]),
     canBeRescheduled: Boolean(reservation["can_be_rescheduled"]),
     categoryId: number(reservation["category_id"]) ?? number(category?.["id"]),
-    examSessionId: number(session?.["id"]),
+    examSessionId:
+      typeof session?.["id"] === "string" ? session["id"] : (number(session?.["id"]) ?? null),
     duration: number(session?.["duration"]) ?? number(reservation["duration"]),
     occupationId: number(reservation["occupation_id"]) ?? number(occupation?.["id"]),
     categoryName: text(category?.["name"]) ?? text(category?.["english_name"]),
     languages: parseLanguages(category),
-    countryId: number(reservation["country_id"]),
+    languageCode: text(reservation["language_code"]),
+    countryId:
+      number(reservation["country_id"]) ?? number(asRecord(reservation["country"])?.["id"]),
   };
 }
 
@@ -437,7 +441,9 @@ export function parseSvpConstraints(payload: unknown): SvpConstraints {
   return {
     rescheduleTimes: number(data?.["reservation_rescheduling"]) ?? 1,
     bookingHoldSeconds: number(data?.["reservation_duration"]) ?? 0,
-    cancellationLimitHours: number(data?.["labor_reservation_cancellation_limit"]),
+    cancellationLimitHours:
+      number(data?.["labor_reservation_cancellation_time_limit"]) ??
+      number(data?.["labor_reservation_cancellation_limit"]),
   };
 }
 
@@ -569,4 +575,11 @@ export function parseSvpPrometricSlots(payload: unknown): SvpPrometricSlot[] {
     }
   }
   return slots.sort((a, b) => a.startAt.localeCompare(b.startAt));
+}
+
+/** One exam session by id (load-balancer assignment response). */
+export function parseSvpExamSession(payload: unknown): SvpExamSession | null {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  return parseSvpExamSessions({ exam_sessions: [data] })[0] ?? null;
 }

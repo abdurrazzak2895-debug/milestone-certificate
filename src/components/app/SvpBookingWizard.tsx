@@ -32,6 +32,7 @@ import {
   downloadSvpTicket,
   getSvpAccountOverview,
   getSvpBookingSetup,
+  getSvpExamSessionById,
   listSvpAvailableDates,
   listSvpBookingOccupations,
   listSvpExamSessions,
@@ -102,12 +103,6 @@ function useDebouncedValue<T>(value: T, delay = 300): T {
     return () => window.clearTimeout(timer);
   }, [value, delay]);
   return debounced;
-}
-
-function hashSlotId(value: string): number {
-  let hash = 0;
-  for (const character of value) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  return hash || 1;
 }
 
 function formatHoldExpiry(value: string): string {
@@ -259,15 +254,6 @@ export function SvpBookingWizard() {
   const occupationSearchPending =
     occupationSearch.trim() !== debouncedOccupationSearch || occupationSearchQuery.isFetching;
 
-  const citiesQuery = useQuery({
-    queryKey: ["svp-cities"],
-    queryFn: () => listSvpTestCenterCities(),
-    enabled: signedIn,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-  const cities = citiesQuery.data?.ok ? citiesQuery.data.data : [];
-
   const setupQuery = useQuery({
     queryKey: ["svp-setup", occupationId],
     queryFn: () => getSvpBookingSetup({ data: { occupationId } }),
@@ -288,6 +274,36 @@ export function SvpBookingWizard() {
   const isTargeted = overview
     ? overview.permissions.targeted
     : (setup?.permissions.targeted ?? true);
+  const isLoadBalancer = overview
+    ? overview.permissions.loadBalancer
+    : (setup?.permissions.loadBalancer ?? false);
+  const languageOptions = useMemo(() => {
+    const all = occupation?.languages ?? [];
+    const filtered = all.filter((entry) => entry.nonTargeted === !isTargeted);
+    const source = filtered.length > 0 ? filtered : all;
+    const byLabel = new Map<string, (typeof all)[number]>();
+    for (const entry of source) {
+      const key = entry.label.toLowerCase();
+      const existing = byLabel.get(key);
+      if (!existing || (entry.questionCount ?? 0) > (existing.questionCount ?? 0)) {
+        byLabel.set(key, entry);
+      }
+    }
+    return [...byLabel.values()];
+  }, [isTargeted, occupation]);
+  const activeLanguageCode =
+    languageCode && languageOptions.some((entry) => entry.code === languageCode)
+      ? languageCode
+      : (languageOptions[0]?.code ?? occupation?.languages[0]?.code ?? "en");
+
+  const citiesQuery = useQuery({
+    queryKey: ["svp-cities"],
+    queryFn: () => listSvpTestCenterCities(),
+    enabled: signedIn && !isTargeted,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const cities = citiesQuery.data?.ok ? citiesQuery.data.data : [];
 
   // Any SVP call can invalidate the stored session (refresh cookie expired/revoked).
   useEffect(() => {
@@ -321,6 +337,16 @@ export function SvpBookingWizard() {
     () => (datesQuery.data?.ok ? datesQuery.data.data : []),
     [datesQuery.data],
   );
+  const targetedCities = useMemo(
+    () => [
+      ...new Set(
+        availableDates
+          .map((entry) => entry.city)
+          .filter((entry): entry is string => Boolean(entry)),
+      ),
+    ],
+    [availableDates],
+  );
   const dateOptions = useMemo(() => {
     const map = new Map<string, { date: string; city: string | null }>();
     for (const entry of availableDates) {
@@ -346,7 +372,7 @@ export function SvpBookingWizard() {
   });
   const examSessions = sessionsQuery.data?.ok ? sessionsQuery.data.data : [];
 
-  const prometricCode = languageCode || occupation?.languages[0]?.code || "en";
+  const prometricCode = activeLanguageCode;
   const sitesQuery = useQuery({
     queryKey: ["svp-sites", prometricCode, city, cityCountryId],
     queryFn: () =>
@@ -414,7 +440,7 @@ export function SvpBookingWizard() {
   const selectOccupation = (entry: SvpOccupation) => {
     setSelectedOccupation(entry);
     setOccupationId(entry.id);
-    setLanguageCode(entry.languages[0]?.code ?? "");
+    setLanguageCode("");
     setOccupationSearch(entry.name);
     setOccupationOpen(false);
     setChecked(false);
@@ -431,10 +457,9 @@ export function SvpBookingWizard() {
 
   const chooseSlot = (slot: SvpPrometricSlot) => {
     const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
-    const numeric = Number(slot.id);
     setSelectedSlot(slot);
     setSelectedSession({
-      id: Number.isFinite(numeric) ? numeric : hashSlotId(slot.id),
+      id: slot.id,
       startAt: slot.startAt,
       endAt: null,
       duration: slot.duration,
@@ -470,13 +495,21 @@ export function SvpBookingWizard() {
   });
 
   const targetedHoldMutation = useMutation({
-    mutationFn: async () => {
-      if (!occupation?.categoryId || !selectedSession) {
-        throw new Error("Select an exam session first.");
-      }
+    mutationFn: async (): Promise<{
+      expiresAt: string | null;
+      session: SvpExamSession | null;
+    }> => {
+      if (!occupation?.categoryId) throw new Error("Select an occupation first.");
+      const ids = isLoadBalancer
+        ? examSessions.map((entry) => entry.id)
+        : selectedSession
+          ? [selectedSession.id]
+          : [];
+      if (ids.length === 0) throw new Error("Select an exam session first.");
+
       const response = await createSvpTargetedHold({
         data: {
-          examSessionId: selectedSession.id,
+          examSessionId: isLoadBalancer ? ids : (ids[0] as string | number),
           categoryId: occupation.categoryId,
           countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
         },
@@ -485,9 +518,18 @@ export function SvpBookingWizard() {
         if (response.needsSignIn) requireSignIn();
         throw new Error(response.message);
       }
-      return response.data;
+
+      let assigned = selectedSession ?? examSessions[0] ?? null;
+      if (response.data.examSessionId !== null && response.data.examSessionId !== undefined) {
+        const detail = await getSvpExamSessionById({
+          data: { examSessionId: String(response.data.examSessionId) },
+        });
+        if (detail.ok) assigned = detail.data;
+      }
+      return { expiresAt: response.data.expiresAt, session: assigned };
     },
     onSuccess: (data) => {
+      if (data.session) setSelectedSession(data.session);
       setTargetedHoldExpiresAt(data.expiresAt);
       setStage("confirm");
     },
@@ -655,9 +697,9 @@ export function SvpBookingWizard() {
           occupationId: occupation.id,
           categoryId: occupation.categoryId as number,
           examSessionId: isTargeted ? selectedSession.id : (prometricExamId ?? selectedSession.id),
-          languageCode: languageCode || occupation.languages[0]?.code || "en",
-          duration: selectedSession.duration,
-          startAt: selectedSession.startAt,
+          languageCode: activeLanguageCode,
+          duration: selectedSession.duration > 0 ? selectedSession.duration : null,
+          startAt: /\d{2}:\d{2}/.test(selectedSession.startAt) ? selectedSession.startAt : null,
           siteId: selectedSession.siteId,
           // The portal only sends site_city for non-targeted (site-based) sessions.
           siteCity: selectedSession.siteId ? (selectedSession.city ?? sessionCity) : null,
@@ -1062,8 +1104,28 @@ export function SvpBookingWizard() {
                 </p>
               )}
             </Field>
-            <Field label="Test center city *">
-              {cities.length > 0 ? (
+            <Field label={isTargeted ? "Test center city" : "Test center city *"}>
+              {isTargeted ? (
+                <NativeSelect
+                  value={city}
+                  onChange={(event) => {
+                    setCity(event.target.value);
+                    setPrometricDate(null);
+                    setSelectedSlot(null);
+                    setSelectedSession(null);
+                    setHoldId(null);
+                    setPrometricHoldExpiresAt(null);
+                    setTargetedHoldExpiresAt(null);
+                  }}
+                >
+                  <option value="">All cities (from SVP availability)</option>
+                  {targetedCities.map((entry) => (
+                    <option key={entry} value={entry}>
+                      {entry}
+                    </option>
+                  ))}
+                </NativeSelect>
+              ) : cities.length > 0 ? (
                 <NativeSelect
                   value={city}
                   onChange={(event) => {
@@ -1097,13 +1159,24 @@ export function SvpBookingWizard() {
                 />
               )}
             </Field>
-            {occupation && occupation.languages.length > 1 && (
+            {languageOptions.length > 1 && (
               <Field label="Exam language">
                 <NativeSelect
-                  value={languageCode}
-                  onChange={(event) => setLanguageCode(event.target.value)}
+                  value={activeLanguageCode}
+                  onChange={(event) => {
+                    setLanguageCode(event.target.value);
+                    setSelectedDate(null);
+                    setSelectedSession(null);
+                    setSelectedSlot(null);
+                    setHoldId(null);
+                    setPrometricHoldExpiresAt(null);
+                    setTargetedHoldExpiresAt(null);
+                    setChecked(false);
+                    setEligibility(null);
+                    setStage("select");
+                  }}
                 >
-                  {occupation.languages.map((entry) => (
+                  {languageOptions.map((entry) => (
                     <option key={entry.code} value={entry.code}>
                       {entry.label}
                     </option>
@@ -1225,7 +1298,7 @@ export function SvpBookingWizard() {
               disabled={
                 !occupation ||
                 !occupation.categoryId ||
-                !city.trim() ||
+                (!isTargeted && !city.trim()) ||
                 eligibilityMutation.isPending
               }
             >
@@ -1348,6 +1421,11 @@ export function SvpBookingWizard() {
                   </button>
                 ))}
               </div>
+              {isTargeted && isLoadBalancer && examSessions.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  SVP will assign one of these {examSessions.length} sessions for the selected date.
+                </p>
+              )}
               {!isTargeted && holdId && (
                 <p className="text-xs text-muted-foreground">
                   SVP has held this slot for you. Continue to confirm the booking.
@@ -1364,7 +1442,9 @@ export function SvpBookingWizard() {
               type="button"
               onClick={continueFromDates}
               disabled={
-                !selectedSession || holdMutation.isPending || targetedHoldMutation.isPending
+                (isTargeted && isLoadBalancer ? examSessions.length === 0 : !selectedSession) ||
+                holdMutation.isPending ||
+                targetedHoldMutation.isPending
               }
             >
               {(holdMutation.isPending || targetedHoldMutation.isPending) && (
@@ -1402,9 +1482,7 @@ export function SvpBookingWizard() {
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Language</dt>
-              <dd className="font-medium">
-                {languageCode || occupation.languages[0]?.code || "en"}
-              </dd>
+              <dd className="font-medium">{activeLanguageCode}</dd>
             </div>
           </dl>
 

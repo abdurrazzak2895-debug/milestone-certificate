@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   slots: vi.fn(),
   hold: vi.fn(),
   targetedHold: vi.fn(),
+  sessionById: vi.fn(),
   dates: vi.fn(),
   sessions: vi.fn(),
   reservations: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpPrometricSlots: mocks.slots,
   createSvpPrometricHold: mocks.hold,
   createSvpTargetedHold: mocks.targetedHold,
+  getSvpExamSessionById: mocks.sessionById,
   listSvpAvailableDates: mocks.dates,
   listSvpExamSessions: mocks.sessions,
   listSvpReservations: mocks.reservations,
@@ -120,8 +122,9 @@ beforeEach(() => {
   mocks.hold.mockResolvedValue({ ok: true, data: { holdId: "hold-1", expiresAt: null } });
   mocks.targetedHold.mockResolvedValue({
     ok: true,
-    data: { expiresAt: "2026-11-05T09:40:00.000Z" },
+    data: { expiresAt: "2026-11-05T09:40:00.000Z", examSessionId: null },
   });
+  mocks.sessionById.mockResolvedValue({ ok: true, data: session });
   mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 4 }] });
   mocks.setup.mockResolvedValue({
     ok: true,
@@ -250,9 +253,6 @@ describe("SVP booking wizard", () => {
 
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
-    fireEvent.change(screen.getByLabelText("Test center city *"), {
-      target: { value: "Dhaka" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
@@ -319,9 +319,6 @@ describe("SVP booking wizard", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
-    fireEvent.change(screen.getByLabelText("Test center city *"), {
-      target: { value: "Dhaka" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(
@@ -441,7 +438,7 @@ describe("site-based booking flow", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
-    fireEvent.change(screen.getByLabelText("Test center city *"), {
+    fireEvent.change(await screen.findByLabelText("Test center city *"), {
       target: { value: "Dhaka" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
@@ -478,6 +475,127 @@ describe("site-based booking flow", () => {
           startAt: "2026-12-01T10:00:00",
           siteId: 9,
           siteCity: "Dhaka",
+          countryId: 4,
+        },
+      }),
+    );
+  });
+});
+
+describe("load-balancer targeted booking", () => {
+  it("holds all date tokens and books the session SVP assigns", async () => {
+    mocks.overview.mockResolvedValue({
+      ok: true,
+      data: {
+        permissions: {
+          freeReservations: false,
+          targeted: true,
+          loadBalancer: true,
+          countryId: 4,
+          countryName: "Bangladesh",
+          permissionKeys: [],
+        },
+        constraints: { rescheduleTimes: 1, bookingHoldSeconds: 20, cancellationLimitHours: 72 },
+        flags: { rescheduleEnabled: true, creditsEnabled: true },
+        credits: 0,
+      },
+    });
+    mocks.setup.mockResolvedValue({
+      ok: true,
+      data: {
+        permissions: {
+          freeReservations: false,
+          targeted: true,
+          loadBalancer: true,
+          countryId: 4,
+          countryName: "Bangladesh",
+        },
+        credits: 0,
+        svpUserId: "1337578",
+      },
+    });
+    mocks.sessions.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "token-1",
+          startAt: "2026-11-05",
+          endAt: null,
+          duration: 0,
+          availableSeats: null,
+          city: "Dhaka",
+          centerName: null,
+          siteId: null,
+        },
+        {
+          id: "token-2",
+          startAt: "2026-11-05",
+          endAt: null,
+          duration: 0,
+          availableSeats: null,
+          city: "Dhaka",
+          centerName: null,
+          siteId: null,
+        },
+      ],
+    });
+    mocks.targetedHold.mockResolvedValue({
+      ok: true,
+      data: { expiresAt: "2026-11-05T09:45:00.000Z", examSessionId: "assigned-1" },
+    });
+    mocks.sessionById.mockResolvedValue({
+      ok: true,
+      data: {
+        id: "assigned-1",
+        startAt: "2026-11-05 09:30:00",
+        endAt: "2026-11-05 11:30:00",
+        duration: 7200,
+        availableSeats: null,
+        city: "Dhaka",
+        centerName: "Dhaka Technical Training Centre",
+        siteId: null,
+      },
+    });
+
+    renderWizard();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    await screen.findByText(/Step 2/);
+    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    await screen.findByText(/SVP will assign one of these 2 sessions/);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() =>
+      expect(mocks.targetedHold).toHaveBeenCalledWith({
+        data: { examSessionId: ["token-1", "token-2"], categoryId: 159, countryId: 4 },
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.sessionById).toHaveBeenCalledWith({ data: { examSessionId: "assigned-1" } }),
+    );
+    expect(await screen.findByText(/Step 3/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Candidate name *"), {
+      target: { value: "Md Farid" },
+    });
+    fireEvent.change(screen.getByLabelText("Passport *"), { target: { value: "AB123456" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Create SVP booking" }));
+
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith({
+        data: {
+          occupationId: 11,
+          categoryId: 159,
+          examSessionId: "assigned-1",
+          holdId: null,
+          languageCode: "en",
+          duration: 7200,
+          startAt: "2026-11-05 09:30:00",
+          siteId: null,
+          siteCity: null,
           countryId: 4,
         },
       }),
@@ -542,9 +660,6 @@ describe("temporary seat hold", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
-    fireEvent.change(screen.getByLabelText("Test center city *"), {
-      target: { value: "Dhaka" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));

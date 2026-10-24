@@ -78,8 +78,8 @@ describe("SVP response parsers", () => {
         categoryId: 159,
         categoryName: "Welding",
         languages: [
-          { code: "en", label: "English", questionCount: 30 },
-          { code: "ar", label: "Arabic", questionCount: 30 },
+          { code: "en", label: "English", questionCount: 30, nonTargeted: false },
+          { code: "ar", label: "Arabic", questionCount: 30, nonTargeted: false },
         ],
         driverLicenseRequired: false,
       },
@@ -109,6 +109,7 @@ describe("SVP response parsers", () => {
     ).toEqual({
       freeReservations: true,
       targeted: true,
+      loadBalancer: false,
       countryId: 4,
       countryName: "Bangladesh",
     });
@@ -188,6 +189,7 @@ describe("SVP response parsers", () => {
         centerName: "Dhaka Center",
         startAt: "2026-11-05 09:30:00",
         methodology: null,
+        languageCode: null,
         canBeRescheduled: true,
         categoryId: 159,
         examSessionId: 501,
@@ -268,13 +270,14 @@ describe("SVP reschedule and account parsers", () => {
       centerName: "Dhaka Center",
       startAt: "2026-11-05 09:30:00",
       methodology: null,
+      languageCode: null,
       canBeRescheduled: true,
       categoryId: 159,
       examSessionId: 501,
       duration: 3600,
       occupationId: 11,
       categoryName: "Welding",
-      languages: [{ code: "en", label: "English", questionCount: null }],
+      languages: [{ code: "en", label: "English", questionCount: null, nonTargeted: false }],
       countryId: null,
     });
   });
@@ -359,5 +362,33 @@ describe("SVP site-based booking parsers", () => {
         },
       ]),
     ).toEqual([{ id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 }]);
+  });
+});
+
+describe("SVP targeted load-balancer sessions", () => {
+  it("keeps the string session token and date-only start field", () => {
+    const sessions = parseSvpExamSessions({
+      exam_sessions: [
+        {
+          id: "QhHSU5enEg--HeQIKA7MRogPRy6u--Md2sAG6krBtWYeqaM9UXeQ",
+          status: "scheduled",
+          start_date_in_tc_time_zone: "2026-10-25",
+          test_center: { city: "Dhaka", country_id: 78 },
+        },
+      ],
+    });
+
+    expect(sessions).toEqual([
+      {
+        id: "QhHSU5enEg--HeQIKA7MRogPRy6u--Md2sAG6krBtWYeqaM9UXeQ",
+        startAt: "2026-10-25",
+        endAt: null,
+        duration: 0,
+        availableSeats: null,
+        city: "Dhaka",
+        centerName: null,
+        siteId: null,
+      },
+    ]);
   });
 });
