@@ -2,14 +2,23 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 
-const mocks = vi.hoisted(() => ({ submit: vi.fn() }));
+const mocks = vi.hoisted(() => ({ submit: vi.fn(), resend: vi.fn() }));
 
 vi.mock("@/lib/svp-session.functions", () => ({
   submitSvpLogin: mocks.submit,
+  resendSvpOtp: mocks.resend,
 }));
 
 afterEach(cleanup);
-beforeEach(() => mocks.submit.mockReset());
+beforeEach(() => {
+  mocks.submit.mockReset();
+  mocks.resend.mockReset();
+  mocks.resend.mockResolvedValue({
+    ok: true,
+    httpStatus: 200,
+    message: "A new OTP has been sent to the registered email.",
+  });
+});
 
 const loginAccepted = {
   step: "login" as const,
@@ -137,5 +146,33 @@ describe("SVP login panel", () => {
     expect(screen.getByLabelText("SVP username")).toHaveValue("");
     expect(screen.getByLabelText("Password")).toHaveValue("");
     expect(screen.queryByLabelText("One-time password (OTP)")).not.toBeInTheDocument();
+  });
+});
+
+describe("SVP OTP resend", () => {
+  it("resends the OTP for the same credentials from the OTP step", async () => {
+    mocks.submit.mockResolvedValueOnce(loginAccepted);
+    render(<SvpLoginPanel />);
+
+    fireEvent.change(screen.getByLabelText("SVP username"), {
+      target: { value: "candidate-login" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "password-value" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await screen.findByLabelText("One-time password (OTP)");
+
+    fireEvent.click(screen.getByRole("button", { name: "Resend OTP" }));
+
+    await waitFor(() =>
+      expect(mocks.resend).toHaveBeenCalledWith({
+        data: { login: "candidate-login", password: "password-value" },
+      }),
+    );
+    expect(
+      await screen.findByText("A new OTP has been sent to the registered email."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Resend in \d+s/ })).toBeDisabled();
   });
 });

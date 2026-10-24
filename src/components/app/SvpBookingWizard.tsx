@@ -463,7 +463,7 @@ export function SvpBookingWizard() {
   const citiesQuery = useQuery({
     queryKey: ["svp-cities"],
     queryFn: () => listSvpTestCenterCities(),
-    enabled: signedIn && !isTargeted,
+    enabled: signedIn && overview !== null && !isTargeted && occupationId !== null,
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -600,6 +600,9 @@ export function SvpBookingWizard() {
   const reservations: SvpReservation[] = reservationsQuery.data?.ok
     ? reservationsQuery.data.data
     : [];
+  const cancelledReservations = reservations.filter((entry) =>
+    /cancel/i.test(entry.status ?? ""),
+  ).length;
 
   const selectOccupation = (entry: SvpOccupation) => {
     setSelectedOccupation(entry);
@@ -738,6 +741,24 @@ export function SvpBookingWizard() {
     void occupationsQuery.refetch();
     if (debouncedOccupationSearch) void occupationSearchQuery.refetch();
     void citiesQuery.refetch();
+  };
+
+  const refreshAvailability = () => {
+    if (isTargeted) {
+      void datesQuery.refetch();
+      if (activeDateValue) void sessionsQuery.refetch();
+      return;
+    }
+    void sitesQuery.refetch();
+    if (prometricDate) void slotsQuery.refetch();
+  };
+
+  const startNewBooking = () => {
+    resetFlow();
+    setAddAccountOpen(false);
+    setRescheduleId(null);
+    setStage("select");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const resetFlow = () => {
@@ -1048,26 +1069,37 @@ export function SvpBookingWizard() {
               account.
             </p>
           </div>
-          <div className="grid w-full gap-2 text-xs sm:w-auto sm:grid-cols-2">
-            {[
-              { label: "Account", value: status?.userName ?? status?.login ?? "—" },
-              { label: "Country", value: overview?.permissions.countryName ?? "—" },
-              {
-                label: "Flow",
-                value: overview ? (isTargeted ? "Targeted" : "Site-based") : "—",
-              },
-              { label: "Credits", value: overview ? String(overview.credits) : "—" },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="min-w-0 rounded-xl border border-white/10 bg-black/10 px-3 py-2"
-              >
-                <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">
-                  {item.label}
-                </p>
-                <p className="truncate text-sm font-medium text-slate-100">{item.value}</p>
-              </div>
-            ))}
+          <div className="w-full space-y-2 sm:w-auto">
+            <div className="grid w-full gap-2 text-xs sm:grid-cols-2">
+              {[
+                { label: "Account", value: status?.userName ?? status?.login ?? "—" },
+                { label: "Country", value: overview?.permissions.countryName ?? "—" },
+                {
+                  label: "Flow",
+                  value: overview ? (isTargeted ? "Targeted" : "Site-based") : "—",
+                },
+                { label: "Credits", value: overview ? String(overview.credits) : "—" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="min-w-0 rounded-xl border border-white/10 bg-black/10 px-3 py-2"
+                >
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                    {item.label}
+                  </p>
+                  <p className="truncate text-sm font-medium text-slate-100">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="w-full"
+              onClick={startNewBooking}
+            >
+              <Plus className="mr-1 h-4 w-4" /> New booking
+            </Button>
           </div>
         </div>
       </section>
@@ -1448,12 +1480,14 @@ export function SvpBookingWizard() {
                   </Button>
                 </div>
               )}
-              {citiesQuery.data && !citiesQuery.data.ok && (
+              {citiesQuery.data && !citiesQuery.data.ok && !isTargeted && (
                 <div
-                  className="flex flex-wrap items-center gap-2 text-sm text-destructive"
-                  role="alert"
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
+                  role="status"
                 >
-                  <span>{citiesQuery.data.message}</span>
+                  <span>
+                    City list unavailable — type the city manually. ({citiesQuery.data.message})
+                  </span>
                   <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
                     Retry
                   </Button>
@@ -1543,6 +1577,15 @@ export function SvpBookingWizard() {
                   {occupation?.name} · {city}
                   {activeDateValue ? ` · ${formatDateOnly(activeDateValue)}` : ""}
                 </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Dates and sessions come live from SVP; refresh if availability changes.
+                </p>
+                <Button type="button" size="sm" variant="ghost" onClick={refreshAvailability}>
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" /> Refresh availability
+                </Button>
               </div>
 
               {eligibility && eligibility.every((entry) => entry.passed) && (
@@ -1889,6 +1932,10 @@ export function SvpBookingWizard() {
                 <h2 id="svp-account-bookings" className="text-lg font-bold">
                   SVP bookings on this account
                 </h2>
+                <p className="text-xs text-muted-foreground">
+                  {reservations.length} total
+                  {cancelledReservations > 0 ? ` · ${cancelledReservations} cancelled` : ""}
+                </p>
               </div>
               {reservationsQuery.isFetching && (
                 <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -1932,19 +1979,23 @@ export function SvpBookingWizard() {
                         >
                           {entry.status ?? "unknown"}
                         </span>
-                        {entry.canBeRescheduled &&
-                          (overview === null ||
-                            (overview.flags.rescheduleEnabled &&
-                              overview.constraints.rescheduleTimes > 0)) && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setRescheduleId(entry.id)}
-                            >
-                              <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reschedule
-                            </Button>
-                          )}
+                        {entry.canBeRescheduled ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRescheduleId(entry.id)}
+                          >
+                            <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reschedule
+                          </Button>
+                        ) : (
+                          <span
+                            className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground"
+                            title="SVP marks this booking as not reschedulable"
+                          >
+                            Not reschedulable
+                          </span>
+                        )}
                         {ticketReady && (
                           <Button
                             type="button"

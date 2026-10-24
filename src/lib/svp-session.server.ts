@@ -245,7 +245,7 @@ export function apiUrl(path: string, query?: Record<string, SvpQueryValue>) {
 }
 
 export async function svpLoginRequest(
-  path: "/sessions/login" | "/sessions/otp",
+  path: "/sessions/login" | "/sessions/otp" | "/sessions/resend_otp",
   body: unknown,
 ): Promise<{ response: Response; payload: unknown; message: string | null }> {
   const response = await timedFetch(apiUrl(path), {

@@ -1,6 +1,6 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Eye, EyeOff, RotateCcw } from "lucide-react";
-import { submitSvpLogin } from "@/lib/svp-session.functions";
+import { resendSvpOtp, submitSvpLogin } from "@/lib/svp-session.functions";
 import { svpLoginInputSchema, svpOtpInputSchema } from "@/lib/svp-session.shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,17 +24,45 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
   const busyRef = useRef(false);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendIn]);
 
   const reset = () => {
     setForm({ ...EMPTY_FORM });
     setStep("login");
     setStatus(null);
     setShowPassword(false);
+    setResendIn(0);
   };
 
   const update = (key: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const resend = async () => {
+    if (resending || resendIn > 0) return;
+    const parsed = svpLoginInputSchema.safeParse({ login: form.login, password: form.password });
+    if (!parsed.success) {
+      setStatus({ tone: "error", text: "Enter the SVP username and password again." });
+      return;
+    }
+    setResending(true);
+    try {
+      const result = await resendSvpOtp({ data: parsed.data });
+      setStatus({ tone: result.ok ? "ok" : "error", text: result.message });
+      if (result.ok) setResendIn(60);
+    } catch {
+      setStatus({ tone: "error", text: "The OTP could not be resent. Try again." });
+    } finally {
+      setResending(false);
+    }
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -163,6 +191,16 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
           <Button type="submit" disabled={busy}>
             {busy ? "Please wait…" : step === "login" ? "Continue" : "Verify OTP"}
           </Button>
+          {step === "otp" && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void resend()}
+              disabled={busy || resending || resendIn > 0}
+            >
+              {resending ? "Sending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={reset} disabled={busy}>
             <RotateCcw className="mr-2 h-4 w-4" /> Reset
           </Button>

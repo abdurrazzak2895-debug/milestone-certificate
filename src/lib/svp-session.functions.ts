@@ -5,6 +5,7 @@ import {
   buildSvpLoginBody,
   buildSvpOtpBody,
   extractSvpSessionUser,
+  svpLoginInputSchema,
   svpSessionInputSchema,
   type SvpSessionResult,
   type SvpSystemConfig,
@@ -209,6 +210,27 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
   });
 
 /** Forget the stored SVP session for this app user. */
+/** Resend the email OTP for a pending SVP login. */
+export const resendSvpOtp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => svpLoginInputSchema.parse(input))
+  .handler(
+    async ({ context, data }): Promise<{ ok: boolean; message: string; httpStatus: number }> => {
+      await requireSvpAllowedRole(context.supabase, context.userId);
+      const { response, message } = await svpLoginRequest(
+        "/sessions/resend_otp",
+        buildSvpLoginBody(data, SVP_SYSTEM_CONFIG),
+      );
+      return {
+        httpStatus: response.status,
+        ok: response.ok,
+        message: response.ok
+          ? (message ?? "A new OTP has been sent to the registered email.")
+          : (message ?? "SVP could not resend the OTP. Try again."),
+      };
+    },
+  );
+
 export const listSvpAccounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SvpAccountsResult> => {
