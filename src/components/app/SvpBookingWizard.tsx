@@ -77,7 +77,6 @@ import type {
   SvpAvailableDate,
   SvpEligibility,
   SvpExamSession,
-  SvpLanguage,
   SvpOccupation,
   SvpPrometricSlot,
   SvpReservation,
@@ -370,22 +369,10 @@ export function SvpBookingWizard() {
     }
     return map;
   }, [takamolOccupationsQuery.data]);
-  const occupations = useMemo(() => {
-    const rows = occupationsQuery.data?.ok ? occupationsQuery.data.data : [];
-    if (takamolLanguageByOccupation.size === 0) return rows;
-    return rows.map((row) => {
-      if (row.languages.length > 0) return row;
-      const code = takamolLanguageByOccupation.get(row.id);
-      return code
-        ? {
-            ...row,
-            languages: [
-              { code, label: code, questionCount: null, nonTargeted: false } satisfies SvpLanguage,
-            ],
-          }
-        : row;
-    });
-  }, [occupationsQuery.data, takamolLanguageByOccupation]);
+  const occupations = useMemo(
+    () => (occupationsQuery.data?.ok ? occupationsQuery.data.data : []),
+    [occupationsQuery.data],
+  );
   const occupation = useMemo(() => {
     const fromList = occupations.find((entry) => entry.id === occupationId) ?? null;
     if (!selectedOccupation) return fromList;
@@ -513,8 +500,21 @@ export function SvpBookingWizard() {
         byLabel.set(key, entry);
       }
     }
-    return [...byLabel.values()];
-  }, [categoryOptions, isTargeted, manualCategoryId, matchedCategory, occupation]);
+    const options = [...byLabel.values()];
+    if (options.length > 0) return options;
+    // Nothing from SVP: use Takamol's occupation language code as the last resort.
+    const takamolCode = occupation ? takamolLanguageByOccupation.get(occupation.id) : null;
+    return takamolCode
+      ? [{ code: takamolCode, label: takamolCode, questionCount: null, nonTargeted: false }]
+      : [];
+  }, [
+    categoryOptions,
+    isTargeted,
+    manualCategoryId,
+    matchedCategory,
+    occupation,
+    takamolLanguageByOccupation,
+  ]);
   // The exam language is always chosen manually; never auto-selected.
   const activeLanguageCode =
     languageCode && languageOptions.some((entry) => entry.code === languageCode)
