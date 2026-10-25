@@ -25,6 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 import { SvpReschedulePanel } from "@/components/app/SvpReschedulePanel";
+import {
+  SvpExamSessionsTable,
+  type SvpExamSessionView,
+} from "@/components/app/SvpExamSessionsTable";
 import { supabase } from "@/integrations/supabase/client";
 import {
   checkSvpBookingEligibility,
@@ -1119,13 +1123,16 @@ export function SvpBookingWizard() {
       ? splitDateTime(selectedDate.startAt).date
       : ""
     : (prometricDate ?? "");
-  const sessionViews = isTargeted
+  const sessionViews: SvpExamSessionView[] = isTargeted
     ? examSessions.map((entry) => ({
         key: `s-${entry.id}`,
         startAt: entry.startAt,
-        center: entry.centerName ?? entry.city ?? city,
+        endAt: entry.endAt,
+        center: entry.centerName,
+        city: entry.city ?? sessionCity,
         seats: entry.availableSeats,
         duration: entry.duration,
+        durationUnit: "seconds",
         selected: selectedSession?.id === entry.id && !selectedSlot,
         onSelect: () => {
           setSelectedSession(entry);
@@ -1140,21 +1147,27 @@ export function SvpBookingWizard() {
         return {
           key: `p-${slot.id}`,
           startAt: slot.startAt,
-          center: site?.name ?? site?.city ?? city,
+          center: site?.name ?? null,
+          city: site?.city ?? city,
           seats: null as number | null,
           duration: slot.duration,
+          durationUnit: "minutes",
           selected: selectedSlot?.id === slot.id,
           onSelect: () => chooseSlot(slot),
         };
       });
-  const sessionsLoading = isTargeted ? sessionsQuery.isPending : slotsQuery.isPending;
+  const sessionsLoading = isTargeted ? sessionsQuery.isFetching : slotsQuery.isFetching;
   const sessionsError = isTargeted
     ? sessionsQuery.data && !sessionsQuery.data.ok
       ? sessionsQuery.data.message
-      : null
+      : sessionsQuery.isError
+        ? "Could not load exam sessions. Please retry."
+        : null
     : slotsQuery.data && !slotsQuery.data.ok
       ? slotsQuery.data.message
-      : null;
+      : slotsQuery.isError
+        ? "Could not load available slots. Please retry."
+        : null;
   const sessionsLoaded = isTargeted
     ? Boolean(sessionsQuery.data?.ok)
     : Boolean(slotsQuery.data?.ok);
@@ -2001,56 +2014,18 @@ export function SvpBookingWizard() {
 
             {activeDateValue && (
               <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  {isTargeted ? "Exam sessions" : "Available slots"}
-                </p>
-                {sessionsLoading && (
-                  <p
-                    className="flex items-center gap-2 text-sm text-muted-foreground"
-                    role="status"
-                  >
-                    <LoaderCircle className="h-4 w-4 animate-spin" /> Loading sessions…
-                  </p>
-                )}
-                {sessionsError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {sessionsError}
-                  </p>
-                )}
-                {!sessionsLoading && sessionsLoaded && sessionViews.length === 0 && (
-                  <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                    {isTargeted
-                      ? "No sessions with free seats on this date."
-                      : "No slots with free seats on this date."}
-                  </p>
-                )}
-                <div className="grid gap-2 md:grid-cols-2">
-                  {sessionViews.map((view) => (
-                    <button
-                      key={view.key}
-                      type="button"
-                      onClick={view.onSelect}
-                      className={`rounded-xl border p-3 text-left text-sm transition-colors ${
-                        view.selected
-                          ? "border-primary bg-primary-soft"
-                          : "bg-card hover:border-primary/50"
-                      }`}
-                    >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="font-semibold">{formatSlot(view.startAt)}</span>
-                        {view.selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                      </span>
-                      <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5" /> {view.center}
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {view.seats !== null ? `Seats: ${view.seats} · ` : ""}Duration:{" "}
-                        {view.duration || "—"}
-                        {isTargeted ? "s" : " min"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <SvpExamSessionsTable
+                  views={sessionViews}
+                  loading={sessionsLoading}
+                  error={sessionsError}
+                  loaded={sessionsLoaded}
+                  targeted={isTargeted}
+                  loadBalancer={Boolean(isLoadBalancer)}
+                  onRetry={() => {
+                    if (isTargeted) void sessionsQuery.refetch();
+                    else void slotsQuery.refetch();
+                  }}
+                />
                 {takamolRows.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2120,7 +2095,12 @@ export function SvpBookingWizard() {
                 disabled={
                   !city.trim() ||
                   !activeDateValue ||
+                  sessionsLoading ||
+                  Boolean(sessionsError) ||
+                  !sessionsLoaded ||
                   (isTargeted && isLoadBalancer ? examSessions.length === 0 : !selectedSession) ||
+                  (!(isTargeted && isLoadBalancer) &&
+                    !sessionViews.some((view) => view.selected && view.seats !== 0)) ||
                   holdMutation.isPending ||
                   targetedHoldMutation.isPending
                 }

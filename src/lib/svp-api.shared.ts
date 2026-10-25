@@ -314,12 +314,12 @@ export function parseSvpExamSessions(payload: unknown): SvpExamSession[] {
         id,
         startAt:
           text(record["startDateTime"]) ??
-          text(record["start_at"]) ??
           text(record["start_at_in_tc_time_zone"]) ??
+          text(record["start_at"]) ??
           text(record["start_date_in_tc_time_zone"]) ??
           text(record["start_date_in_browser_time_zone"]) ??
           "",
-        endAt: text(record["end_at"]) ?? text(record["end_at_in_tc_time_zone"]),
+        endAt: text(record["end_at_in_tc_time_zone"]) ?? text(record["end_at"]),
         duration: number(record["duration"]) ?? 0,
         availableSeats: number(record["available_seats"]),
         city: text(center?.["city"]) ?? text(record["city"]),

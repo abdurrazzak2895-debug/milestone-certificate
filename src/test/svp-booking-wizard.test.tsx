@@ -334,6 +334,39 @@ async function openDatesStep() {
 }
 
 describe("SVP booking wizard", () => {
+  it("loads every session's center, time and seat details before any selection or hold", async () => {
+    mocks.sessions.mockResolvedValue({
+      ok: true,
+      data: [
+        { ...session, endAt: "2026-11-05 10:30:00" },
+        {
+          ...session,
+          id: 502,
+          startAt: "2026-11-05 13:00:00",
+          centerName: "Second Dhaka Center",
+          availableSeats: 12,
+        },
+      ],
+    });
+    renderWizard();
+    await openDatesStep();
+    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    expect(await screen.findByRole("columnheader", { name: "Test center" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Seats" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Exam time" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Dhaka Center" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Second Dhaka Center" })).toBeInTheDocument();
+    expect(screen.getByText("09:30 – 10:30")).toBeInTheDocument();
+    expect(screen.getByText("13:00")).toBeInTheDocument();
+    expect(screen.getByText("7 available")).toBeInTheDocument();
+    expect(screen.getByText("12 available")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    expect(mocks.targetedHold).not.toHaveBeenCalled();
+    expect(mocks.hold).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
   it("shows the SVP login panel when there is no stored session", async () => {
     mocks.status.mockResolvedValue({
       signedIn: false,

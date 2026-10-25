@@ -209,6 +209,31 @@ describe("SVP response parsers", () => {
     ]);
   });
 
+  it("prefers the supplied test-center-local session time over UTC values", () => {
+    expect(
+      parseSvpExamSessions({
+        exam_sessions: [
+          {
+            id: "session-local-time",
+            start_at: "2026-10-28T03:30:00Z",
+            start_at_in_tc_time_zone: "2026-10-28 09:30:00",
+            end_at: "2026-10-28T04:30:00Z",
+            end_at_in_tc_time_zone: "2026-10-28 10:30:00",
+            test_center: { city: "Nilphamari", name: "Nilphamari Test Center" },
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        startAt: "2026-10-28 09:30:00",
+        endAt: "2026-10-28 10:30:00",
+        centerName: "Nilphamari Test Center",
+        availableSeats: null,
+        duration: 0,
+      }),
+    ]);
+  });
+
   it("reads the created reservation id and the account reservation list", () => {
     expect(parseSvpReservation({ data: { id: 987 } })).toEqual({
       id: "987",
