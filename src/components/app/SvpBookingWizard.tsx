@@ -236,7 +236,6 @@ export function SvpBookingWizard() {
   const [occupationLookup, setOccupationLookup] = useState(false);
   const [manualCategoryId, setManualCategoryId] = useState<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<SvpDiagnostics | null>(null);
-  const autoCheckRef = useRef("");
   const selectionTokenRef = useRef(0);
   const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
@@ -422,7 +421,13 @@ export function SvpBookingWizard() {
   }, [categoryOptions, manualCategoryId, occupation]);
   const languageOptions = useMemo(() => {
     const all = occupation?.languages ?? [];
-    const categoryLanguages = matchedCategory?.languages ?? [];
+    // Fall back to the selected SVP category's prometric codes (the occupation record can omit them).
+    const category =
+      categoryOptions.find(
+        (entry) =>
+          entry.id === (occupation?.categoryId ?? manualCategoryId ?? matchedCategory?.id ?? -1),
+      ) ?? matchedCategory;
+    const categoryLanguages = category?.languages ?? [];
     const filtered = all.filter((entry) => entry.nonTargeted === !isTargeted);
     const categoryFiltered = categoryLanguages.filter((entry) => entry.nonTargeted === !isTargeted);
     const source =
@@ -442,11 +447,12 @@ export function SvpBookingWizard() {
       }
     }
     return [...byLabel.values()];
-  }, [isTargeted, matchedCategory, occupation]);
+  }, [categoryOptions, isTargeted, manualCategoryId, matchedCategory, occupation]);
+  // The exam language is always chosen manually; never auto-selected.
   const activeLanguageCode =
     languageCode && languageOptions.some((entry) => entry.code === languageCode)
       ? languageCode
-      : (languageOptions[0]?.code ?? "");
+      : "";
 
   const citiesQuery = useQuery({
     queryKey: ["svp-cities"],
@@ -1103,32 +1109,6 @@ export function SvpBookingWizard() {
     onError: () => toast.error("Eligibility checks could not be completed."),
   });
 
-  const eligibilityKey =
-    occupation && effectiveCategoryId && activeLanguageCode
-      ? `${occupation.id}:${effectiveCategoryId}:${city}:${activeLanguageCode}`
-      : "";
-  const runEligibility = eligibilityMutation.mutate;
-
-  useEffect(() => {
-    if (!eligibilityKey || checked || eligibilityMutation.isPending) return;
-    if (eligibility?.some((entry) => !entry.passed)) return;
-    const timer = window.setTimeout(() => {
-      if (autoCheckRef.current === eligibilityKey) return;
-      autoCheckRef.current = eligibilityKey;
-      runEligibility();
-    }, 900);
-    return () => window.clearTimeout(timer);
-  }, [
-    checked,
-    city,
-    effectiveCategoryId,
-    eligibility,
-    eligibilityKey,
-    eligibilityMutation.isPending,
-    isTargeted,
-    runEligibility,
-  ]);
-
   const bookingMutation = useMutation({
     mutationFn: async (): Promise<{
       booking: SvpBookingResult;
@@ -1429,7 +1409,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v24
+              Official SVP API · live · v25
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1657,43 +1637,36 @@ export function SvpBookingWizard() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {languageOptions.length > 0 && (
-                <Field label="Exam language">
-                  {languageOptions.length > 1 ? (
-                    <NativeSelect
-                      value={activeLanguageCode}
-                      onChange={(event) => {
-                        setLanguageCode(event.target.value);
-                        setSelectedDate(null);
-                        setSelectedSession(null);
-                        setSelectedSlot(null);
-                        setHoldId(null);
-                        setPrometricHoldExpiresAt(null);
-                        setTargetedHoldExpiresAt(null);
-                        setChecked(false);
-                        setEligibility(null);
-                        setStage("select");
-                      }}
-                    >
-                      {languageOptions.map((entry) => (
-                        <option key={entry.code} value={entry.code}>
-                          {entry.label}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  ) : (
-                    <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
-                      <p className="font-medium">{languageOptions[0]?.label}</p>
-                      <p
-                        className="truncate text-xs text-muted-foreground"
-                        title={activeLanguageCode}
-                      >
-                        Auto-selected from SVP · code {activeLanguageCode.slice(0, 8)}…
-                      </p>
-                    </div>
-                  )}
-                </Field>
-              )}
+              <Field label="Exam language *">
+                <NativeSelect
+                  value={activeLanguageCode}
+                  onChange={(event) => {
+                    setLanguageCode(event.target.value);
+                    setSelectedDate(null);
+                    setSelectedSession(null);
+                    setSelectedSlot(null);
+                    setHoldId(null);
+                    setPrometricHoldExpiresAt(null);
+                    setTargetedHoldExpiresAt(null);
+                    setChecked(false);
+                    setEligibility(null);
+                    setStage("select");
+                  }}
+                  disabled={languageOptions.length === 0}
+                  required
+                >
+                  <option value="">
+                    {languageOptions.length === 0
+                      ? "Select an occupation first"
+                      : "Select exam language"}
+                  </option>
+                  {languageOptions.map((entry) => (
+                    <option key={entry.code} value={entry.code}>
+                      {entry.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
               {occupation && languageOptions.length === 0 && (
                 <p
                   role={overviewQuery.isFetching ? "status" : "alert"}
@@ -1868,7 +1841,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v24
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v25
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the

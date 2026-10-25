@@ -245,6 +245,15 @@ beforeEach(() => {
   mocks.removeAccount.mockResolvedValue({ accounts: [], activeLogin: null });
 });
 
+/** The exam language is a manual choice now, so every flow picks one first. */
+function pickLanguage(label = "English") {
+  const select = screen.getByLabelText("Exam language *") as HTMLSelectElement;
+  const option =
+    Array.from(select.options).find((entry) => entry.textContent?.trim() === label) ??
+    Array.from(select.options).find((entry) => entry.value);
+  if (option) fireEvent.change(select, { target: { value: option.value } });
+}
+
 function renderWizard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -336,6 +345,7 @@ async function openDatesStep() {
   await screen.findByText(/Signed in to SVP as Noor Rahman/);
   fireEvent.focus(await screen.findByLabelText("Occupation *"));
   fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+  pickLanguage();
   fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
   await screen.findByText(/Step 2/);
 }
@@ -393,6 +403,7 @@ describe("SVP booking wizard", () => {
 
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
@@ -460,6 +471,7 @@ describe("SVP booking wizard", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(
@@ -584,6 +596,7 @@ describe("occupation category enrichment", () => {
     );
     expect(await screen.findByText(/Selected: Load and Unload Worker/)).toBeInTheDocument();
     expect(screen.getByText(/category 159/)).toBeInTheDocument();
+    pickLanguage();
     expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
   });
 });
@@ -635,6 +648,7 @@ describe("SVP category auto-match", () => {
 
     await waitFor(() => expect(mocks.occupationById).toHaveBeenCalled());
     expect(await screen.findByText(/Auto-matched to/)).toBeInTheDocument();
+    pickLanguage();
     expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
   });
 });
@@ -856,6 +870,7 @@ describe("site-based booking flow", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
@@ -980,6 +995,7 @@ describe("load-balancer targeted booking", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
@@ -1045,6 +1061,7 @@ describe("Takamol availability selection", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     // City first (choosing a city resets the date), then the date.
@@ -1117,6 +1134,7 @@ describe("temporary seat hold", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
@@ -1132,6 +1150,7 @@ async function openConfirmation() {
   await screen.findByText(/Signed in to SVP as Noor Rahman/);
   fireEvent.focus(await screen.findByLabelText("Occupation *"));
   fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+  pickLanguage();
   fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
   await screen.findByText(/Step 2/);
   fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
@@ -1199,8 +1218,17 @@ describe("automatic SVP candidate record flow", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
 
-    expect(await screen.findByText(/Auto-selected from SVP · code/)).toBeInTheDocument();
-    expect(screen.getByText("English")).toBeInTheDocument();
+    const languageSelect = screen.getByLabelText("Exam language *") as HTMLSelectElement;
+    expect(languageSelect).toHaveValue("");
+    await waitFor(() =>
+      expect(
+        Array.from((screen.getByLabelText("Exam language *") as HTMLSelectElement).options).map(
+          (entry) => entry.textContent?.trim(),
+        ),
+      ).toContain("English"),
+    );
+    pickLanguage();
+    expect(screen.getByLabelText("Exam language *")).not.toHaveValue("");
     expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
   });
 
