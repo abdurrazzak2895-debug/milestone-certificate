@@ -1409,3 +1409,175 @@ export const getSvpDiagnostics = createServerFn({ method: "POST" })
       return failure("Diagnostics could not run.");
     }
   });
+
+export type SvpPaymentSession = {
+  paymentId: string;
+  amount: number | null;
+  hyperpayUrl: string | null;
+  checkoutId: string | null;
+  integrity: string | null;
+};
+
+/**
+ * Real SVP reservation payment: POST /individual_labor_space/payments with
+ * { payment: { payment_method: CARD, payable_type: RESERVATION, payable_id } }.
+ * Returns the HyperPay checkout data used by the official payment widget.
+ */
+export const startSvpReservationPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpPaymentSession>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(context.userId, "/individual_labor_space/payments", {
+        method: "POST",
+        query: LOCALE_QUERY,
+        body: {
+          payment: {
+            payment_method: "CARD",
+            payable_type: "RESERVATION",
+            payable_id: data.reservationId,
+          },
+        },
+      });
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "SVP could not start the card payment.", response.status),
+        );
+      }
+      const root = record(response.payload);
+      const payload = record(root?.["data"]) ?? root;
+      const idValue = payload?.["id"];
+      if (idValue === undefined || idValue === null) {
+        return failure("SVP did not return a payment id.");
+      }
+      const provider = record(payload?.["response"]);
+      return {
+        ok: true,
+        data: {
+          paymentId: String(idValue),
+          amount: typeof payload?.["amount"] === "number" ? payload["amount"] : null,
+          hyperpayUrl:
+            typeof payload?.["hyperpay_url"] === "string" ? payload["hyperpay_url"] : null,
+          checkoutId:
+            typeof provider?.["ndc"] === "string"
+              ? provider["ndc"]
+              : typeof payload?.["ndc"] === "string"
+                ? payload["ndc"]
+                : null,
+          integrity:
+            typeof provider?.["integrity"] === "string"
+              ? provider["integrity"]
+              : typeof payload?.["integrity"] === "string"
+                ? payload["integrity"]
+                : null,
+        },
+      };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("SVP could not start the card payment.");
+    }
+  });
+
+/** Verify a payment with PUT /individual_labor_space/payments/{id}. */
+export const getSvpPaymentStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        paymentId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(
+    async ({
+      context,
+      data,
+    }): Promise<
+      SvpResult<{ transactionStatus: string | null; reservationId: string | null; paid: boolean }>
+    > => {
+      await requireSvpAllowedRole(context.supabase, context.userId);
+      try {
+        const response = await svpAuthedRequest(
+          context.userId,
+          `/individual_labor_space/payments/${encodeURIComponent(data.paymentId)}`,
+          { method: "PUT", query: LOCALE_QUERY },
+        );
+        if (!response.ok) {
+          return failure(
+            apiFailure(
+              response.payload,
+              "The payment status could not be checked.",
+              response.status,
+            ),
+          );
+        }
+        const root = record(response.payload);
+        const payload = record(root?.["data"]) ?? root;
+        const reservation = record(payload?.["reservation"]);
+        const status =
+          typeof payload?.["transaction_status"] === "string"
+            ? payload["transaction_status"]
+            : null;
+        return {
+          ok: true,
+          data: {
+            transactionStatus: status,
+            reservationId:
+              reservation?.["id"] === undefined || reservation?.["id"] === null
+                ? null
+                : String(reservation["id"]),
+            paid: status === "success" || status === "completed",
+          },
+        };
+      } catch (error) {
+        if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+        return failure("The payment status could not be checked.");
+      }
+    },
+  );
+
+/** Official invoice PDF for a completed payment. */
+export const downloadSvpInvoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        invoiceId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpTicketFile>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedBinary(
+        context.userId,
+        `/individual_labor_space/invoices/${encodeURIComponent(data.invoiceId)}/show_pdf`,
+      );
+      if (!response.ok || !response.base64) {
+        return failure(response.message ?? "The invoice could not be downloaded.");
+      }
+      return {
+        ok: true,
+        data: { base64: response.base64, contentType: response.contentType ?? "application/pdf" },
+      };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The invoice could not be downloaded.");
+    }
+  });

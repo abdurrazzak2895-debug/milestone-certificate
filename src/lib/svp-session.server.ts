@@ -351,7 +351,7 @@ export type SvpBinaryResponse = {
 const MAX_BINARY_BYTES = 5 * 1024 * 1024;
 
 type AuthedOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: Record<string, SvpQueryValue>;
   body?: unknown;
   /** Per-call timeout; the session-status heal uses a short one. */

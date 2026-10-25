@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 import { SvpReschedulePanel } from "@/components/app/SvpReschedulePanel";
+import { SvpCardPayment } from "@/components/app/SvpCardPayment";
 import {
   SvpExamSessionsTable,
   type SvpExamSessionView,
@@ -1133,8 +1134,17 @@ export function SvpBookingWizard() {
       ? splitDateTime(selectedDate.startAt).date
       : ""
     : (prometricDate ?? "");
+  // Load-balancer sessions are date-only capacity tokens: show one row per date/city
+  // and let SVP assign the real test center and time when the seat is held.
+  const visibleExamSessions = isTargeted
+    ? examSessions.filter((entry, index, list) => {
+        if (!isLoadBalancer) return true;
+        const key = `${entry.startAt}|${entry.city ?? ""}`;
+        return list.findIndex((other) => `${other.startAt}|${other.city ?? ""}` === key) === index;
+      })
+    : examSessions;
   const sessionViews: SvpExamSessionView[] = isTargeted
-    ? examSessions.map((entry) => ({
+    ? visibleExamSessions.map((entry) => ({
         key: `s-${entry.id}`,
         startAt: entry.startAt,
         endAt: entry.endAt,
@@ -1257,7 +1267,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v19
+              Official SVP API · live · v20
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1696,7 +1706,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v19
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v20
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -2337,11 +2347,24 @@ export function SvpBookingWizard() {
               </div>
             )}
             {result.paymentRequired && (
-              <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                The reservation is not confirmed until payment is completed in the official SVP
-                portal.
-              </p>
+              <div className="space-y-2">
+                <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  The reservation is not confirmed until payment is completed. Use the SVP card
+                  payment below.
+                </p>
+                <SvpCardPayment
+                  reservationId={result.reservationId}
+                  amountHint={overview?.permissions.testPrice ?? null}
+                  onPaid={() => {
+                    setResult((current) =>
+                      current ? { ...current, paid: true, paymentRequired: false } : current,
+                    );
+                    void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
+                    void queryClient.invalidateQueries({ queryKey: ["svp-bookings"] });
+                  }}
+                />
+              </div>
             )}
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={resetFlow} disabled={localSaveStatus !== "saved"}>

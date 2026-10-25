@@ -138,9 +138,12 @@ export function SvpExamSessionsTable({
                 {views.map((view, index) => {
                   const start = sessionDateTime(view.startAt);
                   const end = view.endAt ? sessionDateTime(view.endAt) : null;
+                  const assigned = targeted && loadBalancer;
                   const time =
                     start.time === UNAVAILABLE
-                      ? UNAVAILABLE
+                      ? assigned
+                        ? "Assigned by SVP"
+                        : UNAVAILABLE
                       : end && end.time !== UNAVAILABLE
                         ? `${start.time} – ${end.time}${end.date !== start.date ? ` (${end.date})` : ""}`
                         : start.time;
@@ -152,6 +155,7 @@ export function SvpExamSessionsTable({
                     view.seats !== null && Number.isFinite(view.seats) && view.seats >= 0
                       ? view.seats
                       : null;
+                  const duration = durationText(view.duration, view.durationUnit);
                   return (
                     <tr
                       key={view.key}
@@ -163,7 +167,9 @@ export function SvpExamSessionsTable({
                       <td className="whitespace-nowrap px-4 py-4">{time}</td>
                       <td className="px-4 py-4">
                         {seats === null ? (
-                          <span className="text-xs text-muted-foreground">{UNAVAILABLE}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {assigned ? "Assigned by SVP" : UNAVAILABLE}
+                          </span>
                         ) : (
                           <span
                             className={`whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium ${seats > 0 ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}
@@ -174,7 +180,9 @@ export function SvpExamSessionsTable({
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-muted-foreground">
-                        {durationText(view.duration, view.durationUnit)}
+                        {targeted && loadBalancer && duration === UNAVAILABLE
+                          ? "Assigned by SVP"
+                          : duration}
                       </td>
                       <td className="px-4 py-4">
                         <Button
