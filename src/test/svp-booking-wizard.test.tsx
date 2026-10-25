@@ -101,10 +101,15 @@ const session = {
   siteId: null,
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // jsdom has no tab support; tests that need a payment tab provide a fake window.
+  vi.spyOn(window, "open").mockImplementation(() => null);
   mocks.status.mockResolvedValue({
     signedIn: true,
     userName: "Noor Rahman",
@@ -372,7 +377,7 @@ async function openDatesStep() {
   fireEvent.focus(await screen.findByLabelText("Occupation *"));
   fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
   pickLanguage();
-  fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByText(/Step 2/);
 }
 
@@ -428,7 +433,7 @@ describe("SVP booking wizard", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
     await pickDate("5 Nov 2026");
@@ -495,7 +500,7 @@ describe("SVP booking wizard", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
       await screen.findByText(/An existing reservation already uses this category/),
@@ -620,7 +625,7 @@ describe("occupation category enrichment", () => {
     expect(await screen.findByText(/Selected: Load and Unload Worker/)).toBeInTheDocument();
     expect(screen.getByText(/category 159/)).toBeInTheDocument();
     pickLanguage();
-    expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 });
 
@@ -672,7 +677,7 @@ describe("SVP category auto-match", () => {
     await waitFor(() => expect(mocks.occupationById).toHaveBeenCalled());
     expect(await screen.findByText(/Auto-matched to/)).toBeInTheDocument();
     pickLanguage();
-    expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 });
 
@@ -895,7 +900,7 @@ describe("site-based booking flow", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText("Test center city *"), {
@@ -1019,7 +1024,7 @@ describe("load-balancer targeted booking", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByText(/Step 2/);
     await pickDate("5 Nov 2026");
     // The date click shows the test center directly instead of an SVP session list.
@@ -1089,7 +1094,7 @@ describe("Takamol availability selection", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByText(/Step 2/);
     // City first (choosing a city resets the date), then the date.
     const citySelect = await screen.findByLabelText("Test center city");
@@ -1160,7 +1165,7 @@ describe("temporary seat hold", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByText(/Step 2/);
     await pickDate("5 Nov 2026");
     await clickContinue();
@@ -1175,7 +1180,7 @@ async function openConfirmation() {
   fireEvent.focus(await screen.findByLabelText("Occupation *"));
   fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
   pickLanguage();
-  fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByText(/Step 2/);
   await pickDate("5 Nov 2026");
   await clickContinue();
@@ -1252,7 +1257,7 @@ describe("automatic SVP candidate record flow", () => {
     );
     pickLanguage();
     expect(screen.getByLabelText("Exam language *")).not.toHaveValue("");
-    expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 
   it("requires missing provider passport without inventing it", async () => {
@@ -1349,6 +1354,35 @@ describe("automatic SVP candidate record flow", () => {
       expect.objectContaining({ reference_no: "R-124", status: "draft" }),
     );
     expect(screen.getByText(/not confirmed until payment/)).toBeInTheDocument();
+  });
+
+  it("opens the secure SVP payment in a new tab when payment is required", async () => {
+    const tab = {
+      closed: false,
+      document: { write: vi.fn(), close: vi.fn() },
+      location: { href: "" },
+      close: vi.fn(),
+    };
+    vi.mocked(window.open).mockReturnValue(tab as unknown as Window);
+    mocks.create.mockResolvedValue({
+      ok: true,
+      data: {
+        reservationId: "R-900",
+        paid: false,
+        paymentRequired: true,
+        credits: 0,
+        message: "Payment pending",
+      },
+    });
+
+    renderWizard();
+    await openConfirmation();
+    submitConfirmedBooking();
+
+    await waitFor(() => expect(window.open).toHaveBeenCalled());
+    expect(tab.document.write).toHaveBeenCalled();
+    await waitFor(() => expect(tab.location.href).toBe("/svp-booking?payReservation=R-900"));
+    expect(await screen.findByText(/Start the official SVP card payment/i)).toBeInTheDocument();
   });
 
   it("keeps the pre-submission snapshot and prevents concurrent local saves", async () => {

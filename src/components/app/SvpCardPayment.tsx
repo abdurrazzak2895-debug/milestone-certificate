@@ -21,6 +21,10 @@ type Props = {
   amountHint?: number | null;
   /** Payment id returned by the provider redirect (?paymentId=). */
   initialPaymentId?: string | null;
+  /** Start the provider checkout as soon as this component mounts. */
+  autoStart?: boolean;
+  /** Path (with optional query) the provider form posts back to; paymentId is appended. */
+  returnTo?: string | null;
   onPaid?: (reservationId: string) => void;
 };
 
@@ -31,7 +35,14 @@ const WIDGET_TIMEOUT_MS = 15_000;
 type WpwlOptions = Record<string, unknown>;
 
 /** Real SVP card payment: server-created HyperPay checkout + the official card widget. */
-export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, onPaid }: Props) {
+export function SvpCardPayment({
+  reservationId,
+  amountHint,
+  initialPaymentId,
+  autoStart = false,
+  returnTo,
+  onPaid,
+}: Props) {
   const [session, setSession] = useState<SvpPaymentSession | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +94,7 @@ export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, on
     void verify(initialPaymentId);
   }, [initialPaymentId, verify]);
 
-  const start = async () => {
+  const start = useCallback(async () => {
     setStarting(true);
     setError(null);
     setWidget("idle");
@@ -104,7 +115,15 @@ export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, on
     } finally {
       setStarting(false);
     }
-  };
+  }, [reservationId]);
+
+  // A payment tab opens with autoStart so the secure card form appears without another click.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || initialPaymentId || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    void start();
+  }, [autoStart, initialPaymentId, start]);
 
   // Mount the official HyperPay card widget once the checkout session exists.
   useEffect(() => {
@@ -116,7 +135,9 @@ export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, on
     holder.innerHTML = "";
 
     const form = document.createElement("form");
-    form.action = `${window.location.origin}/svp-booking?paymentId=${encodeURIComponent(
+    const returnBase = returnTo || "/svp-booking";
+    const separator = returnBase.includes("?") ? "&" : "?";
+    form.action = `${window.location.origin}${returnBase}${separator}paymentId=${encodeURIComponent(
       session.paymentId,
     )}`;
     form.method = "GET";
@@ -176,7 +197,7 @@ export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, on
       script.remove();
       delete (window as unknown as { wpwlOptions?: WpwlOptions }).wpwlOptions;
     };
-  }, [session]);
+  }, [returnTo, session]);
 
   if (paid) {
     return (
@@ -269,5 +290,57 @@ export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, on
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Standalone payment tab opened right after a reservation is created: it starts the provider
+ * checkout automatically and posts back here so the payment can be verified in the same tab.
+ */
+export function SvpPaymentPage({
+  reservationId,
+  initialPaymentId,
+}: {
+  reservationId: string;
+  initialPaymentId?: string | null;
+}) {
+  const [paid, setPaid] = useState(false);
+  return (
+    <section className="card-surface mx-auto max-w-xl space-y-4 p-4 sm:p-6">
+      <div>
+        <h1 className="text-xl font-bold">SVP card payment</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Reservation #{reservationId}. Card details are entered in the provider&apos;s secure
+          widget, never in this app.
+        </p>
+      </div>
+      <SvpCardPayment
+        reservationId={reservationId}
+        initialPaymentId={initialPaymentId}
+        autoStart={!initialPaymentId}
+        returnTo={`/svp-booking?payReservation=${encodeURIComponent(reservationId)}`}
+        onPaid={() => setPaid(true)}
+      />
+      {paid && (
+        <p className="rounded-lg border bg-muted/30 p-3 text-sm">
+          Payment verified. You can close this tab and return to the booking page.
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (typeof window !== "undefined") window.close();
+          }}
+        >
+          Close this tab
+        </Button>
+        <a href="/svp-booking" className="text-sm font-medium text-primary underline">
+          Back to SVP booking
+        </a>
+      </div>
+    </section>
   );
 }

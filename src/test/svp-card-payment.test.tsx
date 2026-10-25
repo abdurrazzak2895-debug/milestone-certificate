@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SvpCardPayment } from "@/components/app/SvpCardPayment";
+import { SvpCardPayment, SvpPaymentPage } from "@/components/app/SvpCardPayment";
 
 const mocks = vi.hoisted(() => ({ start: vi.fn(), status: vi.fn() }));
 
@@ -13,10 +13,16 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() },
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 beforeEach(() => {
+  vi.clearAllMocks();
   mocks.start.mockReset();
   mocks.status.mockReset();
+  // jsdom has no tab support; individual tests override this with a fake tab.
+  vi.spyOn(window, "open").mockImplementation(() => null);
   document.head.querySelectorAll("script[data-svp-payment]").forEach((node) => node.remove());
 });
 
@@ -108,5 +114,33 @@ describe("SVP card payment", () => {
     await waitFor(() => expect(mocks.status).toHaveBeenCalled());
     expect(toast.message).toHaveBeenCalledWith(expect.stringContaining("pending"));
     expect(screen.queryByText(/Payment verified with SVP/i)).not.toBeInTheDocument();
+  });
+
+  it("starts the checkout automatically in the payment tab and posts back to it", async () => {
+    mocks.start.mockResolvedValue({ ok: true, data: session });
+    render(<SvpPaymentPage reservationId="4066364" />);
+
+    await waitFor(() =>
+      expect(mocks.start).toHaveBeenCalledWith({ data: { reservationId: "4066364" } }),
+    );
+
+    await waitFor(() => {
+      const form = document.querySelector<HTMLFormElement>("form.paymentWidgets");
+      expect(form).not.toBeNull();
+      expect(form?.action).toContain("/svp-booking?payReservation=4066364&paymentId=2596452");
+    });
+    expect(screen.getByText(/SVP card payment/)).toBeInTheDocument();
+  });
+
+  it("verifies the payment inside the payment tab after the provider redirect", async () => {
+    mocks.status.mockResolvedValue({
+      ok: true,
+      data: { transactionStatus: "success", reservationId: "4066364", paid: true },
+    });
+
+    render(<SvpPaymentPage reservationId="4066364" initialPaymentId="2596452" />);
+
+    expect(await screen.findByText(/Payment verified with SVP/i)).toBeInTheDocument();
+    expect(await screen.findByText(/You can close this tab/i)).toBeInTheDocument();
   });
 });

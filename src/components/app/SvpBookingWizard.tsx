@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 import { SvpReschedulePanel } from "@/components/app/SvpReschedulePanel";
-import { SvpCardPayment } from "@/components/app/SvpCardPayment";
+import { SvpCardPayment, SvpPaymentPage } from "@/components/app/SvpCardPayment";
 import { SvpDateCalendar } from "@/components/app/SvpDateCalendar";
 import { SvpResultPanel } from "@/components/app/SvpResultPanel";
 import type { SvpExamSessionView } from "@/components/app/SvpExamSessionsTable";
@@ -239,10 +239,14 @@ export function SvpBookingWizard() {
   const signedIn = Boolean(status?.signedIn);
 
   // The card widget redirects back here with ?paymentId=…; verify it once.
+  // A dedicated payment tab uses ?payReservation=… and stays on the payment page.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const paymentId = new URLSearchParams(window.location.search).get("paymentId");
+    const params = new URLSearchParams(window.location.search);
+    const paymentId = params.get("paymentId");
     if (paymentId) setReturnPaymentId(paymentId);
+    const payReservation = params.get("payReservation");
+    if (payReservation) setPayReservationId(payReservation);
   }, []);
 
   const [stage, setStage] = useState<Stage>("select");
@@ -271,6 +275,8 @@ export function SvpBookingWizard() {
   const [resultDetails, setResultDetails] = useState<Record<string, SvpReservationDetail>>({});
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [returnPaymentId, setReturnPaymentId] = useState<string | null>(null);
+  const [payReservationId, setPayReservationId] = useState<string | null>(null);
+  const paymentWindowRef = useRef<Window | null>(null);
   const [localSaveStatus, setLocalSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">(
     "idle",
   );
@@ -957,6 +963,8 @@ export function SvpBookingWizard() {
   };
 
   const resetFlow = () => {
+    paymentWindowRef.current?.close();
+    paymentWindowRef.current = null;
     setManualCategoryId(null);
     setStage("select");
     setOccupationId(null);
@@ -1104,6 +1112,24 @@ export function SvpBookingWizard() {
     }
   };
 
+  // Open the payment tab on the click gesture so popup blockers allow it; it is
+  // navigated to the secure widget once SVP confirms that payment is required.
+  const openPaymentTab = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const tab = window.open("", "svp-card-payment");
+      paymentWindowRef.current = tab;
+      if (tab && tab.document) {
+        tab.document.write(
+          '<!doctype html><html><head><title>SVP card payment</title></head><body style="font-family:system-ui;padding:24px">Preparing the secure SVP card payment…</body></html>',
+        );
+        tab.document.close();
+      }
+    } catch {
+      paymentWindowRef.current = null;
+    }
+  };
+
   const eligibilityMutation = useMutation({
     mutationFn: () =>
       checkSvpBookingEligibility({
@@ -1194,12 +1220,27 @@ export function SvpBookingWizard() {
       setResult(booking);
       setStage("done");
       localRecordRef.current = localRecord;
+      if (booking.paymentRequired) {
+        // Complete the SVP card payment in the provider widget tab that was opened on click.
+        const paymentUrl = `/svp-booking?payReservation=${encodeURIComponent(booking.reservationId)}`;
+        const tab = paymentWindowRef.current;
+        if (tab && !tab.closed) {
+          tab.location.href = paymentUrl;
+        } else if (typeof window !== "undefined") {
+          window.open(paymentUrl, "_blank");
+        }
+      } else {
+        paymentWindowRef.current?.close();
+        paymentWindowRef.current = null;
+      }
       await saveLocalRecord(localRecord);
       void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
       void queryClient.invalidateQueries({ queryKey: ["svp-account-overview"] });
     },
     onError: (error) => {
       bookingSubmittedRef.current = false;
+      paymentWindowRef.current?.close();
+      paymentWindowRef.current = null;
       toast.error(error instanceof Error ? error.message : "The SVP reservation failed.");
     },
   });
@@ -1362,6 +1403,10 @@ export function SvpBookingWizard() {
   const sessionsLoaded = isTargeted
     ? Boolean(sessionsQuery.data?.ok)
     : Boolean(slotsQuery.data?.ok);
+
+  if (payReservationId) {
+    return <SvpPaymentPage reservationId={payReservationId} initialPaymentId={returnPaymentId} />;
+  }
 
   if (sessionQuery.isPending) {
     return (
@@ -1951,14 +1996,11 @@ export function SvpBookingWizard() {
               >
                 {eligibilityMutation.isPending ? (
                   <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Check eligibility
+                ) : (
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                )}
+                Continue
               </Button>
-              {checked && (
-                <Button type="button" variant="outline" onClick={() => setStage("dates")}>
-                  <CalendarDays className="mr-2 h-4 w-4" /> Continue
-                </Button>
-              )}
             </div>
           </section>
         )}
@@ -2387,7 +2429,9 @@ export function SvpBookingWizard() {
                 <Button
                   type="button"
                   onClick={() => {
-                    if (!bookingSubmittedRef.current) bookingMutation.mutate();
+                    if (bookingSubmittedRef.current) return;
+                    openPaymentTab();
+                    bookingMutation.mutate();
                   }}
                   disabled={
                     !candidateValidation.success ||
