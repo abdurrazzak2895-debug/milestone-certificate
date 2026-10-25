@@ -535,12 +535,12 @@ describe("site-based booking flow", () => {
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
-    fireEvent.change(await screen.findByLabelText("Test center city *"), {
-      target: { value: "Dhaka" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Test center city *"), {
+      target: { value: "Dhaka" },
+    });
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));

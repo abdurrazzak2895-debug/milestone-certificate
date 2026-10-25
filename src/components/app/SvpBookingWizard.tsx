@@ -214,6 +214,7 @@ export function SvpBookingWizard() {
   const [manualCategoryId, setManualCategoryId] = useState<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<SvpDiagnostics | null>(null);
   const autoCheckRef = useRef("");
+  const selectionTokenRef = useRef(0);
   const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
 
@@ -573,21 +574,14 @@ export function SvpBookingWizard() {
   ).length;
 
   const selectOccupation = async (entry: SvpOccupation) => {
-    let chosen = entry;
-    if (!entry.categoryId) {
-      setOccupationLookup(true);
-      try {
-        const detail = await getSvpOccupationById({ data: { occupationId: entry.id } });
-        if (detail.ok) chosen = detail.data;
-      } finally {
-        setOccupationLookup(false);
-      }
-    }
+    const token = ++selectionTokenRef.current;
+
+    // Apply the selection immediately so the UI never stays on the old value.
     setManualCategoryId(null);
-    setSelectedOccupation(chosen);
-    setOccupationId(chosen.id);
+    setSelectedOccupation(entry);
+    setOccupationId(entry.id);
     setLanguageCode("");
-    setOccupationSearch(chosen.name);
+    setOccupationSearch(entry.name);
     setOccupationOpen(false);
     setChecked(false);
     setEligibility(null);
@@ -598,7 +592,21 @@ export function SvpBookingWizard() {
     setHoldId(null);
     setPrometricHoldExpiresAt(null);
     setTargetedHoldExpiresAt(null);
+    setCity("");
     setStage("select");
+
+    if (entry.categoryId) return;
+    setOccupationLookup(true);
+    try {
+      const detail = await getSvpOccupationById({ data: { occupationId: entry.id } });
+      if (detail.ok && selectionTokenRef.current === token) {
+        setSelectedOccupation(detail.data);
+      }
+    } catch {
+      // Keep the selected entry; the category auto-match/manual selector handles it.
+    } finally {
+      if (selectionTokenRef.current === token) setOccupationLookup(false);
+    }
   };
 
   const chooseSlot = (slot: SvpPrometricSlot) => {
@@ -874,7 +882,6 @@ export function SvpBookingWizard() {
 
   useEffect(() => {
     if (!eligibilityKey || checked || eligibilityMutation.isPending) return;
-    if (!isTargeted && !city.trim()) return;
     if (eligibility?.some((entry) => !entry.passed)) return;
     const timer = window.setTimeout(() => {
       if (autoCheckRef.current === eligibilityKey) return;
@@ -1088,7 +1095,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v12
+              Official SVP API · live · v13
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1305,7 +1312,32 @@ export function SvpBookingWizard() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {languageOptions.length > 1 && (
+                <Field label="Exam language">
+                  <NativeSelect
+                    value={activeLanguageCode}
+                    onChange={(event) => {
+                      setLanguageCode(event.target.value);
+                      setSelectedDate(null);
+                      setSelectedSession(null);
+                      setSelectedSlot(null);
+                      setHoldId(null);
+                      setPrometricHoldExpiresAt(null);
+                      setTargetedHoldExpiresAt(null);
+                      setChecked(false);
+                      setEligibility(null);
+                      setStage("select");
+                    }}
+                  >
+                    {languageOptions.map((entry) => (
+                      <option key={entry.code} value={entry.code}>
+                        {entry.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              )}
               <Field label="Occupation *">
                 <div className="relative">
                   <Input
@@ -1385,75 +1417,6 @@ export function SvpBookingWizard() {
                   </p>
                 )}
               </Field>
-              {languageOptions.length > 1 && (
-                <Field label="Exam language">
-                  <NativeSelect
-                    value={activeLanguageCode}
-                    onChange={(event) => {
-                      setLanguageCode(event.target.value);
-                      setSelectedDate(null);
-                      setSelectedSession(null);
-                      setSelectedSlot(null);
-                      setHoldId(null);
-                      setPrometricHoldExpiresAt(null);
-                      setTargetedHoldExpiresAt(null);
-                      setChecked(false);
-                      setEligibility(null);
-                      setStage("select");
-                    }}
-                  >
-                    {languageOptions.map((entry) => (
-                      <option key={entry.code} value={entry.code}>
-                        {entry.label}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </Field>
-              )}
-              <Field label={isTargeted ? "Test center city" : "Test center city *"}>
-                {isTargeted ? (
-                  <NativeSelect
-                    value={city}
-                    onChange={(event) => {
-                      setCity(event.target.value);
-                      setPrometricDate(null);
-                      setSelectedSlot(null);
-                      setSelectedSession(null);
-                      setHoldId(null);
-                      setPrometricHoldExpiresAt(null);
-                      setTargetedHoldExpiresAt(null);
-                    }}
-                  >
-                    <option value="">All cities (from SVP availability)</option>
-                    {targetedCities.map((entry) => (
-                      <option key={entry} value={entry}>
-                        {entry}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                ) : (
-                  <>
-                    <Input
-                      list="svp-site-cities"
-                      value={city}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setCity(value);
-                        setCityCountryId(
-                          cities.find((entry) => entry.city === value)?.countryId ?? null,
-                        );
-                      }}
-                      placeholder="Type the city, e.g. Dhaka"
-                      required
-                    />
-                    <datalist id="svp-site-cities">
-                      {cities.map((entry) => (
-                        <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city} />
-                      ))}
-                    </datalist>
-                  </>
-                )}
-              </Field>
             </div>
 
             {occupationsQuery.isPending && (
@@ -1501,7 +1464,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v12
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v13
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -1658,7 +1621,6 @@ export function SvpBookingWizard() {
                   !occupation ||
                   !effectiveCategoryId ||
                   occupationLookup ||
-                  (!isTargeted && !city.trim()) ||
                   eligibilityMutation.isPending
                 }
               >
@@ -1699,6 +1661,56 @@ export function SvpBookingWizard() {
                 <RefreshCw className="mr-1 h-3.5 w-3.5" /> Refresh availability
               </Button>
             </div>
+
+            <Field label={isTargeted ? "Test center city" : "Test center city *"}>
+              {isTargeted ? (
+                <NativeSelect
+                  value={city}
+                  onChange={(event) => {
+                    setCity(event.target.value);
+                    setPrometricDate(null);
+                    setSelectedSlot(null);
+                    setSelectedSession(null);
+                    setHoldId(null);
+                    setPrometricHoldExpiresAt(null);
+                    setTargetedHoldExpiresAt(null);
+                  }}
+                >
+                  <option value="">All cities (from SVP availability)</option>
+                  {targetedCities.map((entry) => (
+                    <option key={entry} value={entry}>
+                      {entry}
+                    </option>
+                  ))}
+                </NativeSelect>
+              ) : (
+                <>
+                  <Input
+                    list="svp-site-cities"
+                    value={city}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setCity(value);
+                      setCityCountryId(
+                        cities.find((entry) => entry.city === value)?.countryId ?? null,
+                      );
+                    }}
+                    placeholder="Type the city, e.g. Dhaka"
+                    required
+                  />
+                  <datalist id="svp-site-cities">
+                    {cities.map((entry) => (
+                      <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city} />
+                    ))}
+                  </datalist>
+                </>
+              )}
+            </Field>
+            {!isTargeted && !city.trim() && (
+              <p className="text-xs text-muted-foreground">
+                Enter the test center city to load the site availability.
+              </p>
+            )}
 
             {eligibility && eligibility.every((entry) => entry.passed) && (
               <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2 text-xs">
