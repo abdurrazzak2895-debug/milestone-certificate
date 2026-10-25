@@ -448,6 +448,57 @@ describe("occupation category enrichment", () => {
   });
 });
 
+describe("SVP category auto-match", () => {
+  it("matches a missing category from the occupation name", async () => {
+    mocks.overview.mockResolvedValue({
+      ok: true,
+      data: {
+        permissions: {
+          freeReservations: false,
+          targeted: true,
+          loadBalancer: false,
+          countryId: 4,
+          countryName: "Bangladesh",
+          permissionKeys: [],
+        },
+        categories: [{ id: 159, name: "Load and unload workers", arabicName: null }],
+        constraints: { rescheduleTimes: 1, bookingHoldSeconds: 20, cancellationLimitHours: 72 },
+        flags: { rescheduleEnabled: true, creditsEnabled: true },
+        credits: 0,
+      },
+    });
+    mocks.occupations.mockResolvedValue({ ok: true, data: [] });
+    mocks.search.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          ...occupation,
+          id: 77,
+          name: "Load and Unload Worker",
+          occupationKey: "933301",
+          categoryId: null,
+          categoryName: null,
+        },
+      ],
+    });
+    mocks.occupationById.mockResolvedValue({
+      ok: false,
+      needsSignIn: false,
+      message: "not found",
+    });
+
+    renderWizard();
+    const input = await screen.findByLabelText("Occupation *");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "load" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Load and Unload Worker/ }));
+
+    await waitFor(() => expect(mocks.occupationById).toHaveBeenCalled());
+    expect(await screen.findByText(/Auto-matched to/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
+  });
+});
+
 describe("site-based booking flow", () => {
   it("holds a slot and creates the reservation with the prometric exam id and hold", async () => {
     mocks.overview.mockResolvedValue({

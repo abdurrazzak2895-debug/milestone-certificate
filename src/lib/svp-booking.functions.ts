@@ -5,6 +5,7 @@ import {
   buildSvpReservationBody,
   parseSvpAccountPermissions,
   parseSvpAvailableDates,
+  parseSvpCategories,
   parseSvpCities,
   parseSvpConstraints,
   parseSvpCredits,
@@ -22,6 +23,7 @@ import {
   type SvpAccountPermissions,
   type SvpAvailableDate,
   type SvpBookingPermissions,
+  type SvpCategoryOption,
   type SvpCity,
   type SvpConstraints,
   type SvpEligibility,
@@ -689,6 +691,7 @@ export const downloadSvpTicket = createServerFn({ method: "POST" })
 
 export type SvpAccountOverview = {
   permissions: SvpAccountPermissions;
+  categories: SvpCategoryOption[];
   constraints: SvpConstraints;
   flags: SvpFeatureFlags;
   credits: number;
@@ -741,7 +744,16 @@ export const getSvpAccountOverview = createServerFn({ method: "POST" })
         );
         if (creditsResponse.ok) credits = parseSvpCredits(creditsResponse.payload);
       }
-      return { ok: true, data: { permissions, constraints, flags, credits } };
+      return {
+        ok: true,
+        data: {
+          permissions,
+          categories: parseSvpCategories(permissionsResponse.payload),
+          constraints,
+          flags,
+          credits,
+        },
+      };
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("SVP account permissions could not be loaded.");

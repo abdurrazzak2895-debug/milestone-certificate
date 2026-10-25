@@ -211,7 +211,9 @@ export function SvpBookingWizard() {
   const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [forceTargeted, setForceTargeted] = useState(false);
   const [occupationLookup, setOccupationLookup] = useState(false);
+  const [manualCategoryId, setManualCategoryId] = useState<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<SvpDiagnostics | null>(null);
+  const autoCheckRef = useRef("");
   const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
 
@@ -391,7 +393,26 @@ export function SvpBookingWizard() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [occupationOpen]);
 
-  const categoryId = occupation?.categoryId ?? null;
+  const categoryOptions = useMemo(() => overview?.categories ?? [], [overview]);
+  const matchedCategory = useMemo(() => {
+    if (!occupation || occupation.categoryId) return null;
+    const needle = (occupation.categoryName ?? occupation.name).trim().toLowerCase();
+    if (!needle) return null;
+    return (
+      categoryOptions.find((entry) => {
+        const name = entry.name.toLowerCase();
+        return (
+          name === needle ||
+          entry.arabicName?.toLowerCase() === needle ||
+          name.includes(needle) ||
+          needle.includes(name)
+        );
+      }) ?? null
+    );
+  }, [categoryOptions, occupation]);
+  const effectiveCategoryId =
+    occupation?.categoryId ?? manualCategoryId ?? matchedCategory?.id ?? null;
+  const categoryId = effectiveCategoryId;
   const datesQuery = useQuery({
     queryKey: ["svp-dates", categoryId, cityCountryId ?? setup?.permissions.countryId ?? null],
     queryFn: () =>
@@ -505,24 +526,19 @@ export function SvpBookingWizard() {
       : ""
     : (prometricDate ?? "");
   const takamolQuery = useQuery({
-    queryKey: [
-      "svp-takamol-availability",
-      occupation?.categoryId,
-      availabilityCity,
-      availabilityDate,
-    ],
+    queryKey: ["svp-takamol-availability", effectiveCategoryId, availabilityCity, availabilityDate],
     queryFn: () =>
       lookupTakamolAvailability({
         data: {
           endpoint: "sessions",
-          categoryId: String(occupation?.categoryId),
+          categoryId: String(effectiveCategoryId),
           city: availabilityCity,
           examDate: availabilityDate,
         },
       }),
     enabled:
       checked &&
-      Boolean(occupation?.categoryId) &&
+      Boolean(effectiveCategoryId) &&
       Boolean(availabilityCity) &&
       /^\d{4}-\d{2}-\d{2}$/.test(availabilityDate),
     retry: false,
@@ -567,6 +583,7 @@ export function SvpBookingWizard() {
         setOccupationLookup(false);
       }
     }
+    setManualCategoryId(null);
     setSelectedOccupation(chosen);
     setOccupationId(chosen.id);
     setLanguageCode("");
@@ -628,7 +645,7 @@ export function SvpBookingWizard() {
       expiresAt: string | null;
       session: SvpExamSession | null;
     }> => {
-      if (!occupation?.categoryId) throw new Error("Select an occupation first.");
+      if (!effectiveCategoryId) throw new Error("Choose the SVP category first.");
       const ids = isLoadBalancer
         ? examSessions.map((entry) => entry.id)
         : selectedSession
@@ -639,7 +656,7 @@ export function SvpBookingWizard() {
       const response = await createSvpTargetedHold({
         data: {
           examSessionId: isLoadBalancer ? ids : (ids[0] as string | number),
-          categoryId: occupation.categoryId,
+          categoryId: effectiveCategoryId,
           countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
         },
       });
@@ -736,6 +753,7 @@ export function SvpBookingWizard() {
   };
 
   const resetFlow = () => {
+    setManualCategoryId(null);
     setStage("select");
     setOccupationId(null);
     setSelectedOccupation(null);
@@ -848,13 +866,40 @@ export function SvpBookingWizard() {
     onError: () => toast.error("Eligibility checks could not be completed."),
   });
 
+  const eligibilityKey =
+    occupation && effectiveCategoryId
+      ? `${occupation.id}:${effectiveCategoryId}:${city}:${activeLanguageCode}`
+      : "";
+  const runEligibility = eligibilityMutation.mutate;
+
+  useEffect(() => {
+    if (!eligibilityKey || checked || eligibilityMutation.isPending) return;
+    if (!isTargeted && !city.trim()) return;
+    if (eligibility?.some((entry) => !entry.passed)) return;
+    const timer = window.setTimeout(() => {
+      if (autoCheckRef.current === eligibilityKey) return;
+      autoCheckRef.current = eligibilityKey;
+      runEligibility();
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [
+    checked,
+    city,
+    effectiveCategoryId,
+    eligibility,
+    eligibilityKey,
+    eligibilityMutation.isPending,
+    isTargeted,
+    runEligibility,
+  ]);
+
   const bookingMutation = useMutation({
     mutationFn: async (): Promise<SvpBookingResult> => {
       if (!occupation || !selectedSession) throw new Error("Select an exam session first.");
       const response = await createSvpBooking({
         data: {
           occupationId: occupation.id,
-          categoryId: occupation.categoryId as number,
+          categoryId: effectiveCategoryId as number,
           examSessionId: isTargeted ? selectedSession.id : (prometricExamId ?? selectedSession.id),
           languageCode: activeLanguageCode,
           duration: selectedSession.duration > 0 ? selectedSession.duration : null,
@@ -1043,7 +1088,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v10
+              Official SVP API · live · v12
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1336,7 +1381,7 @@ export function SvpBookingWizard() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Selected: {occupation.name}
                     {occupation.occupationKey ? ` · ${occupation.occupationKey}` : ""}
-                    {occupation.categoryId ? ` · category ${occupation.categoryId}` : ""}
+                    {effectiveCategoryId ? ` · category ${effectiveCategoryId}` : ""}
                   </p>
                 )}
               </Field>
@@ -1456,7 +1501,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v10
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v12
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -1526,27 +1571,44 @@ export function SvpBookingWizard() {
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading the full occupation…
               </p>
             )}
-            {occupation && !occupation.categoryId && !occupationLookup && (
-              <div
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2 text-sm text-destructive"
-                role="alert"
-              >
-                <span>This occupation has no SVP category, so it cannot be booked online.</span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedOccupation(null);
-                    setOccupationId(null);
-                    setOccupationSearch("");
-                    setOccupationOpen(true);
-                  }}
+            {occupation &&
+              !occupation.categoryId &&
+              !occupationLookup &&
+              (categoryOptions.length > 0 ? (
+                <Field label="SVP category *">
+                  <NativeSelect
+                    value={manualCategoryId ?? matchedCategory?.id ?? ""}
+                    onChange={(event) => setManualCategoryId(Number(event.target.value) || null)}
+                  >
+                    <option value="">Select the SVP category</option>
+                    {categoryOptions.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {matchedCategory
+                      ? `Auto-matched to “${matchedCategory.name}” from the SVP category catalogue. Change it if needed.`
+                      : "This occupation has no category in SVP. Choose the matching category to continue."}
+                  </p>
+                </Field>
+              ) : (
+                <div
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-sm text-amber-950"
+                  role="alert"
                 >
-                  Choose another
-                </Button>
-              </div>
-            )}
+                  <span>No SVP category list is available. Sign out SVP and retry.</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => signOutMutation.mutate(false)}
+                  >
+                    Sign out SVP
+                  </Button>
+                </div>
+              ))}
             {setupQuery.isPending && occupationId !== null && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading SVP permissions…
@@ -1594,7 +1656,7 @@ export function SvpBookingWizard() {
                 onClick={() => eligibilityMutation.mutate()}
                 disabled={
                   !occupation ||
-                  !occupation.categoryId ||
+                  !effectiveCategoryId ||
                   occupationLookup ||
                   (!isTargeted && !city.trim()) ||
                   eligibilityMutation.isPending

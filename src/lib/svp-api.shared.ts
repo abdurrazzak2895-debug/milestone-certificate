@@ -113,6 +113,8 @@ export type SvpAccountPermissions = SvpBookingPermissions & {
   permissionKeys: string[];
 };
 
+export type SvpCategoryOption = { id: number; name: string; arabicName: string | null };
+
 export type SvpCreateReservationInput = {
   examSessionId: number | string;
   occupationId: number;
@@ -205,7 +207,11 @@ export function parseSvpOccupations(payload: unknown): SvpOccupation[] {
         arabicName: text(record["arabic_name"]),
         occupationKey: text(record["occupation_key"]),
         categoryId,
-        categoryName: text(category?.["name"]) ?? text(category?.["english_name"]),
+        categoryName:
+          text(category?.["name"]) ??
+          text(category?.["english_name"]) ??
+          text(record["category_name_en"]) ??
+          text(record["category_name_ar"]),
         languages,
         driverLicenseRequired: Boolean(record["driver_license_required"]),
       };
@@ -584,4 +590,25 @@ export function parseSvpExamSession(payload: unknown): SvpExamSession | null {
   const root = asRecord(payload);
   const data = asRecord(root?.["data"]) ?? root;
   return parseSvpExamSessions({ exam_sessions: [data] })[0] ?? null;
+}
+
+/** Categories from the `/permissions` response, used to map occupations without a category id. */
+export function parseSvpCategories(payload: unknown): SvpCategoryOption[] {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]);
+  const list = asArray(root?.["categories"]).length
+    ? asArray(root?.["categories"])
+    : asArray(data?.["categories"]);
+  return list
+    .map((entry) => {
+      const record = asRecord(entry);
+      const id = number(record?.["id"]);
+      if (!record || id === null) return null;
+      return {
+        id,
+        name: text(record["english_name"]) ?? text(record["name"]) ?? `Category ${String(id)}`,
+        arabicName: text(record["arabic_name"]),
+      };
+    })
+    .filter((entry): entry is SvpCategoryOption => entry !== null);
 }
