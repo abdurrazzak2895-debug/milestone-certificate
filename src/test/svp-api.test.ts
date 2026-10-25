@@ -37,6 +37,7 @@ describe("SVP booking payload", () => {
       exam_session_id: 501,
       occupation_id: 11,
       language_code: "en",
+      methodology: "in_person",
       site_id: null,
       site_city: "Dhaka",
       hold_id: null,

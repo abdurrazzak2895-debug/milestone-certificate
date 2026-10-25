@@ -124,6 +124,7 @@ export type SvpCreateReservationInput = {
   examSessionId: number | string;
   occupationId: number;
   languageCode: string;
+  methodology?: string | null;
   duration?: number | null;
   startAt?: string | null;
   siteId: number | null;
@@ -326,6 +327,7 @@ export function buildSvpReservationBody(input: SvpCreateReservationInput) {
     exam_session_id: input.examSessionId,
     occupation_id: input.occupationId,
     language_code: input.languageCode,
+    methodology: input.methodology ?? "in_person",
     site_id: input.siteId ?? null,
     site_city: input.siteCity ?? null,
     hold_id: input.holdId ?? null,
