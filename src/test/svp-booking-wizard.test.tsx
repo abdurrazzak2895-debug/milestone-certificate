@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   status: vi.fn(),
   occupations: vi.fn(),
   search: vi.fn(),
+  occupationById: vi.fn(),
   cities: vi.fn(),
   setup: vi.fn(),
   overview: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock("@/lib/svp-session.functions", () => ({
 vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpBookingOccupations: mocks.occupations,
   searchSvpOccupations: mocks.search,
+  getSvpOccupationById: mocks.occupationById,
   listSvpTestCenterCities: mocks.cities,
   getSvpBookingSetup: mocks.setup,
   getSvpAccountOverview: mocks.overview,
@@ -100,6 +102,7 @@ beforeEach(() => {
   });
   mocks.occupations.mockResolvedValue({ ok: true, data: [occupation] });
   mocks.search.mockResolvedValue({ ok: true, data: [occupation] });
+  mocks.occupationById.mockResolvedValue({ ok: true, data: occupation });
   mocks.sites.mockResolvedValue({
     ok: true,
     data: {
@@ -399,6 +402,49 @@ describe("SVP multi-account vault UI", () => {
 
     expect(await screen.findByText("SVPLOGINPANEL")).toBeInTheDocument();
     expect(screen.getByText("Add another SVP account")).toBeInTheDocument();
+  });
+});
+
+describe("occupation category enrichment", () => {
+  it("loads the full occupation when a search result has no category", async () => {
+    mocks.occupations.mockResolvedValue({ ok: true, data: [] });
+    mocks.search.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          ...occupation,
+          id: 77,
+          name: "Load and Unload Worker",
+          occupationKey: "933301",
+          categoryId: null,
+          categoryName: null,
+        },
+      ],
+    });
+    mocks.occupationById.mockResolvedValue({
+      ok: true,
+      data: {
+        ...occupation,
+        id: 77,
+        name: "Load and Unload Worker",
+        occupationKey: "933301",
+        categoryId: 159,
+        categoryName: "Loading",
+      },
+    });
+
+    renderWizard();
+    const input = await screen.findByLabelText("Occupation *");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "load" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Load and Unload Worker/ }));
+
+    await waitFor(() =>
+      expect(mocks.occupationById).toHaveBeenCalledWith({ data: { occupationId: 77 } }),
+    );
+    expect(await screen.findByText(/Selected: Load and Unload Worker/)).toBeInTheDocument();
+    expect(screen.getByText(/category 159/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
   });
 });
 

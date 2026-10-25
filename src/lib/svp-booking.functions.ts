@@ -162,6 +162,34 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
     }
   });
 
+/** Full occupation record (used when a search result lacks its category). */
+export const getSvpOccupationById = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ occupationId: z.number().int().positive() }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpOccupation>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        `/individual_labor_space/occupations/${data.occupationId}`,
+        { query: { ...LOCALE_QUERY, per_page: 1 } },
+      );
+      if (!response.ok) {
+        return failure(apiFailure(response.payload, "The occupation could not be loaded."));
+      }
+      const root = record(response.payload);
+      const payload = root?.["data"] ?? root ?? {};
+      const occupation = parseSvpOccupations({ occupations: [payload] })[0];
+      if (!occupation) return failure("SVP did not return this occupation.");
+      return { ok: true, data: occupation };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The occupation could not be loaded.");
+    }
+  });
+
 /** Server-side similar-occupation search using the SVP `name` filter. */
 export const searchSvpOccupations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

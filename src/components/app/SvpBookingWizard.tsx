@@ -34,6 +34,7 @@ import {
   downloadSvpTicket,
   getSvpAccountOverview,
   getSvpBookingSetup,
+  getSvpOccupationById,
   getSvpExamSessionById,
   listSvpAvailableDates,
   listSvpBookingOccupations,
@@ -205,6 +206,7 @@ export function SvpBookingWizard() {
   const accounts = accountsQuery.data?.accounts ?? [];
   const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [forceTargeted, setForceTargeted] = useState(false);
+  const [occupationLookup, setOccupationLookup] = useState(false);
   const signedIn = Boolean(status?.signedIn);
 
   const [stage, setStage] = useState<Stage>("select");
@@ -360,11 +362,6 @@ export function SvpBookingWizard() {
   });
   const cities = citiesQuery.data?.ok ? citiesQuery.data.data : [];
 
-  useEffect(() => {
-    if (!citiesQuery.data || citiesQuery.data.ok) return;
-    if (/404/.test(citiesQuery.data.message)) setForceTargeted(true);
-  }, [citiesQuery.data]);
-
   // Any SVP call can invalidate the stored session (refresh cookie expired/revoked).
   useEffect(() => {
     const results = [occupationsQuery.data, citiesQuery.data, setupQuery.data, overviewQuery.data];
@@ -486,6 +483,14 @@ export function SvpBookingWizard() {
   });
   const prometricSlots = slotsQuery.data?.ok ? slotsQuery.data.data : [];
 
+  // If the site-based attempt fails after eligibility but targeted dates exist, use them.
+  useEffect(() => {
+    if (isTargeted || !checked) return;
+    const sitesFailed = sitesQuery.data && !sitesQuery.data.ok;
+    const sitesEmpty = sitesQuery.data?.ok && prometricSites.length === 0;
+    if ((sitesFailed || sitesEmpty) && availableDates.length > 0) setForceTargeted(true);
+  }, [availableDates.length, checked, isTargeted, prometricSites.length, sitesQuery.data]);
+
   const reservationsQuery = useQuery({
     queryKey: ["svp-reservations"],
     queryFn: () => listSvpReservations(),
@@ -500,11 +505,21 @@ export function SvpBookingWizard() {
     /cancel/i.test(entry.status ?? ""),
   ).length;
 
-  const selectOccupation = (entry: SvpOccupation) => {
-    setSelectedOccupation(entry);
-    setOccupationId(entry.id);
+  const selectOccupation = async (entry: SvpOccupation) => {
+    let chosen = entry;
+    if (!entry.categoryId) {
+      setOccupationLookup(true);
+      try {
+        const detail = await getSvpOccupationById({ data: { occupationId: entry.id } });
+        if (detail.ok) chosen = detail.data;
+      } finally {
+        setOccupationLookup(false);
+      }
+    }
+    setSelectedOccupation(chosen);
+    setOccupationId(chosen.id);
     setLanguageCode("");
-    setOccupationSearch(entry.name);
+    setOccupationSearch(chosen.name);
     setOccupationOpen(false);
     setChecked(false);
     setEligibility(null);
@@ -1236,7 +1251,7 @@ export function SvpBookingWizard() {
                           key={entry.id}
                           type="button"
                           onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => selectOccupation(entry)}
+                          onClick={() => void selectOccupation(entry)}
                           className="flex w-full items-start justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
                         >
                           <span className="min-w-0">
@@ -1283,38 +1298,27 @@ export function SvpBookingWizard() {
                       </option>
                     ))}
                   </NativeSelect>
-                ) : cities.length > 0 ? (
-                  <NativeSelect
-                    value={city}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setCity(value);
-                      setCityCountryId(
-                        cities.find((entry) => entry.city === value)?.countryId ?? null,
-                      );
-                      setPrometricDate(null);
-                      setSelectedSlot(null);
-                      setSelectedSession(null);
-                      setHoldId(null);
-                      setPrometricHoldExpiresAt(null);
-                      setTargetedHoldExpiresAt(null);
-                    }}
-                    required
-                  >
-                    <option value="">Select a city</option>
-                    {cities.map((entry) => (
-                      <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city}>
-                        {entry.city}
-                      </option>
-                    ))}
-                  </NativeSelect>
                 ) : (
-                  <Input
-                    value={city}
-                    onChange={(event) => setCity(event.target.value)}
-                    placeholder="City name, e.g. Dhaka"
-                    required
-                  />
+                  <>
+                    <Input
+                      list="svp-site-cities"
+                      value={city}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setCity(value);
+                        setCityCountryId(
+                          cities.find((entry) => entry.city === value)?.countryId ?? null,
+                        );
+                      }}
+                      placeholder="Type the city, e.g. Dhaka"
+                      required
+                    />
+                    <datalist id="svp-site-cities">
+                      {cities.map((entry) => (
+                        <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city} />
+                      ))}
+                    </datalist>
+                  </>
                 )}
               </Field>
               {languageOptions.length > 1 && (
@@ -1381,22 +1385,25 @@ export function SvpBookingWizard() {
                 {occupations.length} occupations loaded from SVP.
               </p>
             )}
-            {occupationsQuery.data?.ok && occupations.length === 0 && (
-              <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm" role="status">
-                <p className="font-medium">SVP returned no occupations for this account.</p>
-                <p className="text-xs text-muted-foreground">
-                  Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"} ·
-                  Country: {overview?.permissions.countryName ?? "—"} · Build: v4
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
-                  Occupation field to search SVP directly.
-                </p>
-                <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                  Reload occupations
-                </Button>
-              </div>
-            )}
+            {occupationsQuery.data?.ok &&
+              occupations.length === 0 &&
+              !occupation &&
+              !occupationSearch.trim() && (
+                <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm" role="status">
+                  <p className="font-medium">SVP returned no occupations for this account.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v4
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
+                    Occupation field to search SVP directly.
+                  </p>
+                  <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                    Reload occupations
+                  </Button>
+                </div>
+              )}
             {citiesQuery.data && !citiesQuery.data.ok && !isTargeted && (
               <div
                 className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
@@ -1410,10 +1417,31 @@ export function SvpBookingWizard() {
                 </Button>
               </div>
             )}
-            {occupation && !occupation.categoryId && (
-              <p role="alert" className="text-sm text-destructive">
-                This occupation has no SVP category, so it cannot be booked online.
+            {occupationLookup && (
+              <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading the full occupation…
               </p>
+            )}
+            {occupation && !occupation.categoryId && !occupationLookup && (
+              <div
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2 text-sm text-destructive"
+                role="alert"
+              >
+                <span>This occupation has no SVP category, so it cannot be booked online.</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedOccupation(null);
+                    setOccupationId(null);
+                    setOccupationSearch("");
+                    setOccupationOpen(true);
+                  }}
+                >
+                  Choose another
+                </Button>
+              </div>
             )}
             {setupQuery.isPending && occupationId !== null && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
@@ -1463,6 +1491,7 @@ export function SvpBookingWizard() {
                 disabled={
                   !occupation ||
                   !occupation.categoryId ||
+                  occupationLookup ||
                   (!isTargeted && !city.trim()) ||
                   eligibilityMutation.isPending
                 }
