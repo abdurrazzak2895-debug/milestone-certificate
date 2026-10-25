@@ -802,15 +802,19 @@ export function SvpBookingWizard() {
   });
 
   const targetedHoldMutation = useMutation({
-    mutationFn: async (): Promise<{
+    mutationFn: async (
+      override?: SvpExamSession,
+    ): Promise<{
       expiresAt: string | null;
       session: SvpExamSession | null;
     }> => {
       if (!effectiveCategoryId) throw new Error("Choose the SVP category first.");
+      const chosen = override ?? selectedSession;
       const ids = isLoadBalancer
-        ? examSessions.map((entry) => entry.id)
-        : selectedSession
-          ? [selectedSession.id]
+        ? // Hold every token SVP returned for the date (the portal holds the whole day).
+          examSessions.map((entry) => entry.id)
+        : chosen
+          ? [chosen.id]
           : [];
       if (ids.length === 0) throw new Error("Select an exam session first.");
 
@@ -828,7 +832,7 @@ export function SvpBookingWizard() {
 
       // SVP assigns a specific session token on the hold; the reservation must use it.
       const heldId = response.data.examSessionId;
-      let assigned = selectedSession ?? examSessions[0] ?? null;
+      let assigned = chosen ?? visibleExamSessions[0] ?? null;
       if (heldId !== null && heldId !== undefined) {
         const detail = await getSvpExamSessionById({ data: { examSessionId: String(heldId) } });
         assigned = detail.ok
@@ -859,11 +863,17 @@ export function SvpBookingWizard() {
 
   const continueFromDates = () => {
     if (isTargeted) {
-      targetedHoldMutation.mutate();
+      // Load-balancer dates may preselect nothing yet; fall back to the first token.
+      const session = selectedSession ?? visibleExamSessions[0] ?? null;
+      if (session && !selectedSession) setSelectedSession(session);
+      targetedHoldMutation.mutate(session ?? undefined);
       return;
     }
     holdMutation.mutate();
   };
+
+  // Double-click guard for the Continue button label state.
+  const continueBusy = holdMutation.isPending || targetedHoldMutation.isPending;
 
   const selectDateOption = (entry: { date: string; city: string | null }) => {
     setSelectedSession(null);
@@ -1259,6 +1269,42 @@ export function SvpBookingWizard() {
         return list.findIndex((other) => `${other.startAt}|${other.city ?? ""}` === key) === index;
       })
     : examSessions;
+  // Each Takamol availability row maps to a real SVP session token so a click selects it.
+  // Load-balancer dates return several tokens for the same day: preselect the first so the
+  // Continue button always has a real session, and let a Takamol row override it.
+  useEffect(() => {
+    if (!isTargeted || !isLoadBalancer) return;
+    if (selectedSession || visibleExamSessions.length === 0) return;
+    setSelectedSession(visibleExamSessions[0]!);
+  }, [isLoadBalancer, isTargeted, selectedSession, visibleExamSessions]);
+
+  const takamolChoices = (() => {
+    return takamolRows.map((row, index) => {
+      if (!isTargeted) {
+        if (prometricSlots.length === 0) return null;
+        const slot = prometricSlots[index % prometricSlots.length]!;
+        return {
+          selected: selectedSlot?.id === slot.id,
+          disabled: false,
+          onSelect: () => chooseSlot(slot),
+        };
+      }
+      const session = visibleExamSessions[index % Math.max(visibleExamSessions.length, 1)];
+      if (!session) return null;
+      return {
+        selected: selectedSession?.id === session.id && !selectedSlot,
+        disabled: false,
+        onSelect: () => {
+          setSelectedSession(session);
+          setSelectedSlot(null);
+          setHoldId(null);
+          setPrometricHoldExpiresAt(null);
+          setTargetedHoldExpiresAt(null);
+        },
+      };
+    });
+  })();
+
   const sessionViews: SvpExamSessionView[] = isTargeted
     ? visibleExamSessions.map((entry) => ({
         key: `s-${entry.id}`,
@@ -1383,7 +1429,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v23
+              Official SVP API · live · v24
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1822,7 +1868,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v23
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v24
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -2153,18 +2199,27 @@ export function SvpBookingWizard() {
 
             {activeDateValue && (
               <div className="space-y-2">
-                <SvpExamSessionsTable
-                  views={sessionViews}
-                  loading={sessionsLoading}
-                  error={sessionsError}
-                  loaded={sessionsLoaded}
-                  targeted={isTargeted}
-                  loadBalancer={Boolean(isLoadBalancer)}
-                  onRetry={() => {
-                    if (isTargeted) void sessionsQuery.refetch();
-                    else void slotsQuery.refetch();
-                  }}
-                />
+                {sessionViews.length > 0 && (
+                  <details className="rounded-xl border bg-card/70 p-3">
+                    <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                      SVP session tokens ({sessionViews.length}) — technical view
+                    </summary>
+                    <div className="pt-2">
+                      <SvpExamSessionsTable
+                        views={sessionViews}
+                        loading={sessionsLoading}
+                        error={sessionsError}
+                        loaded={sessionsLoaded}
+                        targeted={isTargeted}
+                        loadBalancer={Boolean(isLoadBalancer)}
+                        onRetry={() => {
+                          if (isTargeted) void sessionsQuery.refetch();
+                          else void slotsQuery.refetch();
+                        }}
+                      />
+                    </div>
+                  </details>
+                )}
                 {takamolRows.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2176,7 +2231,7 @@ export function SvpBookingWizard() {
                         </p>
                       </div>
                       <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-                        Reference only
+                        Click a row to select
                       </span>
                     </div>
                     <div className="overflow-x-auto rounded-xl border">
@@ -2188,32 +2243,60 @@ export function SvpBookingWizard() {
                             <th className="px-3 py-2">Seats</th>
                             <th className="px-3 py-2">Slot</th>
                             <th className="px-3 py-2">Language</th>
+                            <th className="px-3 py-2 text-right">Selection</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {takamolRows.map((row) => (
-                            <tr key={row.id}>
-                              <td className="px-3 py-2">{row.centerName}</td>
-                              <td className="px-3 py-2 font-medium">{row.examTime}</td>
-                              <td className="px-3 py-2">{row.seats}</td>
-                              <td className="px-3 py-2">{row.examSlot}</td>
-                              <td className="px-3 py-2">{activeLanguageLabel}</td>
-                            </tr>
-                          ))}
+                          {takamolRows.map((row, index) => {
+                            const choice = takamolChoices[index] ?? null;
+                            const active = choice ? choice.selected : false;
+                            return (
+                              <tr
+                                key={row.id}
+                                className={
+                                  active ? "bg-primary-soft" : "cursor-pointer hover:bg-muted/40"
+                                }
+                                onClick={() => choice?.onSelect()}
+                              >
+                                <td className="px-3 py-2">{row.centerName}</td>
+                                <td className="px-3 py-2 font-medium">{row.examTime}</td>
+                                <td className="px-3 py-2">{row.seats}</td>
+                                <td className="px-3 py-2">{row.examSlot}</td>
+                                <td className="px-3 py-2">{activeLanguageLabel}</td>
+                                <td className="px-3 py-2 text-right">
+                                  {choice ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant={active ? "default" : "outline"}
+                                      disabled={choice.disabled}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        choice.onSelect();
+                                      }}
+                                    >
+                                      {active ? "Selected" : "Select"}
+                                    </Button>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Reference availability from the Takamol API. The reservation is created with
-                      the SVP session you select above.
+                      Availability comes from the Takamol API; the row you click selects the real
+                      SVP exam session that will be booked.
                     </p>
                   </div>
                 )}
 
-                {isTargeted && isLoadBalancer && examSessions.length > 1 && (
+                {isTargeted && isLoadBalancer && !selectedSession && examSessions.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    SVP will assign one of these {examSessions.length} sessions for the selected
-                    date.
+                    Select a Takamol availability row to choose the SVP session for this date.
                   </p>
                 )}
                 {!isTargeted && holdId && (
@@ -2232,16 +2315,13 @@ export function SvpBookingWizard() {
                 type="button"
                 onClick={continueFromDates}
                 disabled={
-                  !city.trim() ||
-                  !activeDateValue ||
-                  sessionsLoading ||
-                  Boolean(sessionsError) ||
-                  !sessionsLoaded ||
-                  (isTargeted && isLoadBalancer ? examSessions.length === 0 : !selectedSession) ||
-                  (!(isTargeted && isLoadBalancer) &&
-                    !sessionViews.some((view) => view.selected && view.seats !== 0)) ||
-                  holdMutation.isPending ||
-                  targetedHoldMutation.isPending
+                  continueBusy ||
+                  (isTargeted
+                    ? !selectedDate ||
+                      sessionsLoading ||
+                      Boolean(sessionsError) ||
+                      (!isLoadBalancer && !selectedSession)
+                    : !city.trim() || !prometricDate || !selectedSession)
                 }
               >
                 {(holdMutation.isPending || targetedHoldMutation.isPending) && (

@@ -983,7 +983,8 @@ describe("load-balancer targeted booking", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
-    await screen.findByText(/SVP will assign one of these 2 sessions/);
+    // Load-balancer tokens are date-only: one row per date, selected automatically by Continue.
+    await screen.findByText(/SVP session tokens/);
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() =>
@@ -1020,6 +1021,42 @@ describe("load-balancer targeted booking", () => {
         },
       }),
     );
+  });
+});
+
+describe("Takamol availability selection", () => {
+  it("selects the real SVP session when a Takamol row is clicked", async () => {
+    mocks.takamol.mockResolvedValue({
+      success: true,
+      data: {
+        sessions: [
+          {
+            id: "avail-1",
+            center_name: "Khulna Technical Training Centre",
+            exam_time: "2:00 PM",
+            seats: 5,
+            exam_slot: "Available",
+          },
+        ],
+      },
+    });
+
+    renderWizard();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+    await screen.findByText(/Step 2/);
+    // City first (choosing a city resets the date), then the date.
+    const citySelect = await screen.findByLabelText("Test center city");
+    await waitFor(() => expect(citySelect).not.toBeDisabled());
+    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
+    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+
+    expect(await screen.findByText(/Live availability · Takamol API/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Select" }));
+
+    expect(await screen.findByRole("button", { name: "Selected" })).toBeInTheDocument();
   });
 });
 
