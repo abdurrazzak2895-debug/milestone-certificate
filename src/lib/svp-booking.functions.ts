@@ -538,6 +538,7 @@ export const createSvpBooking = createServerFn({ method: "POST" })
           query: LOCALE_QUERY,
           body: {
             exam_session_id: data.examSessionId,
+            methodology: "in_person",
             country_id: data.countryId ?? null,
             category_id: data.categoryId,
           },
@@ -551,6 +552,7 @@ export const createSvpBooking = createServerFn({ method: "POST" })
           query: LOCALE_QUERY,
           body: {
             exam_session_id: data.holdId,
+            methodology: "in_person",
             country_id: data.countryId ?? null,
             category_id: data.categoryId,
           },
@@ -930,7 +932,7 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
         {
           method: "POST",
           query: LOCALE_QUERY,
-          body: { exam_session_id: data.examSessionId },
+          body: { exam_session_id: data.examSessionId, methodology: "in_person" },
         },
       );
       if (!hold.ok) {
@@ -1185,6 +1187,7 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
           query: LOCALE_QUERY,
           body: {
             exam_session_id: holdId,
+            methodology: "in_person",
             country_id: data.countryId ?? null,
             category_id: data.categoryId,
           },
@@ -1267,6 +1270,7 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
             query: LOCALE_QUERY,
             body: {
               exam_session_id: data.examSessionId,
+              methodology: "in_person",
               country_id: data.countryId ?? null,
               category_id: data.categoryId,
             },
@@ -1280,7 +1284,8 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
         const root = record(response.payload);
         const payload = record(root?.["data"]) ?? root;
         const expires = payload?.["expired_at"] ?? root?.["expired_at"];
-        const chosen = payload?.["exam_session_id"] ?? root?.["exam_session_id"];
+        const chosenRaw = payload?.["exam_session_id"] ?? root?.["exam_session_id"];
+        const chosen = chosenRaw === 0 || chosenRaw === "0" ? null : chosenRaw;
         return {
           ok: true,
           data: {

@@ -230,6 +230,8 @@ async function timedFetch(
 const BASE_HEADERS = {
   Accept: "application/json",
   "Accept-Language": "en-US,en;q=0.9",
+  // The portal always identifies the tenant; some endpoints need it.
+  "X-Tenant-Name": "svp-international",
   Origin: SVP_PORTAL_URL,
   Referer: `${SVP_PORTAL_URL}/`,
   "User-Agent":

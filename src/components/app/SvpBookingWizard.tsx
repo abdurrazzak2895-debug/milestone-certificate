@@ -123,6 +123,12 @@ function useDebouncedValue<T>(value: T, delay = 300): T {
 }
 
 function formatHoldExpiry(value: string): string {
+  // SVP returns dd/mm/yyyy HH:MM for hold expiry.
+  const dmy = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?$/.exec(value.trim());
+  if (dmy) {
+    const [, day, month, year, hours = "", minutes = ""] = dmy;
+    return `${day}/${month}/${year}${hours ? ` · ${hours}:${minutes}` : ""}`;
+  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -785,12 +791,25 @@ export function SvpBookingWizard() {
         throw new Error(response.message);
       }
 
+      // SVP assigns a specific session token on the hold; the reservation must use it.
+      const heldId = response.data.examSessionId;
       let assigned = selectedSession ?? examSessions[0] ?? null;
-      if (response.data.examSessionId !== null && response.data.examSessionId !== undefined) {
-        const detail = await getSvpExamSessionById({
-          data: { examSessionId: String(response.data.examSessionId) },
-        });
-        if (detail.ok) assigned = detail.data;
+      if (heldId !== null && heldId !== undefined) {
+        const detail = await getSvpExamSessionById({ data: { examSessionId: String(heldId) } });
+        assigned = detail.ok
+          ? { ...detail.data, id: heldId }
+          : assigned
+            ? { ...assigned, id: heldId }
+            : {
+                id: heldId,
+                startAt: "",
+                endAt: null,
+                duration: 0,
+                availableSeats: null,
+                city: null,
+                centerName: null,
+                siteId: null,
+              };
       }
       return { expiresAt: response.data.expiresAt, session: assigned };
     },
@@ -1267,7 +1286,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v20
+              Official SVP API · live · v21
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1706,7 +1725,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v20
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v21
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
