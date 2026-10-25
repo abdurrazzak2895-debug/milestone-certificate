@@ -1586,3 +1586,36 @@ export const downloadSvpInvoice = createServerFn({ method: "POST" })
       return failure("The invoice could not be downloaded.");
     }
   });
+
+/** Real SVP certificate PDF for a passed reservation (`/certificates/{id}/show_pdf`). */
+export const downloadSvpCertificate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        certificateId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpTicketFile>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedBinary(
+        context.userId,
+        `/individual_labor_space/certificates/${encodeURIComponent(data.certificateId)}/show_pdf`,
+      );
+      if (!response.ok || !response.base64) {
+        return failure(response.message ?? "The certificate could not be downloaded.");
+      }
+      return {
+        ok: true,
+        data: { base64: response.base64, contentType: response.contentType ?? "application/pdf" },
+      };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The certificate could not be downloaded.");
+    }
+  });

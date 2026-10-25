@@ -75,6 +75,14 @@ export type SvpEligibility = {
   message: string;
 };
 
+export type SvpCertificate = {
+  id: string;
+  certificateNumber: string | null;
+  status: string | null;
+  validUntil: string | null;
+  createdAt: string | null;
+};
+
 export type SvpReservation = {
   id: string;
   status: string | null;
@@ -90,6 +98,13 @@ export type SvpReservation = {
   examSessionId: string | number | null;
   duration: number | null;
   languageCode: string | null;
+  /** `passed` / `failed` / null while pending. */
+  examResult: string | null;
+  finalResult: string | null;
+  totalScore: number | null;
+  cbtScore: number | null;
+  practicalScore: number | null;
+  certificate: SvpCertificate | null;
 };
 
 export type SvpReservationDetail = SvpReservation & {
@@ -389,6 +404,15 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
           typeof session?.["id"] === "string" ? session["id"] : (number(session?.["id"]) ?? null),
         duration: number(session?.["duration"]) ?? number(record["duration"]),
         languageCode: text(record["language_code"]),
+        examResult: text(record["exam_result"]),
+        finalResult: text(record["final_result"]),
+        totalScore: resultScore(asRecord(record["examination_result"]), "total_score"),
+        cbtScore: resultScore(asRecord(record["examination_result"]), "calculated_cbt_score"),
+        practicalScore: resultScore(
+          asRecord(record["examination_result"]),
+          "calculated_practical_score",
+        ),
+        certificate: parseSvpCertificate(record["certificate"]),
       };
     })
     .filter((entry): entry is SvpReservation => entry !== null);
@@ -397,6 +421,45 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
 /** Provider message for a failed response, never leaking values. */
 export function parseSvpError(payload: unknown): string | null {
   return svpErrorMessage(payload);
+}
+
+/** Certificate block from a reservation detail response. */
+export function parseSvpCertificate(value: unknown): SvpCertificate | null {
+  const record = asRecord(value);
+  const id = record?.["id"];
+  if (!record || id === undefined || id === null) return null;
+  return {
+    id: String(id),
+    certificateNumber: text(record["certificate_number"]),
+    status: text(record["status"]),
+    validUntil: text(record["valid_until"]),
+    createdAt: text(record["created_at"]),
+  };
+}
+
+function resultScore(record: Record<string, unknown> | null, key: string): number | null {
+  return record ? number(record[key]) : null;
+}
+
+/**
+ * Safe download name: `<Candidate>_<Occupation>_<Test center>_SVP_Certificate.pdf`.
+ * Empty parts are dropped so the name stays readable.
+ */
+export function svpCertificateFileName(
+  name: string | null | undefined,
+  occupationEnglishName: string | null | undefined,
+  centerName: string | null | undefined,
+): string {
+  const slug = (value: string | null | undefined) =>
+    (value ?? "")
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\s/g, "_")
+      .slice(0, 60);
+  const parts = [slug(name), slug(occupationEnglishName), slug(centerName)].filter(Boolean);
+  return `${parts.join("_") || "SVP"}_SVP_Certificate.pdf`;
 }
 
 /** Safe download name: `<Candidate>_<Occupation English>_SVP_Ticket.pdf`. */
@@ -453,6 +516,15 @@ export function parseSvpReservationDetail(payload: unknown): SvpReservationDetai
     occupationId: number(reservation["occupation_id"]) ?? number(occupation?.["id"]),
     categoryName: text(category?.["name"]) ?? text(category?.["english_name"]),
     languages: parseLanguages(category),
+    examResult: text(reservation["exam_result"]),
+    finalResult: text(reservation["final_result"]),
+    totalScore: resultScore(asRecord(reservation["examination_result"]), "total_score"),
+    cbtScore: resultScore(asRecord(reservation["examination_result"]), "calculated_cbt_score"),
+    practicalScore: resultScore(
+      asRecord(reservation["examination_result"]),
+      "calculated_practical_score",
+    ),
+    certificate: parseSvpCertificate(reservation["certificate"]),
     languageCode: text(reservation["language_code"]),
     countryId:
       number(reservation["country_id"]) ?? number(asRecord(reservation["country"])?.["id"]),

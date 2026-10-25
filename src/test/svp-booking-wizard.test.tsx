@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   occupations: vi.fn(),
   search: vi.fn(),
   occupationById: vi.fn(),
+  reservationDetail: vi.fn(),
   cities: vi.fn(),
   setup: vi.fn(),
   overview: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   listSvpBookingOccupations: mocks.occupations,
   searchSvpOccupations: mocks.search,
   getSvpOccupationById: mocks.occupationById,
+  getSvpReservationDetail: mocks.reservationDetail,
   listSvpTestCenterCities: mocks.cities,
   getSvpBookingSetup: mocks.setup,
   getSvpAccountOverview: mocks.overview,
@@ -113,6 +115,11 @@ beforeEach(() => {
   mocks.occupations.mockResolvedValue({ ok: true, data: [occupation] });
   mocks.search.mockResolvedValue({ ok: true, data: [occupation] });
   mocks.occupationById.mockResolvedValue({ ok: true, data: occupation });
+  mocks.reservationDetail.mockResolvedValue({
+    ok: false,
+    needsSignIn: false,
+    message: "not loaded in tests",
+  });
   mocks.sites.mockResolvedValue({
     ok: true,
     data: {

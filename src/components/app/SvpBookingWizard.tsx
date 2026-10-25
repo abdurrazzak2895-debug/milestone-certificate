@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Award,
   BriefcaseBusiness,
   CalendarDays,
   Check,
@@ -26,6 +27,7 @@ import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 import { SvpReschedulePanel } from "@/components/app/SvpReschedulePanel";
 import { SvpCardPayment } from "@/components/app/SvpCardPayment";
+import { SvpResultPanel } from "@/components/app/SvpResultPanel";
 import {
   SvpExamSessionsTable,
   type SvpExamSessionView,
@@ -36,12 +38,14 @@ import {
   createSvpBooking,
   createSvpPrometricHold,
   createSvpTargetedHold,
+  downloadSvpCertificate,
   downloadSvpTicket,
   getSvpAccountOverview,
   getSvpBookingSetup,
   getSvpDiagnostics,
   getSvpOccupationById,
   getSvpExamSessionById,
+  getSvpReservationDetail,
   listSvpAvailableDates,
   listSvpBookingOccupations,
   listSvpExamSessions,
@@ -62,7 +66,7 @@ import {
   signOutSvpSession,
   switchSvpAccount,
 } from "@/lib/svp-session.functions";
-import { svpTicketFileName } from "@/lib/svp-api.shared";
+import { svpCertificateFileName, svpTicketFileName } from "@/lib/svp-api.shared";
 import type {
   SvpAvailableDate,
   SvpEligibility,
@@ -70,6 +74,7 @@ import type {
   SvpOccupation,
   SvpPrometricSlot,
   SvpReservation,
+  SvpReservationDetail,
 } from "@/lib/svp-api.shared";
 import {
   normalizeSvpBookingForm,
@@ -257,6 +262,7 @@ export function SvpBookingWizard() {
   const [accepted, setAccepted] = useState(false);
   const [result, setResult] = useState<SvpBookingResult | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [resultDetails, setResultDetails] = useState<Record<string, SvpReservationDetail>>({});
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [localSaveStatus, setLocalSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">(
     "idle",
@@ -681,6 +687,33 @@ export function SvpBookingWizard() {
     /cancel/i.test(entry.status ?? ""),
   ).length;
 
+  // The result + certificate live on the reservation detail endpoint.
+  const reservationIdsKey = reservations.map((entry) => entry.id).join(",");
+  useEffect(() => {
+    const targets = reservations.filter((entry) =>
+      /completed|reserved|confirmed/i.test(entry.status ?? ""),
+    );
+    if (targets.length === 0) return;
+    let cancelled = false;
+    const load = async () => {
+      for (const entry of targets.slice(0, 10)) {
+        if (cancelled) return;
+        if (resultDetails[entry.id]) continue;
+        const response = await getSvpReservationDetail({ data: { reservationId: entry.id } });
+        if (cancelled) return;
+        if (response.ok) {
+          setResultDetails((current) => ({ ...current, [entry.id]: response.data }));
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+    // Reservation ids are the stable trigger; details are fetched once per row.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservationIdsKey]);
+
   const selectOccupation = async (entry: SvpOccupation) => {
     const token = ++selectionTokenRef.current;
 
@@ -935,6 +968,31 @@ export function SvpBookingWizard() {
       toast.success(`Ticket saved as ${fileName}`);
     } catch {
       toast.error("The SVP ticket could not be downloaded.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const downloadCertificateById = async (
+    certificateId: string,
+    name: string | null,
+    occupationEnglishName: string | null,
+    centerName: string | null,
+  ) => {
+    if (downloadingId) return;
+    setDownloadingId(`cert-${certificateId}`);
+    try {
+      const response = await downloadSvpCertificate({ data: { certificateId } });
+      if (!response.ok) {
+        if (response.needsSignIn) requireSignIn();
+        toast.error(response.message);
+        return;
+      }
+      const fileName = svpCertificateFileName(name, occupationEnglishName, centerName);
+      savePdfBase64(response.data.base64, response.data.contentType, fileName);
+      toast.success(`Certificate saved as ${fileName}`);
+    } catch {
+      toast.error("The SVP certificate could not be downloaded.");
     } finally {
       setDownloadingId(null);
     }
@@ -1286,7 +1344,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v21
+              Official SVP API · live · v22
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1725,7 +1783,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v21
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v22
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -2451,7 +2509,11 @@ export function SvpBookingWizard() {
             </p>
           ) : (
             <div className="divide-y overflow-hidden rounded-xl border bg-background/40">
-              {reservations.map((entry) => {
+              {reservations.map((rawEntry) => {
+                const entry: SvpReservation = {
+                  ...rawEntry,
+                  ...(resultDetails[rawEntry.id] ?? {}),
+                };
                 const ticketReady = entry.status
                   ? /reserved|completed|confirmed/i.test(entry.status)
                   : false;
@@ -2517,7 +2579,47 @@ export function SvpBookingWizard() {
                           Ticket PDF
                         </Button>
                       )}
+                      {entry.certificate &&
+                        entry.certificate.status?.toLowerCase() === "active" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() =>
+                              void downloadCertificateById(
+                                entry.certificate!.id,
+                                entry.laborName ?? status?.userName ?? candidateName,
+                                entry.occupationEnglishName ?? entry.occupationName,
+                                entry.centerName ?? entry.city,
+                              )
+                            }
+                            disabled={downloadingId === `cert-${entry.certificate.id}`}
+                          >
+                            {downloadingId === `cert-${entry.certificate.id}` ? (
+                              <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Award className="mr-1 h-3.5 w-3.5" />
+                            )}
+                            Certificate PDF
+                          </Button>
+                        )}
                     </div>
+                    {(entry.examResult || entry.finalResult || entry.certificate) && (
+                      <div className="w-full">
+                        <SvpResultPanel
+                          reservation={entry}
+                          downloading={downloadingId === `cert-${entry.certificate?.id ?? ""}`}
+                          onDownloadCertificate={() => {
+                            if (!entry.certificate) return;
+                            void downloadCertificateById(
+                              entry.certificate.id,
+                              entry.laborName ?? status?.userName ?? candidateName,
+                              entry.occupationEnglishName ?? entry.occupationName,
+                              entry.centerName ?? entry.city,
+                            );
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
