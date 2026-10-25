@@ -41,6 +41,7 @@ const SVP_SYSTEM_CONFIG: SvpSystemConfig = {
 export type SvpSessionStatus = {
   signedIn: boolean;
   userName: string | null;
+  userPassport: string | null;
   login: string | null;
   countryTargeted: boolean | null;
   countryLoadBalancer: boolean | null;
@@ -134,7 +135,16 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
       responseCookies(response),
     );
     const user = extractSvpSessionUser(payload);
-    const session = buildStoredSession(data.login, payload, refreshCookies, user.name, user.id);
+    const session = buildStoredSession(
+      data.login,
+      payload,
+      refreshCookies,
+      user.name,
+      user.id,
+      null,
+      null,
+      user.passport,
+    );
 
     if (!session) {
       return {
@@ -198,6 +208,7 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
 export const getSvpSessionStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SvpSessionStatus> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
     const session = readStoredSvpSession(context.userId);
     const now = Math.floor(Date.now() / 1000);
     let active =
@@ -235,6 +246,7 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
     return {
       signedIn: Boolean(active),
       userName: active?.userName ?? null,
+      userPassport: active?.passport ?? null,
       login: active?.login ?? null,
       countryTargeted: active?.countryTargeted ?? null,
       countryLoadBalancer: active?.countryLoadBalancer ?? null,

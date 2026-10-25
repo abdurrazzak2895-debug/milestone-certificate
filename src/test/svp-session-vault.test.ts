@@ -20,6 +20,7 @@ function session(
     login,
     userName: login.toUpperCase(),
     svpUserId: "969955",
+    passport: null,
     access: `token-${login}`,
     countryTargeted: null,
     countryLoadBalancer: null,
@@ -37,6 +38,7 @@ describe("SVP multi-account vault", () => {
 
     expect(vault.active).toBe("noor@example.com");
     expect(activeSession(vault)?.access).toBe("token-noor@example.com");
+    expect(activeSession(vault)?.passport).toBeNull();
     expect(listAccounts(vault)).toEqual([
       {
         login: "noor@example.com",

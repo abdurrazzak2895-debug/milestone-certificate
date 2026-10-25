@@ -49,13 +49,13 @@ const validTime = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour time, for example 10:30");
 
-export const svpBookingFormSchema = z
-  .object({
-    candidate_name: text(120).min(1, "Candidate name is required"),
-    passport: text(20).regex(
-      /^[A-Za-z0-9]{5,20}$/,
-      "Use 5–20 letters and numbers for the passport",
-    ),
+export const svpCandidateIdentitySchema = z.object({
+  candidate_name: text(120).min(1, "Candidate name is required"),
+  passport: text(20).regex(/^[A-Za-z0-9]{5,20}$/, "Use 5–20 letters and numbers for the passport"),
+});
+
+export const svpBookingFormSchema = svpCandidateIdentitySchema
+  .extend({
     occupation: text(120),
     center: text(160),
     exam_date: z.string().trim(),
