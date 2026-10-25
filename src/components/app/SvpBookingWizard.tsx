@@ -350,10 +350,36 @@ export function SvpBookingWizard() {
     overview?.permissions.loadBalancer ??
     setup?.permissions.loadBalancer ??
     false;
+  const categoryOptions = useMemo(() => overview?.categories ?? [], [overview]);
+  const matchedCategory = useMemo(() => {
+    if (!occupation || occupation.categoryId) return null;
+    const needle = (occupation.categoryName ?? occupation.name).trim().toLowerCase();
+    if (!needle) return null;
+    return (
+      categoryOptions.find((entry) => {
+        const name = entry.name.toLowerCase();
+        return (
+          name === needle ||
+          entry.arabicName?.toLowerCase() === needle ||
+          name.includes(needle) ||
+          needle.includes(name)
+        );
+      }) ?? null
+    );
+  }, [categoryOptions, occupation]);
   const languageOptions = useMemo(() => {
     const all = occupation?.languages ?? [];
+    const categoryLanguages = matchedCategory?.languages ?? [];
     const filtered = all.filter((entry) => entry.nonTargeted === !isTargeted);
-    const source = filtered.length > 0 ? filtered : all;
+    const categoryFiltered = categoryLanguages.filter((entry) => entry.nonTargeted === !isTargeted);
+    const source =
+      filtered.length > 0
+        ? filtered
+        : categoryFiltered.length > 0
+          ? categoryFiltered
+          : all.length > 0
+            ? all
+            : categoryLanguages;
     const byLabel = new Map<string, (typeof all)[number]>();
     for (const entry of source) {
       const key = entry.label.toLowerCase();
@@ -363,7 +389,7 @@ export function SvpBookingWizard() {
       }
     }
     return [...byLabel.values()];
-  }, [isTargeted, occupation]);
+  }, [isTargeted, matchedCategory, occupation]);
   const activeLanguageCode =
     languageCode && languageOptions.some((entry) => entry.code === languageCode)
       ? languageCode
@@ -401,23 +427,6 @@ export function SvpBookingWizard() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [occupationOpen]);
 
-  const categoryOptions = useMemo(() => overview?.categories ?? [], [overview]);
-  const matchedCategory = useMemo(() => {
-    if (!occupation || occupation.categoryId) return null;
-    const needle = (occupation.categoryName ?? occupation.name).trim().toLowerCase();
-    if (!needle) return null;
-    return (
-      categoryOptions.find((entry) => {
-        const name = entry.name.toLowerCase();
-        return (
-          name === needle ||
-          entry.arabicName?.toLowerCase() === needle ||
-          name.includes(needle) ||
-          needle.includes(name)
-        );
-      }) ?? null
-    );
-  }, [categoryOptions, occupation]);
   const effectiveCategoryId =
     occupation?.categoryId ?? manualCategoryId ?? matchedCategory?.id ?? null;
   const categoryId = effectiveCategoryId;
@@ -1111,7 +1120,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v15
+              Official SVP API · live · v16
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1518,7 +1527,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v15
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v16
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the

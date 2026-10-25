@@ -113,7 +113,12 @@ export type SvpAccountPermissions = SvpBookingPermissions & {
   permissionKeys: string[];
 };
 
-export type SvpCategoryOption = { id: number; name: string; arabicName: string | null };
+export type SvpCategoryOption = {
+  id: number;
+  name: string;
+  arabicName: string | null;
+  languages: SvpLanguage[];
+};
 
 export type SvpCreateReservationInput = {
   examSessionId: number | string;

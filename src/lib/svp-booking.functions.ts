@@ -468,8 +468,8 @@ export const createSvpBooking = createServerFn({ method: "POST" })
       .object({
         occupationId: z.number().int().positive(),
         categoryId: z.number().int().positive(),
-        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(40)]),
-        languageCode: z.string().trim().min(1).max(20),
+        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(200)]),
+        languageCode: z.string().trim().min(1).max(120),
         duration: z.number().nonnegative().nullable().optional(),
         startAt: z.string().trim().max(64).nullable().optional(),
         siteId: z.number().int().positive().nullable().optional(),
@@ -852,8 +852,8 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
           .string()
           .trim()
           .regex(/^[A-Za-z0-9-]{1,64}$/),
-        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(40)]),
-        languageCode: z.string().trim().min(1).max(20),
+        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(200)]),
+        languageCode: z.string().trim().min(1).max(120),
       })
       .parse(input),
   )
@@ -1114,7 +1114,7 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
         slotId: z.string().trim().min(1).max(64),
         siteId: z.number().int().positive(),
         siteCity: z.string().trim().max(120).nullable().optional(),
-        languageCode: z.string().trim().min(1).max(20),
+        languageCode: z.string().trim().min(1).max(120),
         duration: z.number().nonnegative().nullable().optional(),
         startAt: z.string().trim().max(64).nullable().optional(),
         categoryId: z.number().int().positive(),
@@ -1270,7 +1270,7 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
 export const getSvpExamSessionById = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ examSessionId: z.string().trim().min(1).max(80) }).parse(input),
+    z.object({ examSessionId: z.string().trim().min(1).max(200) }).parse(input),
   )
   .handler(async ({ context, data }): Promise<SvpResult<SvpExamSession>> => {
     await requireSvpAllowedRole(context.supabase, context.userId);
