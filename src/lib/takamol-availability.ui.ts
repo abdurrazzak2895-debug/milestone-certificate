@@ -91,11 +91,19 @@ export function parseOccupations(payload: unknown): OccupationChoice[] {
  */
 export function parseOccupationLanguages(
   payload: unknown,
-): { occupationId: string; languageCode: string }[] {
+): { occupationId: string; occupationKey: string | null; languageCode: string }[] {
   return rowsAt(payload, ["occupations"]).flatMap((row) => {
     const occupationId = firstText(row, ["occupation_id", "occupationId"]);
     const languageCode = firstText(row, ["language_code", "languageCode"]);
-    return occupationId && languageCode ? [{ occupationId, languageCode }] : [];
+    return occupationId && languageCode
+      ? [
+          {
+            occupationId,
+            occupationKey: firstText(row, ["occupation_key", "occupationKey"]),
+            languageCode,
+          },
+        ]
+      : [];
   });
 }
 

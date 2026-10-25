@@ -48,7 +48,7 @@ describe("Takamol selection data", () => {
           { id: 49, occupation_id: 2009, language_code: "" },
         ],
       }),
-    ).toEqual([{ occupationId: "2008", languageCode: "BRBBB" }]);
+    ).toEqual([{ occupationId: "2008", occupationKey: null, languageCode: "BRBBB" }]);
   });
 
   it("normalizes and deduplicates city options", () => {

@@ -359,15 +359,17 @@ export function SvpBookingWizard() {
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
-  const takamolLanguageByOccupation = useMemo(() => {
-    const map = new Map<number, string>();
+  const takamolLanguages = useMemo(() => {
+    const byId = new Map<number, string>();
+    const byKey = new Map<string, string>();
     const payload = takamolOccupationsQuery.data;
-    if (!payload?.success) return map;
+    if (!payload?.success) return { byId, byKey };
     for (const entry of parseOccupationLanguages(payload.data)) {
       const id = Number(entry.occupationId);
-      if (Number.isInteger(id) && id > 0) map.set(id, entry.languageCode);
+      if (Number.isInteger(id) && id > 0) byId.set(id, entry.languageCode);
+      if (entry.occupationKey) byKey.set(entry.occupationKey, entry.languageCode);
     }
-    return map;
+    return { byId, byKey };
   }, [takamolOccupationsQuery.data]);
   const occupations = useMemo(
     () => (occupationsQuery.data?.ok ? occupationsQuery.data.data : []),
@@ -501,23 +503,14 @@ export function SvpBookingWizard() {
       }
     }
     const options = [...byLabel.values()];
-    if (options.length > 0) return options;
-    // Nothing from SVP: use Takamol's occupation language code as the last resort.
-    const takamolCode = occupation ? takamolLanguageByOccupation.get(occupation.id) : null;
-    return takamolCode
-      ? [{ code: takamolCode, label: takamolCode, questionCount: null, nonTargeted: false }]
-      : [];
-  }, [
-    categoryOptions,
-    isTargeted,
-    manualCategoryId,
-    matchedCategory,
-    occupation,
-    takamolLanguageByOccupation,
-  ]);
-  // Takamol returns one language code per occupation: show and apply it automatically.
-  const takamolLanguageCode = occupation
-    ? (takamolLanguageByOccupation.get(occupation.id) ?? null)
+    return options;
+  }, [categoryOptions, isTargeted, manualCategoryId, matchedCategory, occupation]);
+  // Takamol returns one language code per occupation: only that language is shown and applied.
+  const takamolLanguageCode = occupationId
+    ? (takamolLanguages.byId.get(occupationId) ??
+      (occupation?.occupationKey
+        ? (takamolLanguages.byKey.get(occupation.occupationKey) ?? null)
+        : null))
     : null;
   const languageChoices = useMemo(
     () =>
@@ -530,8 +523,8 @@ export function SvpBookingWizard() {
               nonTargeted: false,
             },
           ]
-        : languageOptions,
-    [languageOptions, takamolLanguageCode],
+        : [],
+    [takamolLanguageCode],
   );
   useEffect(() => {
     if (!takamolLanguageCode) return;
@@ -1826,15 +1819,26 @@ export function SvpBookingWizard() {
                   occupation.
                 </p>
               )}
-              {occupation && languageChoices.length === 0 && (
-                <p
-                  role={overviewQuery.isFetching ? "status" : "alert"}
-                  className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+              {occupation && !takamolLanguageCode && (
+                <div
+                  role={takamolOccupationsQuery.isFetching ? "status" : "alert"}
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
                 >
-                  {overviewQuery.isFetching
-                    ? "Loading supported exam languages from SVP…"
-                    : "SVP did not return an exam language code for this occupation. Booking is disabled until a supported language is available."}
-                </p>
+                  <span>
+                    {takamolOccupationsQuery.isFetching
+                      ? "Loading the Takamol language…"
+                      : "Takamol has no language code for this occupation. Booking is disabled until the API returns one."}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void takamolOccupationsQuery.refetch()}
+                    disabled={takamolOccupationsQuery.isFetching}
+                  >
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry language
+                  </Button>
+                </div>
               )}
               <div className="space-y-2">
                 <Field label="Occupation *">

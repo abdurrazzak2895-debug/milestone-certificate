@@ -230,7 +230,35 @@ beforeEach(() => {
       message: "Reservation confirmed by SVP.",
     },
   });
-  mocks.takamol.mockResolvedValue({ success: false, data: [] });
+  mocks.takamol.mockImplementation((request: { data: { endpoint: string } }) =>
+    Promise.resolve(
+      request?.data?.endpoint === "occupations"
+        ? {
+            success: true,
+            data: {
+              occupations: [
+                {
+                  id: 159,
+                  occupation_id: 11,
+                  category_name: "Welding",
+                  english_name: "Welder",
+                  occupation_key: "721201",
+                  language_code: "en",
+                },
+                {
+                  id: 159,
+                  occupation_id: 77,
+                  category_name: "Loading",
+                  english_name: "Load and Unload Worker",
+                  occupation_key: "933301",
+                  language_code: "en",
+                },
+              ],
+            },
+          }
+        : { success: false, status: 200, message: "not loaded" },
+    ),
+  );
   mocks.ticket.mockResolvedValue({
     ok: true,
     data: { base64: globalThis.btoa("%PDF-1.4 ticket"), contentType: "application/pdf" },
@@ -1086,21 +1114,32 @@ describe("load-balancer targeted booking", () => {
 
 describe("Takamol availability selection", () => {
   it("selects the real SVP session when a Takamol row is clicked", async () => {
-    mocks.takamol.mockResolvedValue({
-      success: true,
-      data: {
-        sessions: [
-          {
-            id: "avail-1",
-            center_name: "Khulna Technical Training Centre",
-            exam_time: "2:00 PM",
-            seats: 5,
-            exam_slot: "Available",
-            language_name: "Bengali",
-          },
-        ],
-      },
-    });
+    mocks.takamol.mockImplementation((request: { data: { endpoint: string } }) =>
+      Promise.resolve(
+        request?.data?.endpoint === "occupations"
+          ? {
+              success: true,
+              data: {
+                occupations: [{ id: 159, occupation_id: 11, language_code: "en" }],
+              },
+            }
+          : {
+              success: true,
+              data: {
+                sessions: [
+                  {
+                    id: "avail-1",
+                    center_name: "Khulna Technical Training Centre",
+                    exam_time: "2:00 PM",
+                    seats: 5,
+                    exam_slot: "Available",
+                    language_name: "Bengali",
+                  },
+                ],
+              },
+            },
+      ),
+    );
 
     renderWizard();
     await screen.findByText(/Signed in to SVP as Noor Rahman/);
@@ -1226,7 +1265,7 @@ describe("automatic SVP candidate record flow", () => {
     );
   });
 
-  it("auto-selects an API category language when the occupation omits its language list", async () => {
+  it("applies the Takamol language automatically and ignores SVP category languages in the picker", async () => {
     const languageCode = "prometric_english_30_question_category_exam";
     const occupationWithoutLanguages = { ...occupation, languages: [] };
     mocks.occupations.mockResolvedValue({ ok: true, data: [occupationWithoutLanguages] });
@@ -1263,16 +1302,9 @@ describe("automatic SVP candidate record flow", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
 
     const languageSelect = screen.getByLabelText("Exam language *") as HTMLSelectElement;
-    expect(languageSelect).toHaveValue("");
-    await waitFor(() =>
-      expect(
-        Array.from((screen.getByLabelText("Exam language *") as HTMLSelectElement).options).map(
-          (entry) => entry.textContent?.trim(),
-        ),
-      ).toContain("English"),
-    );
-    pickLanguage();
-    expect(screen.getByLabelText("Exam language *")).not.toHaveValue("");
+    await waitFor(() => expect(languageSelect).toHaveValue("en"));
+    expect(Array.from(languageSelect.options).map((entry) => entry.value)).toEqual(["", "en"]);
+    expect(languageSelect).toBeDisabled();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
 
