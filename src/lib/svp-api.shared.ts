@@ -444,6 +444,25 @@ export function buildSvpReservationBody(input: SvpCreateReservationInput) {
   return body;
 }
 
+/** SVP payment enums (verified against the official portal bundle). */
+export const SVP_PAYMENT_METHOD_CARD = "card";
+export const SVP_PAYABLE_TYPE_RESERVATION = "Reservation";
+
+/**
+ * The portal posts `{ payment: { payment_method: "card", payable_type: "Reservation",
+ * payable_id } }` to /payments. The wrong casing returns "Unsupported payable type".
+ */
+export function buildSvpReservationPaymentBody(reservationId: string) {
+  return {
+    payment: {
+      payment_method: SVP_PAYMENT_METHOD_CARD,
+      payable_type: SVP_PAYABLE_TYPE_RESERVATION,
+      // The portal sends the numeric reservation id.
+      payable_id: /^\d+$/.test(reservationId) ? Number(reservationId) : reservationId,
+    },
+  };
+}
+
 export function parseSvpReservation(payload: unknown): {
   id: string | null;
   status: string | null;

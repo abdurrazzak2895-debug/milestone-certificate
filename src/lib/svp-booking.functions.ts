@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildSvpReservationBody,
+  buildSvpReservationPaymentBody,
   parseSvpAccountPermissions,
   parseSvpAvailableDates,
   parseSvpCategories,
@@ -1484,7 +1485,7 @@ export type SvpPaymentSession = {
 
 /**
  * Real SVP reservation payment: POST /individual_labor_space/payments with
- * { payment: { payment_method: CARD, payable_type: RESERVATION, payable_id } }.
+ * { payment: { payment_method: "card", payable_type: "Reservation", payable_id } }.
  * Returns the HyperPay checkout data used by the official payment widget.
  */
 export const startSvpReservationPayment = createServerFn({ method: "POST" })
@@ -1505,13 +1506,7 @@ export const startSvpReservationPayment = createServerFn({ method: "POST" })
       const response = await svpAuthedRequest(context.userId, "/individual_labor_space/payments", {
         method: "POST",
         query: LOCALE_QUERY,
-        body: {
-          payment: {
-            payment_method: "CARD",
-            payable_type: "RESERVATION",
-            payable_id: data.reservationId,
-          },
-        },
+        body: buildSvpReservationPaymentBody(data.reservationId),
       });
       if (!response.ok) {
         return failure(

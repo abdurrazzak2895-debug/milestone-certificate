@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSvpReservationBody,
+  buildSvpReservationPaymentBody,
   parseSvpAvailableDates,
   parseSvpCities,
   parseSvpCredits,
@@ -30,6 +31,16 @@ import {
 import { extractSvpAuthPayload, extractSvpSessionUser } from "@/lib/svp-session.shared";
 
 describe("SVP booking payload", () => {
+  it("matches the portal payment body for a reservation", () => {
+    expect(buildSvpReservationPaymentBody("6124304")).toEqual({
+      payment: {
+        payment_method: "card",
+        payable_type: "Reservation",
+        payable_id: 6124304,
+      },
+    });
+  });
+
   it("matches the portal create-reservation body exactly", () => {
     expect(
       buildSvpReservationBody({
