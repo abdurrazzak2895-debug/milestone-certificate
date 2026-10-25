@@ -33,7 +33,7 @@ function SvpBookingError({ error, reset }: ErrorComponentProps) {
         <h1 className="text-lg font-bold">SVP booking could not load</h1>
         <p className="text-sm text-destructive">{message || "Unknown error"}</p>
         <p className="text-xs text-muted-foreground">
-          Build v14 · If this repeats, sign out of SVP and sign in again from this page.
+          Build v17 · If this repeats, sign out of SVP and sign in again from this page.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
