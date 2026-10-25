@@ -205,7 +205,11 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
     if (session && !active) clearStoredSvpSession(context.userId);
 
     // Older sessions predate the country flags; fetch them once from permissions.
-    if (active && (active.countryTargeted === null || active.countryLoadBalancer === null)) {
+    const flagsStale = !active?.flagsVerifiedAt || Date.now() - active.flagsVerifiedAt > 5 * 60_000;
+    if (
+      active &&
+      (active.countryTargeted === null || active.countryLoadBalancer === null || flagsStale)
+    ) {
       try {
         const permissionsResponse = await svpAuthedRequest(
           context.userId,
@@ -219,6 +223,7 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
             ...active,
             countryTargeted: permissions.targeted,
             countryLoadBalancer: permissions.loadBalancer,
+            flagsVerifiedAt: Date.now(),
           };
           writeStoredSvpSession(context.userId, active);
         }

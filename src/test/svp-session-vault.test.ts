@@ -23,6 +23,7 @@ function session(
     access: `token-${login}`,
     countryTargeted: null,
     countryLoadBalancer: null,
+    flagsVerifiedAt: null,
     expiresAt: 1_900_000_000,
     refreshCookies: "",
     savedAt,

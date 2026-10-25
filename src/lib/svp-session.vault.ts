@@ -6,6 +6,7 @@ export type SvpStoredSession = {
   access: string;
   countryTargeted: boolean | null;
   countryLoadBalancer: boolean | null;
+  flagsVerifiedAt: number | null;
   /** Epoch seconds when the bearer token expires. */
   expiresAt: number;
   refreshCookies: string;
@@ -64,6 +65,7 @@ function sanitizeSession(value: unknown): SvpStoredSession | null {
       typeof record["countryLoadBalancer"] === "boolean"
         ? (record["countryLoadBalancer"] as boolean)
         : null,
+    flagsVerifiedAt: number(record["flagsVerifiedAt"]),
     expiresAt: number(record["expiresAt"]) ?? 0,
     refreshCookies:
       typeof record["refreshCookies"] === "string" ? record["refreshCookies"].slice(0, 1200) : "",

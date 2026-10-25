@@ -328,6 +328,7 @@ export function buildStoredSession(
     svpUserId,
     countryTargeted,
     countryLoadBalancer,
+    flagsVerifiedAt: Date.now(),
     access: auth.access,
     expiresAt: auth.accessExpiresAt,
     refreshCookies,
