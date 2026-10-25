@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   reservations: vi.fn(),
   eligibility: vi.fn(),
   create: vi.fn(),
+  takamol: vi.fn(),
   ticket: vi.fn(),
   insert: vi.fn(),
   signOut: vi.fn(),
@@ -60,6 +61,10 @@ vi.mock("@/lib/svp-booking.functions", () => ({
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: () => ({ insert: mocks.insert }) },
+}));
+
+vi.mock("@/lib/takamol-availability.functions", () => ({
+  lookupTakamolAvailability: mocks.takamol,
 }));
 
 vi.mock("@/lib/svp-local-record", () => ({
@@ -201,6 +206,7 @@ beforeEach(() => {
       message: "Reservation confirmed by SVP.",
     },
   });
+  mocks.takamol.mockResolvedValue({ success: false, data: [] });
   mocks.ticket.mockResolvedValue({
     ok: true,
     data: { base64: globalThis.btoa("%PDF-1.4 ticket"), contentType: "application/pdf" },
@@ -239,6 +245,92 @@ function renderWizard() {
       <SvpBookingWizard />
     </QueryClientProvider>,
   );
+}
+
+function configureSiteMode() {
+  mocks.status.mockResolvedValue({
+    signedIn: true,
+    userName: "Noor Rahman",
+    userPassport: "AB123456",
+    login: "noor@example.com",
+    expiresAt: 1_900_000_000,
+    countryTargeted: false,
+  });
+  mocks.setup.mockResolvedValue({
+    ok: true,
+    data: {
+      permissions: {
+        freeReservations: true,
+        targeted: false,
+        countryId: 4,
+        countryName: "Bangladesh",
+      },
+      credits: 0,
+      svpUserId: "969955",
+    },
+  });
+  mocks.overview.mockResolvedValue({
+    ok: true,
+    data: {
+      permissions: {
+        freeReservations: true,
+        targeted: false,
+        countryId: 4,
+        countryName: "Bangladesh",
+        permissionKeys: ["book_appointment"],
+      },
+      constraints: { rescheduleTimes: 1, bookingHoldSeconds: 600, cancellationLimitHours: 48 },
+      flags: { rescheduleEnabled: true, creditsEnabled: true },
+      credits: 0,
+    },
+  });
+}
+
+function configureTargetedMode() {
+  mocks.status.mockResolvedValue({
+    signedIn: true,
+    userName: "Noor Rahman",
+    userPassport: "AB123456",
+    login: "noor@example.com",
+    expiresAt: 1_900_000_000,
+    countryTargeted: true,
+  });
+  mocks.setup.mockResolvedValue({
+    ok: true,
+    data: {
+      permissions: {
+        freeReservations: true,
+        targeted: true,
+        countryId: 4,
+        countryName: "Bangladesh",
+      },
+      credits: 0,
+      svpUserId: "969955",
+    },
+  });
+  mocks.overview.mockResolvedValue({
+    ok: true,
+    data: {
+      permissions: {
+        freeReservations: true,
+        targeted: true,
+        countryId: 4,
+        countryName: "Bangladesh",
+        permissionKeys: ["book_appointment"],
+      },
+      constraints: { rescheduleTimes: 1, bookingHoldSeconds: 600, cancellationLimitHours: 48 },
+      flags: { rescheduleEnabled: true, creditsEnabled: true },
+      credits: 0,
+    },
+  });
+}
+
+async function openDatesStep() {
+  await screen.findByText(/Signed in to SVP as Noor Rahman/);
+  fireEvent.focus(await screen.findByLabelText("Occupation *"));
+  fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+  await screen.findByText(/Step 2/);
 }
 
 describe("SVP booking wizard", () => {
@@ -501,6 +593,187 @@ describe("SVP category auto-match", () => {
     await waitFor(() => expect(mocks.occupationById).toHaveBeenCalled());
     expect(await screen.findByText(/Auto-matched to/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
+  });
+});
+
+describe("SVP city dropdowns", () => {
+  it("auto-selects a sole site city and passes its catalogue country id to availability", async () => {
+    configureSiteMode();
+    mocks.cities.mockResolvedValue({ ok: true, data: [{ city: "Dhaka", countryId: 77 }] });
+    mocks.sites.mockResolvedValue({
+      ok: true,
+      data: {
+        examId: "555",
+        sites: [
+          {
+            siteId: 9,
+            name: "Dhaka Site",
+            city: "Dhaka",
+            address: "1 Test Road",
+            dates: ["2026-12-01"],
+          },
+        ],
+      },
+    });
+
+    renderWizard();
+    await openDatesStep();
+
+    const citySelect = await screen.findByLabelText("Test center city *");
+    expect(citySelect).toHaveValue("Dhaka");
+    await waitFor(() =>
+      expect(mocks.sites).toHaveBeenCalledWith({
+        data: { prometricCode: "en", city: "Dhaka", countryId: 77 },
+      }),
+    );
+  });
+
+  it("keeps several site cities blank until selected and resets the date/session cascade on change", async () => {
+    configureSiteMode();
+    mocks.cities.mockResolvedValue({
+      ok: true,
+      data: [
+        { city: "Dhaka", countryId: 77 },
+        { city: "Rajshahi", countryId: 88 },
+      ],
+    });
+    mocks.sites.mockResolvedValue({
+      ok: true,
+      data: {
+        examId: "555",
+        sites: [
+          {
+            siteId: 19,
+            name: "Rajshahi Site",
+            city: "Rajshahi",
+            address: "2 Test Road",
+            dates: ["2026-12-02"],
+          },
+        ],
+      },
+    });
+    mocks.slots.mockResolvedValue({
+      ok: true,
+      data: [{ id: "slot-raj", siteId: 19, startAt: "2026-12-02T10:00:00", duration: 30 }],
+    });
+
+    renderWizard();
+    await openDatesStep();
+
+    const citySelect = await screen.findByLabelText("Test center city *");
+    expect(citySelect).toHaveValue("");
+    fireEvent.change(citySelect, { target: { value: "Rajshahi" } });
+    await waitFor(() =>
+      expect(mocks.sites).toHaveBeenCalledWith({
+        data: { prometricCode: "en", city: "Rajshahi", countryId: 88 },
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /2 Dec 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Rajshahi Site/ }));
+    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+
+    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled());
+    expect(mocks.hold).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("filters targeted dates by city before deduplication and only looks up sessions for that city", async () => {
+    configureTargetedMode();
+    mocks.dates.mockResolvedValue({
+      ok: true,
+      data: [
+        { startAt: "2026-11-05 09:30:00", city: "Rajshahi", centerName: "Rajshahi Center" },
+        { startAt: "2026-11-05 10:30:00", city: "Dhaka", centerName: "Dhaka Center" },
+        { startAt: "2026-11-07 09:30:00", city: "Rajshahi", centerName: "Rajshahi Center" },
+      ],
+    });
+    mocks.sessions.mockResolvedValue({
+      ok: true,
+      data: [{ ...session, city: "Dhaka", centerName: "Dhaka Center" }],
+    });
+
+    renderWizard();
+    await openDatesStep();
+
+    const citySelect = await screen.findByLabelText("Test center city");
+    expect(citySelect).toHaveValue("");
+    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
+    expect(await screen.findByRole("button", { name: /5 Nov 2026/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /7 Nov 2026/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /5 Nov 2026/ }));
+    await waitFor(() =>
+      expect(mocks.sessions).toHaveBeenCalledWith({
+        data: { categoryId: 159, city: "Dhaka", examDate: "2026-11-05" },
+      }),
+    );
+    expect(mocks.targetedHold).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("uses available-date cities when the site city catalogue errors and exposes retry", async () => {
+    configureSiteMode();
+    mocks.cities.mockResolvedValue({
+      ok: false,
+      needsSignIn: false,
+      message: "City catalogue unavailable",
+    });
+    mocks.dates.mockResolvedValue({
+      ok: true,
+      data: [
+        { startAt: "2026-12-01", city: "Dhaka", centerName: "Dhaka Center" },
+        { startAt: "2026-12-02", city: "Rajshahi", centerName: "Rajshahi Center" },
+      ],
+    });
+
+    renderWizard();
+    await openDatesStep();
+
+    const citySelect = await screen.findByLabelText("Test center city *");
+    expect(citySelect).toHaveValue("");
+    expect(screen.getByRole("option", { name: "Dhaka" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Rajshahi" })).toBeInTheDocument();
+    expect(screen.getByText("The SVP city catalogue is unavailable.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry cities" }));
+    await waitFor(() => expect(mocks.cities).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows a disabled city dropdown beside a manual fallback only when no city data exists", async () => {
+    configureTargetedMode();
+    mocks.dates.mockResolvedValue({ ok: true, data: [] });
+
+    renderWizard();
+    await openDatesStep();
+
+    expect(await screen.findByLabelText("Test center city")).toBeDisabled();
+    expect(
+      await screen.findByText("City (manual fallback)", undefined, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Enter a known SVP test center city")).toBeEnabled();
+    expect(screen.queryByRole("option", { name: "Dhaka" })).not.toBeInTheDocument();
+  });
+
+  it("shows the site-city loading state while the catalogue request is pending", async () => {
+    configureSiteMode();
+    let resolveCities!: (value: { ok: true; data: { city: string; countryId: number }[] }) => void;
+    mocks.cities.mockResolvedValue(
+      new Promise((resolve) => {
+        resolveCities = resolve;
+      }),
+    );
+
+    renderWizard();
+    await openDatesStep();
+    expect(
+      screen
+        .getAllByRole("status")
+        .some((status) => /Loading cities from SVP/i.test(status.textContent ?? "")),
+    ).toBe(true);
+
+    resolveCities({ ok: true, data: [{ city: "Dhaka", countryId: 77 }] });
+    expect(await screen.findByLabelText("Test center city *")).toHaveValue("Dhaka");
   });
 });
 
@@ -806,6 +1079,47 @@ describe("automatic SVP candidate record flow", () => {
     expect(mocks.insert).toHaveBeenCalledWith(
       expect.objectContaining({ agency: null, reference_no: "R-123" }),
     );
+  });
+
+  it("auto-selects an API category language when the occupation omits its language list", async () => {
+    const languageCode = "prometric_english_30_question_category_exam";
+    const occupationWithoutLanguages = { ...occupation, languages: [] };
+    mocks.occupations.mockResolvedValue({ ok: true, data: [occupationWithoutLanguages] });
+    mocks.search.mockResolvedValue({ ok: true, data: [occupationWithoutLanguages] });
+    mocks.occupationById.mockResolvedValue({ ok: true, data: occupationWithoutLanguages });
+    mocks.overview.mockResolvedValue({
+      ok: true,
+      data: {
+        permissions: {
+          freeReservations: true,
+          targeted: true,
+          countryId: 4,
+          countryName: "Bangladesh",
+          permissionKeys: ["book_appointment"],
+        },
+        categories: [
+          {
+            id: 159,
+            name: "Welding",
+            arabicName: null,
+            languages: [
+              { code: languageCode, label: "English", questionCount: 30, nonTargeted: false },
+            ],
+          },
+        ],
+        constraints: { rescheduleTimes: 1, bookingHoldSeconds: 600, cancellationLimitHours: 48 },
+        flags: { rescheduleEnabled: true, creditsEnabled: true },
+        credits: 0,
+      },
+    });
+
+    renderWizard();
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+
+    expect(await screen.findByText(`Auto-selected from SVP · ${languageCode}`)).toBeInTheDocument();
+    expect(screen.getByText("English")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
   });
 
   it("requires missing provider passport without inventing it", async () => {

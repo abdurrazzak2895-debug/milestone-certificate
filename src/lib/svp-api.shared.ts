@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { svpErrorMessage } from "@/lib/svp-session.shared";
 
 export type SvpLanguage = {
@@ -119,6 +120,15 @@ export type SvpCategoryOption = {
   arabicName: string | null;
   languages: SvpLanguage[];
 };
+
+/** Provider-issued load-balancer IDs and language codes are opaque and may exceed short-code limits. */
+export const svpExamSessionIdSchema = z.union([
+  z.number().int().positive(),
+  z.string().trim().min(1).max(200),
+]);
+export const svpExamSessionIdListSchema = z.array(svpExamSessionIdSchema).min(1).max(50);
+export const svpExamSessionIdStringSchema = z.string().trim().min(1).max(200);
+export const svpLanguageCodeSchema = z.string().trim().min(1).max(120);
 
 export type SvpCreateReservationInput = {
   examSessionId: number | string;
@@ -613,6 +623,7 @@ export function parseSvpCategories(payload: unknown): SvpCategoryOption[] {
         id,
         name: text(record["english_name"]) ?? text(record["name"]) ?? `Category ${String(id)}`,
         arabicName: text(record["arabic_name"]),
+        languages: parseLanguages(record),
       };
     })
     .filter((entry): entry is SvpCategoryOption => entry !== null);

@@ -383,7 +383,10 @@ export function SvpBookingWizard() {
     false;
   const categoryOptions = useMemo(() => overview?.categories ?? [], [overview]);
   const matchedCategory = useMemo(() => {
-    if (!occupation || occupation.categoryId) return null;
+    if (!occupation) return null;
+    const categoryId = occupation.categoryId ?? manualCategoryId;
+    const byId = categoryId ? categoryOptions.find((entry) => entry.id === categoryId) : null;
+    if (byId) return byId;
     const needle = (occupation.categoryName ?? occupation.name).trim().toLowerCase();
     if (!needle) return null;
     return (
@@ -397,7 +400,7 @@ export function SvpBookingWizard() {
         );
       }) ?? null
     );
-  }, [categoryOptions, occupation]);
+  }, [categoryOptions, manualCategoryId, occupation]);
   const languageOptions = useMemo(() => {
     const all = occupation?.languages ?? [];
     const categoryLanguages = matchedCategory?.languages ?? [];
@@ -424,7 +427,7 @@ export function SvpBookingWizard() {
   const activeLanguageCode =
     languageCode && languageOptions.some((entry) => entry.code === languageCode)
       ? languageCode
-      : (languageOptions[0]?.code ?? occupation?.languages[0]?.code ?? "en");
+      : (languageOptions[0]?.code ?? "");
 
   const citiesQuery = useQuery({
     queryKey: ["svp-cities"],
@@ -433,7 +436,10 @@ export function SvpBookingWizard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const cities = citiesQuery.data?.ok ? citiesQuery.data.data : [];
+  const cities = useMemo(
+    () => (citiesQuery.data?.ok ? citiesQuery.data.data : []),
+    [citiesQuery.data],
+  );
 
   // Any SVP call can invalidate the stored session (refresh cookie expired/revoked).
   useEffect(() => {
@@ -478,25 +484,69 @@ export function SvpBookingWizard() {
     () => (datesQuery.data?.ok ? datesQuery.data.data : []),
     [datesQuery.data],
   );
-  const targetedCities = useMemo(
-    () => [
-      ...new Set(
-        availableDates
-          .map((entry) => entry.city)
-          .filter((entry): entry is string => Boolean(entry)),
-      ),
-    ],
-    [availableDates],
+  const cityOptions = useMemo(() => {
+    // Targeted cities come from availability, never the site-only city endpoint.
+    // Use those same SVP city labels as a discovery fallback if the site catalogue is empty.
+    const source =
+      !isTargeted && cities.length > 0
+        ? cities
+        : availableDates.map((entry) => ({ city: entry.city ?? "", countryId: null }));
+    const unique = new Map<string, { city: string; countryId: number | null }>();
+    for (const entry of source) {
+      const label = entry.city.trim();
+      if (label && !unique.has(label.toLowerCase())) {
+        unique.set(label.toLowerCase(), { city: label, countryId: entry.countryId });
+      }
+    }
+    return [...unique.values()].sort((a, b) => a.city.localeCompare(b.city));
+  }, [availableDates, cities, isTargeted]);
+  const chooseCity = useCallback(
+    (value: string) => {
+      setCity(value);
+      setCityCountryId(cityOptions.find((entry) => entry.city === value)?.countryId ?? null);
+      setSelectedDate(null);
+      setPrometricDate(null);
+      setSelectedSession(null);
+      setSelectedSlot(null);
+      setHoldId(null);
+      setPrometricHoldExpiresAt(null);
+      setTargetedHoldExpiresAt(null);
+    },
+    [cityOptions],
   );
+  const citiesLoading = isTargeted
+    ? datesQuery.isFetching
+    : citiesQuery.isFetching || (cities.length === 0 && datesQuery.isFetching);
+  useEffect(() => {
+    if (!signedIn || !checked || citiesLoading || stage !== "dates" || cityOptions.length === 0)
+      return;
+    if (city && cityOptions.some((entry) => entry.city === city)) return;
+    const nextCity = cityOptions.length === 1 ? cityOptions[0].city : "";
+    if (nextCity !== city) chooseCity(nextCity);
+  }, [checked, chooseCity, citiesLoading, city, cityOptions, signedIn, stage]);
+  const citiesLoaded = isTargeted
+    ? Boolean(datesQuery.data?.ok)
+    : Boolean(citiesQuery.data?.ok || datesQuery.data?.ok);
+  const cityError = isTargeted
+    ? datesQuery.isError || (datesQuery.data && !datesQuery.data.ok)
+      ? "SVP city availability could not be loaded."
+      : null
+    : citiesQuery.isError || (citiesQuery.data && !citiesQuery.data.ok)
+      ? "The SVP city catalogue is unavailable."
+      : null;
+  const manualCityFallback =
+    !citiesLoading && cityOptions.length === 0 && Boolean(citiesLoaded || cityError);
   const dateOptions = useMemo(() => {
+    if (!city.trim()) return [];
     const map = new Map<string, { date: string; city: string | null }>();
     for (const entry of availableDates) {
+      if (entry.city && entry.city.trim().toLowerCase() !== city.trim().toLowerCase()) continue;
       const { date } = splitDateTime(entry.startAt);
       if (!date || map.has(date)) continue;
       map.set(date, { date, city: entry.city });
     }
     return [...map.values()];
-  }, [availableDates]);
+  }, [availableDates, city]);
 
   const sessionCity = selectedDate?.city ?? city;
   const sessionDate = selectedDate ? splitDateTime(selectedDate.startAt).date : "";
@@ -524,7 +574,7 @@ export function SvpBookingWizard() {
           countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
         },
       }),
-    enabled: signedIn && checked && !isTargeted && Boolean(city),
+    enabled: signedIn && checked && !isTargeted && Boolean(city) && Boolean(prometricCode),
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -640,6 +690,7 @@ export function SvpBookingWizard() {
     setPrometricHoldExpiresAt(null);
     setTargetedHoldExpiresAt(null);
     setCity("");
+    setCityCountryId(null);
     setStage("select");
 
     if (entry.categoryId) return;
@@ -757,15 +808,9 @@ export function SvpBookingWizard() {
         availableDates.find(
           (candidate) =>
             splitDateTime(candidate.startAt).date === entry.date &&
-            (!entry.city || candidate.city === entry.city),
+            (!candidate.city || candidate.city.trim().toLowerCase() === city.trim().toLowerCase()),
         ) ?? null;
       setSelectedDate(nextDate);
-      if (entry.city) {
-        setCity(entry.city);
-        setCityCountryId(
-          cities.find((candidate) => candidate.city === entry.city)?.countryId ?? null,
-        );
-      }
       return;
     }
     setPrometricDate(entry.date);
@@ -778,13 +823,15 @@ export function SvpBookingWizard() {
   };
 
   const refreshAvailability = () => {
-    void takamolQuery.refetch();
+    if (availabilityCity && availabilityDate) void takamolQuery.refetch();
+    if (!isTargeted) void citiesQuery.refetch();
     if (isTargeted) {
       void datesQuery.refetch();
       if (activeDateValue) void sessionsQuery.refetch();
       return;
     }
-    void sitesQuery.refetch();
+    if (city && prometricCode) void sitesQuery.refetch();
+    if (cities.length === 0) void datesQuery.refetch();
     if (prometricDate) void slotsQuery.refetch();
   };
 
@@ -917,7 +964,7 @@ export function SvpBookingWizard() {
   });
 
   const eligibilityKey =
-    occupation && effectiveCategoryId
+    occupation && effectiveCategoryId && activeLanguageCode
       ? `${occupation.id}:${effectiveCategoryId}:${city}:${activeLanguageCode}`
       : "";
   const runEligibility = eligibilityMutation.mutate;
@@ -950,6 +997,8 @@ export function SvpBookingWizard() {
       if (bookingSubmittedRef.current)
         throw new Error("This reservation is already being submitted.");
       if (!occupation || !selectedSession) throw new Error("Select an exam session first.");
+      if (!activeLanguageCode)
+        throw new Error("SVP has not provided a valid exam language for this occupation.");
       if (!accepted) throw new Error("Confirm the candidate details and SVP rules first.");
       if (occupation.driverLicenseRequired)
         throw new Error("Use the official SVP portal for this occupation.");
@@ -1056,7 +1105,7 @@ export function SvpBookingWizard() {
   };
 
   const shownDateOptions = isTargeted ? dateOptions : siteDateOptions;
-  const datesLoading = isTargeted ? datesQuery.isPending : sitesQuery.isPending;
+  const datesLoading = isTargeted ? datesQuery.isFetching : sitesQuery.isFetching;
   const datesError = isTargeted
     ? datesQuery.data && !datesQuery.data.ok
       ? datesQuery.data.message
@@ -1413,30 +1462,49 @@ export function SvpBookingWizard() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {languageOptions.length > 1 && (
+              {languageOptions.length > 0 && (
                 <Field label="Exam language">
-                  <NativeSelect
-                    value={activeLanguageCode}
-                    onChange={(event) => {
-                      setLanguageCode(event.target.value);
-                      setSelectedDate(null);
-                      setSelectedSession(null);
-                      setSelectedSlot(null);
-                      setHoldId(null);
-                      setPrometricHoldExpiresAt(null);
-                      setTargetedHoldExpiresAt(null);
-                      setChecked(false);
-                      setEligibility(null);
-                      setStage("select");
-                    }}
-                  >
-                    {languageOptions.map((entry) => (
-                      <option key={entry.code} value={entry.code}>
-                        {entry.label}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                  {languageOptions.length > 1 ? (
+                    <NativeSelect
+                      value={activeLanguageCode}
+                      onChange={(event) => {
+                        setLanguageCode(event.target.value);
+                        setSelectedDate(null);
+                        setSelectedSession(null);
+                        setSelectedSlot(null);
+                        setHoldId(null);
+                        setPrometricHoldExpiresAt(null);
+                        setTargetedHoldExpiresAt(null);
+                        setChecked(false);
+                        setEligibility(null);
+                        setStage("select");
+                      }}
+                    >
+                      {languageOptions.map((entry) => (
+                        <option key={entry.code} value={entry.code}>
+                          {entry.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  ) : (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
+                      <p className="font-medium">{languageOptions[0]?.label}</p>
+                      <p className="break-all text-xs text-muted-foreground">
+                        Auto-selected from SVP · {activeLanguageCode}
+                      </p>
+                    </div>
+                  )}
                 </Field>
+              )}
+              {occupation && languageOptions.length === 0 && (
+                <p
+                  role={overviewQuery.isFetching ? "status" : "alert"}
+                  className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+                >
+                  {overviewQuery.isFetching
+                    ? "Loading supported exam languages from SVP…"
+                    : "SVP did not return an exam language code for this occupation. Booking is disabled until a supported language is available."}
+                </p>
               )}
               <div className="space-y-2">
                 <Field label="Occupation *">
@@ -1660,7 +1728,8 @@ export function SvpBookingWizard() {
                 role="status"
               >
                 <span>
-                  City list unavailable — type the city manually. ({citiesQuery.data.message})
+                  City catalogue unavailable — Step 2 uses SVP availability cities or an explicit
+                  manual fallback. ({citiesQuery.data.message})
                 </span>
                 <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
                   Retry
@@ -1758,6 +1827,7 @@ export function SvpBookingWizard() {
                 disabled={
                   !occupation ||
                   !effectiveCategoryId ||
+                  !activeLanguageCode ||
                   occupationLookup ||
                   eligibilityMutation.isPending
                 }
@@ -1800,53 +1870,83 @@ export function SvpBookingWizard() {
               </Button>
             </div>
 
-            <Field label={isTargeted ? "Test center city" : "Test center city *"}>
-              {isTargeted ? (
+            <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
+              <Field label={isTargeted ? "Test center city" : "Test center city *"}>
                 <NativeSelect
-                  value={city}
-                  onChange={(event) => {
-                    setCity(event.target.value);
-                    setPrometricDate(null);
-                    setSelectedSlot(null);
-                    setSelectedSession(null);
-                    setHoldId(null);
-                    setPrometricHoldExpiresAt(null);
-                    setTargetedHoldExpiresAt(null);
-                  }}
+                  value={cityOptions.some((entry) => entry.city === city) ? city : ""}
+                  onChange={(event) => chooseCity(event.target.value)}
+                  disabled={cityOptions.length === 0}
+                  aria-busy={citiesLoading}
+                  required
                 >
-                  <option value="">All cities (from SVP availability)</option>
-                  {targetedCities.map((entry) => (
-                    <option key={entry} value={entry}>
-                      {entry}
+                  <option value="">
+                    {citiesLoading && cityOptions.length === 0
+                      ? "Loading cities from SVP…"
+                      : cityOptions.length === 0
+                        ? "No cities returned by SVP"
+                        : "Select a city"}
+                  </option>
+                  {cityOptions.map((entry) => (
+                    <option key={entry.city} value={entry.city}>
+                      {entry.city}
                     </option>
                   ))}
                 </NativeSelect>
-              ) : (
-                <>
+              </Field>
+              {citiesLoading ? (
+                <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading cities from SVP…
+                </p>
+              ) : cityOptions.length > 0 ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {cityOptions.length === 1
+                    ? "The only available city is selected automatically."
+                    : "Choose a city to see its available dates and sessions."}
+                  {isTargeted || cities.length === 0
+                    ? " Cities loaded from SVP availability."
+                    : " Cities loaded from the SVP test-center catalogue."}
+                </p>
+              ) : citiesLoaded ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  SVP has not returned any city options for this occupation.
+                </p>
+              ) : null}
+              {cityError && (
+                <div
+                  role="alert"
+                  className="flex flex-wrap items-center gap-2 text-xs text-warning"
+                >
+                  <span>{cityError}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={refreshAvailability}
+                    disabled={citiesLoading}
+                  >
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry cities
+                  </Button>
+                </div>
+              )}
+              {manualCityFallback && (
+                <Field label="City (manual fallback)">
                   <Input
-                    list="svp-site-cities"
                     value={city}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setCity(value);
-                      setCityCountryId(
-                        cities.find((entry) => entry.city === value)?.countryId ?? null,
-                      );
-                    }}
-                    placeholder="Type the city, e.g. Dhaka"
+                    onChange={(event) => chooseCity(event.target.value)}
+                    maxLength={120}
+                    placeholder="Enter a known SVP test center city"
                     required
                   />
-                  <datalist id="svp-site-cities">
-                    {cities.map((entry) => (
-                      <option key={`${entry.city}-${entry.countryId ?? ""}`} value={entry.city} />
-                    ))}
-                  </datalist>
-                </>
+                  <span className="block text-xs text-muted-foreground">
+                    The API has no city list. Enter a city only if you know the SVP test center;
+                    availability must still be confirmed by SVP.
+                  </span>
+                </Field>
               )}
-            </Field>
-            {!isTargeted && !city.trim() && (
+            </div>
+            {!city.trim() && cityOptions.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Enter the test center city to load the site availability.
+                Select the test center city to load matching availability.
               </p>
             )}
 
@@ -1866,13 +1966,16 @@ export function SvpBookingWizard() {
                 {datesError}
               </p>
             )}
-            {!datesLoading && datesLoaded && shownDateOptions.length === 0 && (
-              <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                {isTargeted
-                  ? "No dates with free seats are available for this occupation right now."
-                  : "No test center sites have free dates this month for this city. Try another city."}
-              </p>
-            )}
+            {Boolean(city.trim()) &&
+              !datesLoading &&
+              datesLoaded &&
+              shownDateOptions.length === 0 && (
+                <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  {isTargeted
+                    ? "No dates with free seats are available for this occupation right now."
+                    : "No test center sites have free dates this month for this city. Try another city."}
+                </p>
+              )}
 
             {shownDateOptions.length > 0 && (
               <div className="space-y-2">
@@ -2015,6 +2118,8 @@ export function SvpBookingWizard() {
                 type="button"
                 onClick={continueFromDates}
                 disabled={
+                  !city.trim() ||
+                  !activeDateValue ||
                   (isTargeted && isLoadBalancer ? examSessions.length === 0 : !selectedSession) ||
                   holdMutation.isPending ||
                   targetedHoldMutation.isPending

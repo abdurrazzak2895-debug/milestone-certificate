@@ -20,6 +20,10 @@ import {
   parseSvpReservation,
   parseSvpReservationDetail,
   parseSvpReservations,
+  svpExamSessionIdListSchema,
+  svpExamSessionIdSchema,
+  svpExamSessionIdStringSchema,
+  svpLanguageCodeSchema,
   type SvpAccountPermissions,
   type SvpAvailableDate,
   type SvpBookingPermissions,
@@ -468,8 +472,8 @@ export const createSvpBooking = createServerFn({ method: "POST" })
       .object({
         occupationId: z.number().int().positive(),
         categoryId: z.number().int().positive(),
-        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(200)]),
-        languageCode: z.string().trim().min(1).max(120),
+        examSessionId: svpExamSessionIdSchema,
+        languageCode: svpLanguageCodeSchema,
         duration: z.number().nonnegative().nullable().optional(),
         startAt: z.string().trim().max(64).nullable().optional(),
         siteId: z.number().int().positive().nullable().optional(),
@@ -852,8 +856,8 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
           .string()
           .trim()
           .regex(/^[A-Za-z0-9-]{1,64}$/),
-        examSessionId: z.union([z.number().int().positive(), z.string().trim().min(1).max(200)]),
-        languageCode: z.string().trim().min(1).max(120),
+        examSessionId: svpExamSessionIdSchema,
+        languageCode: svpLanguageCodeSchema,
       })
       .parse(input),
   )
@@ -937,7 +941,7 @@ export const listSvpPrometricSites = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        prometricCode: z.string().trim().min(1).max(20),
+        prometricCode: svpLanguageCodeSchema,
         city: z.string().trim().min(1).max(120),
         countryId: z.number().int().positive().nullable().optional(),
       })
@@ -1114,7 +1118,7 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
         slotId: z.string().trim().min(1).max(64),
         siteId: z.number().int().positive(),
         siteCity: z.string().trim().max(120).nullable().optional(),
-        languageCode: z.string().trim().min(1).max(120),
+        languageCode: svpLanguageCodeSchema,
         duration: z.number().nonnegative().nullable().optional(),
         startAt: z.string().trim().max(64).nullable().optional(),
         categoryId: z.number().int().positive(),
@@ -1210,14 +1214,7 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        examSessionId: z.union([
-          z.number().int().positive(),
-          z.string().trim().min(1).max(80),
-          z
-            .array(z.union([z.number().int().positive(), z.string().trim().min(1).max(80)]))
-            .min(1)
-            .max(50),
-        ]),
+        examSessionId: z.union([svpExamSessionIdSchema, svpExamSessionIdListSchema]),
         categoryId: z.number().int().positive(),
         countryId: z.number().int().positive().nullable().optional(),
       })
@@ -1270,7 +1267,7 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
 export const getSvpExamSessionById = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ examSessionId: z.string().trim().min(1).max(200) }).parse(input),
+    z.object({ examSessionId: svpExamSessionIdStringSchema }).parse(input),
   )
   .handler(async ({ context, data }): Promise<SvpResult<SvpExamSession>> => {
     await requireSvpAllowedRole(context.supabase, context.userId);
