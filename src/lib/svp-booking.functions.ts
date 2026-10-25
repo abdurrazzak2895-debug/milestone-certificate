@@ -139,39 +139,53 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
       const merged = new Map<number, SvpOccupation>();
       let firstError: string | null = null;
 
-      for (let page = 1; page <= 4; page++) {
-        const response = await svpAuthedRequest(
-          context.userId,
-          "/individual_labor_space/occupations",
-          { query: { ...LOCALE_QUERY, per_page: 194, page, name: "" } },
-        );
-        if (!response.ok) {
-          if (page === 1) {
-            firstError = apiFailure(
-              response.payload,
-              "Occupations could not be loaded.",
-              response.status,
-            );
+      const loadLaborPages = async (perPage: number) => {
+        for (let page = 1; page <= 4; page++) {
+          const response = await svpAuthedRequest(
+            context.userId,
+            "/individual_labor_space/occupations",
+            { query: { ...LOCALE_QUERY, per_page: perPage, page, name: "" } },
+          );
+          if (!response.ok) {
+            if (page === 1 && !firstError) {
+              firstError = apiFailure(
+                response.payload,
+                "Occupations could not be loaded.",
+                response.status,
+              );
+            }
+            break;
           }
-          break;
+          const items = parseSvpOccupations(response.payload);
+          mergeOccupations(merged, items);
+          const root = record(response.payload);
+          const pagination =
+            record(root?.["pagination"]) ?? record(record(root?.["data"])?.["pagination"]);
+          if (!pagination?.["next"] || items.length === 0) break;
         }
-        const items = parseSvpOccupations(response.payload);
-        mergeOccupations(merged, items);
-        const root = record(response.payload);
-        const pagination =
-          record(root?.["pagination"]) ?? record(record(root?.["data"])?.["pagination"]);
-        const next = pagination?.["next"];
-        if (!next || items.length === 0) break;
+      };
+
+      // Some deployments reject large pages; try progressively smaller pages.
+      for (const perPage of [194, 100, 50]) {
+        await loadLaborPages(perPage);
+        if (merged.size > 0) break;
       }
 
-      // Some deployments expect the name filter to be absent.
       if (merged.size === 0) {
         const fallback = await svpAuthedRequest(
           context.userId,
           "/individual_labor_space/occupations",
-          { query: { ...LOCALE_QUERY, per_page: 194, page: 1 } },
+          { query: { ...LOCALE_QUERY, per_page: 50, page: 1 } },
         );
         if (fallback.ok) mergeOccupations(merged, parseSvpOccupations(fallback.payload));
+      }
+
+      // Public catalogue fallback: the category is filled on selection via getSvpOccupationById.
+      if (merged.size === 0) {
+        const visitor = await svpAuthedRequest(context.userId, "/visitor_space/occupations", {
+          query: { ...LOCALE_QUERY, per_page: 1000, page: 1 },
+        });
+        if (visitor.ok) mergeOccupations(merged, parseSvpOccupations(visitor.payload));
       }
 
       if (merged.size === 0 && firstError) return failure(firstError);
@@ -254,6 +268,24 @@ export const searchSvpOccupations = createServerFn({ method: "POST" })
           const pagination =
             record(root?.["pagination"]) ?? record(record(root?.["data"])?.["pagination"]);
           if (!pagination?.["next"]) break;
+        }
+      }
+
+      // 3) Public catalogue fallback, filtered locally.
+      if (merged.size === 0) {
+        const visitor = await svpAuthedRequest(context.userId, "/visitor_space/occupations", {
+          query: { ...LOCALE_QUERY, per_page: 1000, page: 1 },
+        });
+        if (visitor.ok) {
+          const needle = data.query.toLowerCase();
+          mergeOccupations(
+            merged,
+            parseSvpOccupations(visitor.payload).filter((entry) =>
+              [entry.name, entry.arabicName, entry.occupationKey, entry.categoryName].some(
+                (value) => value?.toLowerCase().includes(needle),
+              ),
+            ),
+          );
         }
       }
 
