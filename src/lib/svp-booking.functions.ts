@@ -14,12 +14,16 @@ import {
   parseSvpExamSessions,
   parseSvpFeatureFlags,
   parseSvpOccupations,
+  parseSvpPayment,
+  parseSvpPayments,
   parseSvpPermissions,
   parseSvpPrometricSites,
   parseSvpPrometricSlots,
   parseSvpReservation,
   parseSvpReservationDetail,
   parseSvpReservations,
+  parseSvpCertificatePrice,
+  parseSvpNotifications,
   svpExamSessionIdListSchema,
   svpExamSessionIdSchema,
   svpExamSessionIdStringSchema,
@@ -28,12 +32,15 @@ import {
   type SvpAvailableDate,
   type SvpBookingPermissions,
   type SvpCategoryOption,
+  type SvpCertificatePrice,
   type SvpCity,
   type SvpConstraints,
   type SvpEligibility,
   type SvpExamSession,
   type SvpFeatureFlags,
+  type SvpNotification,
   type SvpOccupation,
+  type SvpPaymentRow,
   type SvpPrometricSiteList,
   type SvpPrometricSlot,
   type SvpReservation,
@@ -74,6 +81,43 @@ function mergeOccupations(target: Map<number, SvpOccupation>, items: SvpOccupati
 
 const LOCALE_QUERY = { locale: "en" } as const;
 
+/**
+ * Feature flags: the labor-space endpoint is primary; older tenants expose /flipper.
+ * Both shapes are parsed by parseSvpFeatureFlags.
+ */
+async function readSvpFlags(userId: string) {
+  const primary = await svpAuthedRequest(userId, "/individual_labor_space/feature_flags", {
+    query: LOCALE_QUERY,
+    retries: 0,
+  });
+  if (primary.ok) return primary;
+  return svpAuthedRequest(userId, "/flipper/feature_flags", { query: LOCALE_QUERY, retries: 0 });
+}
+
+/** Reservation credits: labor-space user_balance is primary, /users/{id}/balance is legacy. */
+async function readSvpCredits(
+  userId: string,
+  svpUserId: string,
+  occupationId?: number | null,
+): Promise<number> {
+  const query: Record<string, string | number> = {
+    ...LOCALE_QUERY,
+    methodology_type: "in_person",
+  };
+  if (occupationId) query["occupation_id"] = occupationId;
+  const primary = await svpAuthedRequest(
+    userId,
+    `/individual_labor_space/user_balance/${encodeURIComponent(svpUserId)}`,
+    { query, retries: 0 },
+  );
+  if (primary.ok) return parseSvpCredits(primary.payload);
+  const legacy = await svpAuthedRequest(userId, `/users/${encodeURIComponent(svpUserId)}/balance`, {
+    query,
+    retries: 0,
+  });
+  return legacy.ok ? parseSvpCredits(legacy.payload) : 0;
+}
+
 const categoryInput = z.object({
   categoryId: z.number().int().positive(),
   countryId: z.number().int().positive().nullable().optional(),
@@ -110,21 +154,10 @@ export const getSvpBookingSetup = createServerFn({ method: "POST" })
         }
         const permissions = parseSvpPermissions(permissionsResponse.payload);
         const session = readStoredSvpSession(context.userId);
-        let credits = 0;
-        if (session?.svpUserId && data.occupationId) {
-          const creditsResponse = await svpAuthedRequest(
-            context.userId,
-            `/users/${encodeURIComponent(session.svpUserId)}/balance`,
-            {
-              query: {
-                ...LOCALE_QUERY,
-                methodology_type: "in_person",
-                occupation_id: data.occupationId,
-              },
-            },
-          );
-          if (creditsResponse.ok) credits = parseSvpCredits(creditsResponse.payload);
-        }
+        const credits =
+          session?.svpUserId && data.occupationId
+            ? await readSvpCredits(context.userId, session.svpUserId, data.occupationId)
+            : 0;
         return {
           ok: true,
           data: { permissions, credits, svpUserId: session?.svpUserId ?? null },
@@ -748,7 +781,7 @@ export const getSvpAccountOverview = createServerFn({ method: "POST" })
         svpAuthedRequest(context.userId, "/individual_labor_space/exam_constraints", {
           query: LOCALE_QUERY,
         }),
-        svpAuthedRequest(context.userId, "/flipper/feature_flags", { query: LOCALE_QUERY }),
+        readSvpFlags(context.userId),
       ]);
       if (!permissionsResponse.ok) {
         return failure(
@@ -766,18 +799,7 @@ export const getSvpAccountOverview = createServerFn({ method: "POST" })
       const session = readStoredSvpSession(context.userId);
       let credits = 0;
       if (session?.svpUserId && data.occupationId) {
-        const creditsResponse = await svpAuthedRequest(
-          context.userId,
-          `/users/${encodeURIComponent(session.svpUserId)}/balance`,
-          {
-            query: {
-              ...LOCALE_QUERY,
-              methodology_type: "in_person",
-              occupation_id: data.occupationId,
-            },
-          },
-        );
-        if (creditsResponse.ok) credits = parseSvpCredits(creditsResponse.payload);
+        credits = await readSvpCredits(context.userId, session.svpUserId, data.occupationId);
       }
       return {
         ok: true,
@@ -904,7 +926,7 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
         svpAuthedRequest(context.userId, "/individual_labor_space/exam_constraints", {
           query: LOCALE_QUERY,
         }),
-        svpAuthedRequest(context.userId, "/flipper/feature_flags", { query: LOCALE_QUERY }),
+        readSvpFlags(context.userId),
       ]);
 
       if (detailResponse.ok) {
@@ -1108,7 +1130,7 @@ async function assertRescheduleAllowed(
       { query: LOCALE_QUERY },
     ),
     svpAuthedRequest(userId, "/individual_labor_space/exam_constraints", { query: LOCALE_QUERY }),
-    svpAuthedRequest(userId, "/flipper/feature_flags", { query: LOCALE_QUERY }),
+    readSvpFlags(userId),
   ]);
 
   if (detailResponse.ok) {
@@ -1550,6 +1572,153 @@ export const getSvpPaymentStatus = createServerFn({ method: "POST" })
       } catch (error) {
         if (error instanceof SvpSessionMissingError) return failure(error.message, true);
         return failure("The payment status could not be checked.");
+      }
+    },
+  );
+
+/** Card payments recorded on the signed-in labor account (GET /payments). */
+export const listSvpPayments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SvpResult<SvpPaymentRow[]>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(context.userId, "/individual_labor_space/payments", {
+        query: LOCALE_QUERY,
+      });
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "SVP payments could not be loaded.", response.status),
+        );
+      }
+      return { ok: true, data: parseSvpPayments(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("SVP payments could not be loaded.");
+    }
+  });
+
+/** One card payment with its gateway status (GET /payments/{id}). */
+export const getSvpPaymentDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        paymentId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpPaymentRow>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        `/individual_labor_space/payments/${encodeURIComponent(data.paymentId)}`,
+        { query: LOCALE_QUERY },
+      );
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "The payment could not be loaded.", response.status),
+        );
+      }
+      const payment = parseSvpPayment(response.payload);
+      if (!payment) return failure("SVP did not return this payment.");
+      return { ok: true, data: payment };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The payment could not be loaded.");
+    }
+  });
+
+/** In-app SVP notifications (GET /notifications). */
+export const listSvpNotifications = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SvpResult<SvpNotification[]>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/notifications",
+        { query: LOCALE_QUERY },
+      );
+      if (!response.ok) {
+        return failure(
+          apiFailure(response.payload, "SVP notifications could not be loaded.", response.status),
+        );
+      }
+      return { ok: true, data: parseSvpNotifications(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("SVP notifications could not be loaded.");
+    }
+  });
+
+/** Certificate price for the account's country (GET /certificate_price). */
+export const getSvpCertificatePrice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SvpResult<SvpCertificatePrice>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    try {
+      const response = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/certificate_price",
+        { query: LOCALE_QUERY },
+      );
+      if (!response.ok) {
+        return failure(
+          apiFailure(
+            response.payload,
+            "The certificate price could not be loaded.",
+            response.status,
+          ),
+        );
+      }
+      return { ok: true, data: parseSvpCertificatePrice(response.payload) };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("The certificate price could not be loaded.");
+    }
+  });
+
+/** Cancel an SVP reservation (DELETE /exam_reservations/{id}). */
+export const cancelSvpReservation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        reservationId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9-]{1,64}$/),
+      })
+      .parse(input),
+  )
+  .handler(
+    async ({ context, data }): Promise<SvpResult<{ reservationId: string; message: string }>> => {
+      await requireSvpAllowedRole(context.supabase, context.userId);
+      try {
+        const response = await svpAuthedRequest(
+          context.userId,
+          `/individual_labor_space/exam_reservations/${encodeURIComponent(data.reservationId)}`,
+          { method: "DELETE", query: LOCALE_QUERY },
+        );
+        if (!response.ok) {
+          return failure(
+            apiFailure(response.payload, "SVP could not cancel this reservation.", response.status),
+          );
+        }
+        return {
+          ok: true,
+          data: {
+            reservationId: data.reservationId,
+            message: "Reservation cancelled in SVP.",
+          },
+        };
+      } catch (error) {
+        if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+        return failure("SVP could not cancel this reservation.");
       }
     },
   );

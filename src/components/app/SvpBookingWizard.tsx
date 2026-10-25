@@ -4,12 +4,14 @@ import { toast } from "sonner";
 import {
   AlertCircle,
   Award,
+  Bell,
   BriefcaseBusiness,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
   Clock3,
+  CreditCard,
   Download,
   ExternalLink,
   FileText,
@@ -21,6 +23,7 @@ import {
   RotateCcw,
   ShieldCheck,
   UserRound,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +36,7 @@ import { SvpResultPanel } from "@/components/app/SvpResultPanel";
 import type { SvpExamSessionView } from "@/components/app/SvpExamSessionsTable";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  cancelSvpReservation,
   checkSvpBookingEligibility,
   createSvpBooking,
   createSvpPrometricHold,
@@ -48,6 +52,8 @@ import {
   listSvpAvailableDates,
   listSvpBookingOccupations,
   listSvpExamSessions,
+  listSvpNotifications,
+  listSvpPayments,
   listSvpPrometricSites,
   listSvpPrometricSlots,
   listSvpReservations,
@@ -746,6 +752,39 @@ export function SvpBookingWizard() {
   const cancelledReservations = reservations.filter((entry) =>
     /cancel/i.test(entry.status ?? ""),
   ).length;
+
+  // Card payments and SVP notifications back the "account activity" panel.
+  const paymentsQuery = useQuery({
+    queryKey: ["svp-payments"],
+    queryFn: () => listSvpPayments(),
+    enabled: signedIn,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const payments = paymentsQuery.data?.ok ? paymentsQuery.data.data : [];
+  const notificationsQuery = useQuery({
+    queryKey: ["svp-notifications"],
+    queryFn: () => listSvpNotifications(),
+    enabled: signedIn,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const notifications = notificationsQuery.data?.ok ? notificationsQuery.data.data : [];
+
+  const cancelMutation = useMutation({
+    mutationFn: (reservationId: string) => cancelSvpReservation({ data: { reservationId } }),
+    onSuccess: (response) => {
+      if (!response.ok) {
+        if (response.needsSignIn) requireSignIn();
+        toast.error(response.message);
+        return;
+      }
+      toast.success(response.data.message);
+      void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
+      void queryClient.invalidateQueries({ queryKey: ["svp-account-overview"] });
+    },
+    onError: () => toast.error("SVP could not cancel this reservation."),
+  });
 
   // The result + certificate live on the reservation detail endpoint.
   const reservationIdsKey = reservations.map((entry) => entry.id).join(",");
@@ -2683,6 +2722,26 @@ export function SvpBookingWizard() {
                           Not reschedulable
                         </span>
                       )}
+                      {entry.status && !/cancel/i.test(entry.status) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (window.confirm(`Cancel SVP reservation #${entry.id}?`)) {
+                              cancelMutation.mutate(entry.id);
+                            }
+                          }}
+                          disabled={cancelMutation.isPending}
+                        >
+                          {cancelMutation.isPending && cancelMutation.variables === entry.id ? (
+                            <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <XCircle className="mr-1 h-3.5 w-3.5" />
+                          )}
+                          Cancel
+                        </Button>
+                      )}
                       {ticketReady && (
                         <Button
                           type="button"
@@ -2772,6 +2831,78 @@ export function SvpBookingWizard() {
             </div>
           )}
         </section>
+
+        {(payments.length > 0 || notifications.length > 0) && (
+          <section className="card-surface space-y-3 p-4 sm:p-5">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                SVP account activity
+              </p>
+              <h2 className="text-lg font-bold">Payments & notifications</h2>
+            </div>
+
+            {payments.length > 0 && (
+              <div className="space-y-2">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <CreditCard className="h-3.5 w-3.5" /> Card payments
+                </p>
+                <div className="divide-y overflow-hidden rounded-xl border bg-background/40">
+                  {payments.slice(0, 8).map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
+                    >
+                      <span className="font-semibold">#{payment.id}</span>
+                      <span>{payment.amount != null ? `${payment.amount} SAR` : "Amount n/a"}</span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone(
+                          payment.transactionStatus ?? payment.status,
+                        )}`}
+                      >
+                        {payment.transactionStatus ?? payment.status ?? "unknown"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {payment.reservationId ? `Reservation #${payment.reservationId}` : ""}
+                        {payment.createdAt
+                          ? `${payment.reservationId ? " · " : ""}${formatDateOnly(
+                              payment.createdAt.slice(0, 10),
+                            )}`
+                          : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {notifications.length > 0 && (
+              <div className="space-y-2">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Bell className="h-3.5 w-3.5" /> SVP notifications
+                </p>
+                <div className="space-y-2">
+                  {notifications.slice(0, 5).map((notification) => (
+                    <div key={notification.id} className="rounded-lg border bg-background/40 p-3">
+                      <p className="text-sm font-medium">
+                        {notification.title ?? "SVP notification"}
+                      </p>
+                      {notification.message && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {notification.message}
+                        </p>
+                      )}
+                      {notification.createdAt && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {notification.createdAt}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

@@ -127,6 +127,29 @@ export type SvpFeatureFlags = {
   creditsEnabled: boolean;
 };
 
+export type SvpPaymentRow = {
+  id: string;
+  amount: number | null;
+  status: string | null;
+  transactionStatus: string | null;
+  reservationId: string | null;
+  invoiceId: string | null;
+  createdAt: string | null;
+};
+
+export type SvpNotification = {
+  id: string;
+  title: string | null;
+  message: string | null;
+  createdAt: string | null;
+  read: boolean;
+};
+
+export type SvpCertificatePrice = {
+  amount: number | null;
+  currency: string | null;
+};
+
 export type SvpAccountPermissions = SvpBookingPermissions & {
   permissionKeys: string[];
 };
@@ -575,6 +598,90 @@ export function parseSvpFeatureFlags(payload: unknown): SvpFeatureFlags {
   return {
     rescheduleEnabled: lookup("enable_labor_rescheduling_flow"),
     creditsEnabled: lookup("labor_reservation_credits"),
+  };
+}
+
+function paymentIdText(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+function toPaymentRow(record: Record<string, unknown>): SvpPaymentRow | null {
+  const id = paymentIdText(record["id"] ?? record["payment_id"]);
+  if (!id) return null;
+  const response = asRecord(record["response"]);
+  const payableType = paymentIdText(record["payable_type"])?.toUpperCase() ?? null;
+  const payableId = paymentIdText(record["payable_id"]);
+  const invoice = asRecord(record["invoice"]);
+  return {
+    id,
+    amount: number(record["amount"]),
+    status: text(record["status"]) ?? text(record["payment_status"]),
+    transactionStatus: text(response?.["transaction_status"]) ?? text(record["transaction_status"]),
+    reservationId:
+      text(record["reservation_id"]) ??
+      (payableType === "RESERVATION" ? payableId : null) ??
+      text(asRecord(record["reservation"])?.["id"]),
+    invoiceId: paymentIdText(record["invoice_id"]) ?? paymentIdText(invoice?.["id"]),
+    createdAt: text(record["created_at"]) ?? text(record["createdAt"]),
+  };
+}
+
+/** Card payments of the signed-in labor (GET /payments). */
+export function parseSvpPayments(payload: unknown): SvpPaymentRow[] {
+  return pickList(payload, ["payments", "payment"])
+    .map((entry) => {
+      const record = asRecord(entry);
+      return record ? toPaymentRow(record) : null;
+    })
+    .filter((entry): entry is SvpPaymentRow => entry !== null);
+}
+
+/** One payment record returned by GET /payments/{id}. */
+export function parseSvpPayment(payload: unknown): SvpPaymentRow | null {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  const payment = asRecord(data?.["payment"]) ?? data;
+  return payment ? toPaymentRow(payment) : null;
+}
+
+/** In-app SVP notifications (GET /notifications). */
+export function parseSvpNotifications(payload: unknown): SvpNotification[] {
+  return pickList(payload, ["notifications", "notification"])
+    .map((entry) => {
+      const record = asRecord(entry);
+      if (!record) return null;
+      const id = paymentIdText(record["id"] ?? record["uuid"]);
+      if (!id) return null;
+      return {
+        id,
+        title: text(record["title"]) ?? text(record["subject"]),
+        message: text(record["message"]) ?? text(record["body"]) ?? text(record["description"]),
+        createdAt: text(record["created_at"]) ?? text(record["createdAt"]),
+        read: Boolean(record["read_at"] ?? record["read"] ?? record["seen"]),
+      };
+    })
+    .filter((entry): entry is SvpNotification => entry !== null);
+}
+
+/** Certificate price for the labor's country (GET /certificate_price). */
+export function parseSvpCertificatePrice(payload: unknown): SvpCertificatePrice {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  const country = asRecord(data?.["country"]);
+  return {
+    amount:
+      number(data?.["certificate_price"]) ??
+      number(data?.["price"]) ??
+      number(data?.["amount"]) ??
+      number(country?.["certificate_price"]) ??
+      number(country?.["test_price"]),
+    currency:
+      text(data?.["currency"]) ??
+      text(data?.["currency_code"]) ??
+      text(country?.["currency"]) ??
+      text(country?.["currency_code"]),
   };
 }
 

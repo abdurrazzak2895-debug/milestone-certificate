@@ -7,6 +7,10 @@ import {
   parseSvpExamSessions,
   parseSvpOccupations,
   parseSvpPermissions,
+  parseSvpPayment,
+  parseSvpPayments,
+  parseSvpNotifications,
+  parseSvpCertificatePrice,
   parseSvpPrometricSites,
   parseSvpPrometricSlots,
   parseSvpAccountPermissions,
@@ -491,5 +495,62 @@ describe("SVP targeted load-balancer sessions", () => {
         siteId: null,
       },
     ]);
+  });
+});
+
+describe("SVP payments, notifications and certificate price", () => {
+  it("maps payment rows from the list and a single detail payload", () => {
+    const payment = {
+      id: 2596452,
+      amount: 85,
+      status: "paid",
+      payable_type: "RESERVATION",
+      payable_id: 4066364,
+      created_at: "2026-10-20T10:00:00Z",
+      response: { transaction_status: "success" },
+      invoice: { id: 77 },
+    };
+
+    expect(parseSvpPayments({ data: { payments: [payment] } })).toEqual([
+      {
+        id: "2596452",
+        amount: 85,
+        status: "paid",
+        transactionStatus: "success",
+        reservationId: "4066364",
+        invoiceId: "77",
+        createdAt: "2026-10-20T10:00:00Z",
+      },
+    ]);
+    expect(parseSvpPayment({ data: { payment } })?.id).toBe("2596452");
+  });
+
+  it("maps notifications and the certificate price", () => {
+    expect(
+      parseSvpNotifications({
+        notifications: [
+          {
+            id: "n1",
+            title: "Payment received",
+            body: "Your card payment was confirmed.",
+            created_at: "2026-10-20",
+            read_at: null,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: "n1",
+        title: "Payment received",
+        message: "Your card payment was confirmed.",
+        createdAt: "2026-10-20",
+        read: false,
+      },
+    ]);
+
+    expect(parseSvpCertificatePrice({ data: { certificate_price: 50, currency: "SAR" } })).toEqual({
+      amount: 50,
+      currency: "SAR",
+    });
   });
 });

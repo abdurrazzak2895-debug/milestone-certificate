@@ -29,6 +29,9 @@ const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
   switchAccount: vi.fn(),
   removeAccount: vi.fn(),
+  payments: vi.fn(),
+  notifications: vi.fn(),
+  cancel: vi.fn(),
 }));
 
 vi.mock("@/lib/svp-session.functions", () => ({
@@ -59,6 +62,9 @@ vi.mock("@/lib/svp-booking.functions", () => ({
   checkSvpBookingEligibility: mocks.eligibility,
   createSvpBooking: mocks.create,
   downloadSvpTicket: mocks.ticket,
+  listSvpPayments: mocks.payments,
+  listSvpNotifications: mocks.notifications,
+  cancelSvpReservation: mocks.cancel,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -185,6 +191,12 @@ beforeEach(() => {
   });
   mocks.sessions.mockResolvedValue({ ok: true, data: [session] });
   mocks.reservations.mockResolvedValue({ ok: true, data: [] });
+  mocks.payments.mockResolvedValue({ ok: true, data: [] });
+  mocks.notifications.mockResolvedValue({ ok: true, data: [] });
+  mocks.cancel.mockResolvedValue({
+    ok: true,
+    data: { reservationId: "R-123", message: "Reservation cancelled in SVP." },
+  });
   mocks.eligibility.mockResolvedValue({
     ok: true,
     data: [
@@ -1412,5 +1424,70 @@ describe("automatic SVP candidate record flow", () => {
     expect(mocks.insert).toHaveBeenCalledTimes(1);
     finishSave("saved-row");
     await screen.findByText("Local reservation record saved automatically.");
+  });
+});
+
+describe("SVP account activity", () => {
+  it("shows real card payments and cancels a reservation through the DELETE route", async () => {
+    mocks.payments.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "2596452",
+          amount: 85,
+          status: "paid",
+          transactionStatus: "success",
+          reservationId: "R-123",
+          invoiceId: null,
+          createdAt: "2026-10-20T10:00:00Z",
+        },
+      ],
+    });
+    mocks.notifications.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "n1",
+          title: "Payment received",
+          message: "Your card payment was confirmed.",
+          createdAt: "2026-10-20",
+          read: false,
+        },
+      ],
+    });
+    mocks.reservations.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "R-123",
+          status: "reserved",
+          laborName: "Noor Rahman",
+          occupationName: "Welder",
+          occupationEnglishName: "Welder",
+          centerName: "Dhaka Center",
+          city: "Dhaka",
+          startAt: "2026-11-05 09:30:00",
+          canBeRescheduled: true,
+          certificate: null,
+          examResult: null,
+          finalResult: null,
+        },
+      ],
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderWizard();
+
+    expect(await screen.findByText("Payments & notifications")).toBeInTheDocument();
+    expect(screen.getByText("#2596452")).toBeInTheDocument();
+    expect(screen.getByText("85 SAR")).toBeInTheDocument();
+    expect(screen.getByText("Payment received")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(mocks.cancel).toHaveBeenCalledWith({ data: { reservationId: "R-123" } }),
+    );
+    expect(confirmSpy).toHaveBeenCalled();
   });
 });
