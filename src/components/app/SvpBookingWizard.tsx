@@ -46,6 +46,8 @@ import {
   searchSvpOccupations,
   type SvpBookingResult,
 } from "@/lib/svp-booking.functions";
+import { lookupTakamolAvailability } from "@/lib/takamol-availability.functions";
+import { parseSessionTableRows } from "@/lib/takamol-availability.ui";
 import {
   getSvpSessionStatus,
   listSvpAccounts,
@@ -493,6 +495,42 @@ export function SvpBookingWizard() {
   });
   const prometricSlots = slotsQuery.data?.ok ? slotsQuery.data.data : [];
 
+  const availabilityCity = selectedDate?.city ?? city;
+  const availabilityDate = isTargeted
+    ? selectedDate
+      ? splitDateTime(selectedDate.startAt).date
+      : ""
+    : (prometricDate ?? "");
+  const takamolQuery = useQuery({
+    queryKey: [
+      "svp-takamol-availability",
+      occupation?.categoryId,
+      availabilityCity,
+      availabilityDate,
+    ],
+    queryFn: () =>
+      lookupTakamolAvailability({
+        data: {
+          endpoint: "sessions",
+          categoryId: String(occupation?.categoryId),
+          city: availabilityCity,
+          examDate: availabilityDate,
+        },
+      }),
+    enabled:
+      checked &&
+      Boolean(occupation?.categoryId) &&
+      Boolean(availabilityCity) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(availabilityDate),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const takamolRows = takamolQuery.data?.success
+    ? parseSessionTableRows(takamolQuery.data.data, availabilityCity)
+    : [];
+  const activeLanguageLabel =
+    languageOptions.find((entry) => entry.code === activeLanguageCode)?.label ?? activeLanguageCode;
+
   // If the site-based attempt fails after eligibility but targeted dates exist, use them.
   useEffect(() => {
     if (isTargeted || !checked) return;
@@ -665,6 +703,7 @@ export function SvpBookingWizard() {
   };
 
   const refreshAvailability = () => {
+    void takamolQuery.refetch();
     if (isTargeted) {
       void datesQuery.refetch();
       if (activeDateValue) void sessionsQuery.refetch();
@@ -990,7 +1029,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v6
+              Official SVP API · live · v7
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1403,7 +1442,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v6
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v7
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -1642,6 +1681,51 @@ export function SvpBookingWizard() {
                     </button>
                   ))}
                 </div>
+                {takamolRows.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">Live availability · Takamol API</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateOnly(availabilityDate)} · {availabilityCity} ·{" "}
+                          {activeLanguageLabel}
+                        </p>
+                      </div>
+                      <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                        Reference only
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border">
+                      <table className="w-full min-w-[34rem] text-left text-sm">
+                        <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2">Test center</th>
+                            <th className="px-3 py-2">Time</th>
+                            <th className="px-3 py-2">Seats</th>
+                            <th className="px-3 py-2">Slot</th>
+                            <th className="px-3 py-2">Language</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {takamolRows.map((row) => (
+                            <tr key={row.id}>
+                              <td className="px-3 py-2">{row.centerName}</td>
+                              <td className="px-3 py-2 font-medium">{row.examTime}</td>
+                              <td className="px-3 py-2">{row.seats}</td>
+                              <td className="px-3 py-2">{row.examSlot}</td>
+                              <td className="px-3 py-2">{activeLanguageLabel}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Reference availability from the Takamol API. The reservation is created with
+                      the SVP session you select above.
+                    </p>
+                  </div>
+                )}
+
                 {isTargeted && isLoadBalancer && examSessions.length > 1 && (
                   <p className="text-xs text-muted-foreground">
                     SVP will assign one of these {examSessions.length} sessions for the selected
