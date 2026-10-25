@@ -2187,6 +2187,18 @@ export function SvpBookingWizard() {
               />
             )}
 
+            {takamolQuery.data && !takamolQuery.data.success && takamolQuery.data.message && (
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
+              >
+                <span>Takamol live availability: {takamolQuery.data.message}</span>
+                <Button type="button" size="sm" variant="outline" onClick={refreshAvailability}>
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry
+                </Button>
+              </div>
+            )}
+
             {activeDateValue && (
               <div className="space-y-2">
                 {takamolRows.length === 0 && sessionsLoading && (
