@@ -62,6 +62,10 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function mergeOccupations(target: Map<number, SvpOccupation>, items: SvpOccupation[]) {
+  for (const item of items) target.set(item.id, item);
+}
+
 const LOCALE_QUERY = { locale: "en" } as const;
 
 const categoryInput = z.object({
@@ -132,30 +136,46 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<SvpResult<SvpOccupation[]>> => {
     await requireSvpAllowedRole(context.supabase, context.userId);
     try {
-      const response = await svpAuthedRequest(
-        context.userId,
-        "/individual_labor_space/occupations",
-        { query: { ...LOCALE_QUERY, per_page: 194, page: 1, name: "" } },
-      );
-      if (!response.ok) {
-        return failure(
-          apiFailure(response.payload, "Occupations could not be loaded.", response.status),
+      const merged = new Map<number, SvpOccupation>();
+      let firstError: string | null = null;
+
+      for (let page = 1; page <= 4; page++) {
+        const response = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/occupations",
+          { query: { ...LOCALE_QUERY, per_page: 194, page, name: "" } },
         );
+        if (!response.ok) {
+          if (page === 1) {
+            firstError = apiFailure(
+              response.payload,
+              "Occupations could not be loaded.",
+              response.status,
+            );
+          }
+          break;
+        }
+        const items = parseSvpOccupations(response.payload);
+        mergeOccupations(merged, items);
+        const root = record(response.payload);
+        const pagination =
+          record(root?.["pagination"]) ?? record(record(root?.["data"])?.["pagination"]);
+        const next = pagination?.["next"];
+        if (!next || items.length === 0) break;
       }
-      let occupations = parseSvpOccupations(response.payload);
-      if (occupations.length === 0) {
-        // Some deployments expect the name filter to be absent for the full list.
+
+      // Some deployments expect the name filter to be absent.
+      if (merged.size === 0) {
         const fallback = await svpAuthedRequest(
           context.userId,
           "/individual_labor_space/occupations",
           { query: { ...LOCALE_QUERY, per_page: 194, page: 1 } },
         );
-        if (fallback.ok) {
-          const retry = parseSvpOccupations(fallback.payload);
-          if (retry.length > 0) occupations = retry;
-        }
+        if (fallback.ok) mergeOccupations(merged, parseSvpOccupations(fallback.payload));
       }
-      return { ok: true, data: occupations };
+
+      if (merged.size === 0 && firstError) return failure(firstError);
+      return { ok: true, data: [...merged.values()] };
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("Occupations could not be loaded.");
@@ -198,17 +218,46 @@ export const searchSvpOccupations = createServerFn({ method: "POST" })
     await requireSvpAllowedRole(context.supabase, context.userId);
     if (!data.query) return { ok: true, data: [] };
     try {
-      const response = await svpAuthedRequest(
-        context.userId,
-        "/individual_labor_space/occupations",
-        { query: { ...LOCALE_QUERY, per_page: 50, page: 1, name: data.query } },
-      );
-      if (!response.ok) {
-        return failure(
-          apiFailure(response.payload, "Similar occupations could not be loaded.", response.status),
+      const merged = new Map<number, SvpOccupation>();
+
+      // 1) SVP name filter, then the alternative `search` key.
+      for (const query of [
+        { per_page: 100, page: 1, name: data.query },
+        { per_page: 100, page: 1, search: data.query },
+      ]) {
+        const response = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/occupations",
+          { query: { ...LOCALE_QUERY, ...query } },
         );
+        if (response.ok) mergeOccupations(merged, parseSvpOccupations(response.payload));
+        if (merged.size > 0) break;
       }
-      return { ok: true, data: parseSvpOccupations(response.payload) };
+
+      // 2) Local filter over the full (paginated) catalogue as a fallback.
+      if (merged.size === 0) {
+        const needle = data.query.toLowerCase();
+        for (let page = 1; page <= 4; page++) {
+          const response = await svpAuthedRequest(
+            context.userId,
+            "/individual_labor_space/occupations",
+            { query: { ...LOCALE_QUERY, per_page: 194, page, name: "" } },
+          );
+          if (!response.ok) break;
+          const items = parseSvpOccupations(response.payload).filter((entry) =>
+            [entry.name, entry.arabicName, entry.occupationKey, entry.categoryName].some((value) =>
+              value?.toLowerCase().includes(needle),
+            ),
+          );
+          mergeOccupations(merged, items);
+          const root = record(response.payload);
+          const pagination =
+            record(root?.["pagination"]) ?? record(record(root?.["data"])?.["pagination"]);
+          if (!pagination?.["next"]) break;
+        }
+      }
+
+      return { ok: true, data: [...merged.values()].slice(0, 50) };
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("Similar occupations could not be loaded.");

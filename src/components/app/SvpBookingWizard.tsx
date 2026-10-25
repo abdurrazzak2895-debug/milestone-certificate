@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -207,6 +207,7 @@ export function SvpBookingWizard() {
   const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [forceTargeted, setForceTargeted] = useState(false);
   const [occupationLookup, setOccupationLookup] = useState(false);
+  const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
 
   const [stage, setStage] = useState<Stage>("select");
@@ -375,6 +376,15 @@ export function SvpBookingWizard() {
     overviewQuery.data,
     setupQuery.data,
   ]);
+
+  useEffect(() => {
+    if (!occupationOpen) return;
+    const handleOutside = (event: MouseEvent) => {
+      if (!occupationBoxRef.current?.contains(event.target as Node)) setOccupationOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [occupationOpen]);
 
   const categoryId = occupation?.categoryId ?? null;
   const datesQuery = useQuery({
@@ -980,7 +990,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v5
+              Official SVP API · live · v6
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1393,7 +1403,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v5
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v6
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
