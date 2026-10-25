@@ -179,7 +179,9 @@ describe("SVP response parsers", () => {
           },
         ],
       }),
-    ).toEqual([{ startAt: "2026-11-05 09:30:00", city: "Dhaka", centerName: "Dhaka Center" }]);
+    ).toEqual([
+      { startAt: "2026-11-05 09:30:00", city: "Dhaka", centerName: "Dhaka Center", seats: null },
+    ]);
   });
 
   it("reads exam sessions with seat and duration data", () => {

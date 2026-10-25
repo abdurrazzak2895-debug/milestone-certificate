@@ -1,0 +1,63 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { SvpDateCalendar } from "@/components/app/SvpDateCalendar";
+
+afterEach(cleanup);
+
+const options = [
+  { date: "2026-11-05", seats: 7 },
+  { date: "2026-11-09", seats: 1 },
+  { date: "2026-12-02", seats: null },
+];
+
+describe("SVP date calendar", () => {
+  it("stays closed until clicked, then shows available dates with seats", () => {
+    render(<SvpDateCalendar options={options} value="" onSelect={vi.fn()} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Select an available date")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Exam date" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Available exam dates" });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /5 Nov 2026/ })).toBeInTheDocument();
+    expect(screen.getByText("7 seats")).toBeInTheDocument();
+    expect(screen.getByText("1 seat")).toBeInTheDocument();
+    // Month groups
+    expect(screen.getByText("November 2026")).toBeInTheDocument();
+    expect(screen.getByText("December 2026")).toBeInTheDocument();
+  });
+
+  it("closes after a date is chosen and reopens on the next click", () => {
+    const onSelect = vi.fn();
+    render(<SvpDateCalendar options={options} value="" onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Exam date" }));
+    fireEvent.click(screen.getByRole("button", { name: /5 Nov 2026/ }));
+
+    expect(onSelect).toHaveBeenCalledWith("2026-11-05");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Exam date" }));
+    expect(screen.getByRole("dialog", { name: "Available exam dates" })).toBeInTheDocument();
+  });
+
+  it("shows the chosen date in the field and highlights it in the calendar", () => {
+    render(<SvpDateCalendar options={options} value="2026-11-09" onSelect={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Exam date" })).toHaveTextContent("9 Nov 2026");
+    fireEvent.click(screen.getByRole("button", { name: "Exam date" }));
+    expect(screen.getByRole("button", { name: /9 Nov 2026/ })).toHaveClass("bg-primary");
+  });
+
+  it("explains when no dates are available and closes on outside click", () => {
+    render(<SvpDateCalendar options={[]} value="" onSelect={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Exam date" }));
+    expect(screen.getByText(/No dates with free seats/)).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});

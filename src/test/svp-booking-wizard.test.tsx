@@ -245,6 +245,25 @@ beforeEach(() => {
   mocks.removeAccount.mockResolvedValue({ accounts: [], activeLogin: null });
 });
 
+/** Dates live behind a click-to-open calendar now. */
+async function pickDate(label: string) {
+  const matcher = new RegExp(label);
+  const trigger = await screen.findByRole("button", { name: "Exam date" });
+  await waitFor(() => expect(trigger).not.toBeDisabled());
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (!screen.queryByRole("button", { name: matcher })) fireEvent.click(trigger);
+    const option = await screen
+      .findByRole("button", { name: matcher }, { timeout: 1500 })
+      .catch(() => null);
+    if (option) {
+      fireEvent.click(option);
+      return;
+    }
+  }
+  throw new Error(`Date option not found: ${label}`);
+}
+
 /** The exam language is a manual choice now, so every flow picks one first. */
 function pickLanguage(label = "English") {
   const select = screen.getByLabelText("Exam language *") as HTMLSelectElement;
@@ -367,16 +386,14 @@ describe("SVP booking wizard", () => {
     });
     renderWizard();
     await openDatesStep();
-    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
-    expect(await screen.findByRole("columnheader", { name: "Test center" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Seats" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Exam time" })).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "Dhaka Center" })).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "Second Dhaka Center" })).toBeInTheDocument();
-    expect(screen.getByText("09:30 – 10:30")).toBeInTheDocument();
-    expect(screen.getByText("13:00")).toBeInTheDocument();
-    expect(screen.getByText("7 available")).toBeInTheDocument();
-    expect(screen.getByText("12 available")).toBeInTheDocument();
+    await pickDate("5 Nov 2026");
+    // Session details render as compact cards (no provider-placeholder table).
+    expect(await screen.findByText(/SVP sessions for this date/)).toBeInTheDocument();
+    expect(screen.queryByText(/Not provided by SVP/)).not.toBeInTheDocument();
+    expect(screen.getByText("Dhaka Center")).toBeInTheDocument();
+    expect(screen.getByText("Second Dhaka Center")).toBeInTheDocument();
+    expect(screen.getByText("7 available · 3600 s")).toBeInTheDocument();
+    expect(screen.getByText("12 available · 3600 s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     expect(mocks.targetedHold).not.toHaveBeenCalled();
     expect(mocks.hold).not.toHaveBeenCalled();
@@ -407,7 +424,7 @@ describe("SVP booking wizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    await pickDate("5 Nov 2026");
     fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -726,7 +743,7 @@ describe("SVP city dropdowns", () => {
       }),
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /2 Dec 2026/ }));
+    await pickDate("2 Dec 2026");
     fireEvent.click(await screen.findByRole("button", { name: /Rajshahi Site/ }));
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
 
@@ -757,6 +774,7 @@ describe("SVP city dropdowns", () => {
     const citySelect = await screen.findByLabelText("Test center city");
     expect(citySelect).toHaveValue("");
     fireEvent.change(citySelect, { target: { value: "Dhaka" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Exam date" }));
     expect(await screen.findByRole("button", { name: /5 Nov 2026/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /7 Nov 2026/ })).not.toBeInTheDocument();
 
@@ -877,7 +895,7 @@ describe("site-based booking flow", () => {
     fireEvent.change(await screen.findByLabelText("Test center city *"), {
       target: { value: "Dhaka" },
     });
-    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+    await pickDate("1 Dec 2026");
     fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -998,9 +1016,9 @@ describe("load-balancer targeted booking", () => {
     pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
-    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
-    // Load-balancer tokens are date-only: one row per date, selected automatically by Continue.
-    await screen.findByText(/SVP session tokens/);
+    await pickDate("5 Nov 2026");
+    // Load-balancer tokens are date-only: the first token is preselected, all are held.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() =>
@@ -1068,7 +1086,7 @@ describe("Takamol availability selection", () => {
     const citySelect = await screen.findByLabelText("Test center city");
     await waitFor(() => expect(citySelect).not.toBeDisabled());
     fireEvent.change(citySelect, { target: { value: "Dhaka" } });
-    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    await pickDate("5 Nov 2026");
 
     expect(await screen.findByText(/Live availability · Takamol API/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Select" }));
@@ -1137,7 +1155,7 @@ describe("temporary seat hold", () => {
     pickLanguage();
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
-    fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+    await pickDate("5 Nov 2026");
     fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -1153,7 +1171,7 @@ async function openConfirmation() {
   pickLanguage();
   fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
   await screen.findByText(/Step 2/);
-  fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+  await pickDate("5 Nov 2026");
   fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByText(/Step 3/);

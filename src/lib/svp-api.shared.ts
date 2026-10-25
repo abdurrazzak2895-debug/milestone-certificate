@@ -35,6 +35,8 @@ export type SvpAvailableDate = {
   startAt: string;
   city: string | null;
   centerName: string | null;
+  /** Free seats reported by SVP for this date, when supplied. */
+  seats: number | null;
 };
 
 export type SvpExamSession = {
@@ -312,7 +314,8 @@ export function parseSvpAvailableDates(payload: unknown): SvpAvailableDate[] {
     dates.push({
       startAt,
       city: text(center?.["city"]) ?? text(record["city"]),
-      centerName: text(center?.["name"]) ?? text(center?.["test_center_name"]),
+      centerName: text(center?.["name"]) ?? text(record?.["test_center_name"]),
+      seats: number(record["available_seats"]) ?? number(record["seats"]),
     });
   }
   return dates.sort((a, b) => a.startAt.localeCompare(b.startAt));

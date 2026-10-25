@@ -28,11 +28,9 @@ import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 import { SvpReschedulePanel } from "@/components/app/SvpReschedulePanel";
 import { SvpCardPayment } from "@/components/app/SvpCardPayment";
+import { SvpDateCalendar } from "@/components/app/SvpDateCalendar";
 import { SvpResultPanel } from "@/components/app/SvpResultPanel";
-import {
-  SvpExamSessionsTable,
-  type SvpExamSessionView,
-} from "@/components/app/SvpExamSessionsTable";
+import type { SvpExamSessionView } from "@/components/app/SvpExamSessionsTable";
 import { supabase } from "@/integrations/supabase/client";
 import {
   checkSvpBookingEligibility,
@@ -562,13 +560,19 @@ export function SvpBookingWizard() {
   const manualCityFallback =
     !citiesLoading && cityOptions.length === 0 && Boolean(citiesLoaded || cityError);
   const dateOptions = useMemo(() => {
-    if (!city.trim()) return [];
-    const map = new Map<string, { date: string; city: string | null }>();
+    const map = new Map<string, { date: string; city: string | null; seats: number | null }>();
     for (const entry of availableDates) {
-      if (entry.city && entry.city.trim().toLowerCase() !== city.trim().toLowerCase()) continue;
+      // A chosen city narrows the list; with no city the calendar shows every available date.
+      if (
+        city.trim() &&
+        entry.city &&
+        entry.city.trim().toLowerCase() !== city.trim().toLowerCase()
+      ) {
+        continue;
+      }
       const { date } = splitDateTime(entry.startAt);
       if (!date || map.has(date)) continue;
-      map.set(date, { date, city: entry.city });
+      map.set(date, { date, city: entry.city, seats: entry.seats });
     }
     return [...map.values()];
   }, [availableDates, city]);
@@ -609,10 +613,10 @@ export function SvpBookingWizard() {
   );
   const prometricExamId = sitesQuery.data?.ok ? sitesQuery.data.data.examId : null;
   const siteDateOptions = useMemo(() => {
-    const map = new Map<string, { date: string; city: string | null }>();
+    const map = new Map<string, { date: string; city: string | null; seats: number | null }>();
     for (const site of prometricSites) {
       for (const date of site.dates) {
-        if (date && !map.has(date)) map.set(date, { date, city: site.city });
+        if (date && !map.has(date)) map.set(date, { date, city: site.city, seats: null });
       }
     }
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -1409,7 +1413,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v25
+              Official SVP API · live · v26
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1841,7 +1845,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v25
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v26
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -2148,51 +2152,83 @@ export function SvpBookingWizard() {
                 </p>
               )}
 
-            {shownDateOptions.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Available dates</p>
-                <div className="flex flex-wrap gap-2">
-                  {shownDateOptions.map((entry) => {
-                    const active = activeDateValue === entry.date;
-                    return (
-                      <Button
-                        key={entry.date}
-                        type="button"
-                        size="sm"
-                        variant={active ? "default" : "outline"}
-                        onClick={() => selectDateOption(entry)}
-                      >
-                        <CalendarDays className="mr-1 h-3.5 w-3.5" /> {formatDateOnly(entry.date)}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
+            {(shownDateOptions.length > 0 || datesLoading || Boolean(city.trim())) && (
+              <SvpDateCalendar
+                options={shownDateOptions}
+                value={activeDateValue}
+                loading={datesLoading}
+                disabled={datesLoading || !effectiveCategoryId}
+                onSelect={(date) => {
+                  const entry = shownDateOptions.find((option) => option.date === date) ?? {
+                    date,
+                    city,
+                  };
+                  selectDateOption(entry);
+                }}
+              />
             )}
 
             {activeDateValue && (
               <div className="space-y-2">
-                {sessionViews.length > 0 && (
-                  <details className="rounded-xl border bg-card/70 p-3">
-                    <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                      SVP session tokens ({sessionViews.length}) — technical view
-                    </summary>
-                    <div className="pt-2">
-                      <SvpExamSessionsTable
-                        views={sessionViews}
-                        loading={sessionsLoading}
-                        error={sessionsError}
-                        loaded={sessionsLoaded}
-                        targeted={isTargeted}
-                        loadBalancer={Boolean(isLoadBalancer)}
-                        onRetry={() => {
-                          if (isTargeted) void sessionsQuery.refetch();
-                          else void slotsQuery.refetch();
-                        }}
-                      />
+                {takamolRows.length === 0 && sessionViews.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">SVP sessions for this date</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateOnly(availabilityDate)} · {availabilityCity || "any city"} ·{" "}
+                          {activeLanguageLabel}
+                        </p>
+                      </div>
+                      {sessionsLoading && (
+                        <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
                     </div>
-                  </details>
+                    {sessionsError && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {sessionsError}
+                      </p>
+                    )}
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {sessionViews.map((view, index) => {
+                        const start = view.startAt ? formatSlot(view.startAt) : "Date confirmed";
+                        return (
+                          <button
+                            key={view.key}
+                            type="button"
+                            onClick={view.onSelect}
+                            aria-pressed={view.selected}
+                            className={`rounded-xl border p-3 text-left text-sm transition-colors ${
+                              view.selected
+                                ? "border-primary bg-primary-soft"
+                                : "bg-card hover:border-primary/50"
+                            }`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="font-semibold">
+                                {view.center ?? view.city ?? "SVP test center"}
+                              </span>
+                              {view.selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {start}
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {view.seats !== null ? `${view.seats} available · ` : ""}
+                              {view.duration
+                                ? `${view.duration} ${view.durationUnit === "minutes" ? "min" : "s"}`
+                                : "Seats confirmed by SVP on hold"}
+                            </span>
+                            <span className="mt-1 block text-[11px] text-muted-foreground">
+                              Session {index + 1}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
+
                 {takamolRows.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
