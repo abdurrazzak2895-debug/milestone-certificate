@@ -15,6 +15,11 @@ import {
   parseSvpReservation,
   parseSvpReservationDetail,
   parseSvpReservations,
+  parseSvpCategories,
+  svpExamSessionIdListSchema,
+  svpExamSessionIdSchema,
+  svpExamSessionIdStringSchema,
+  svpLanguageCodeSchema,
   svpTicketFileName,
 } from "@/lib/svp-api.shared";
 import { extractSvpAuthPayload, extractSvpSessionUser } from "@/lib/svp-session.shared";
@@ -87,6 +92,55 @@ describe("SVP response parsers", () => {
     ]);
   });
 
+  it("loads category languages from SVP permissions and accepts long provider IDs/codes", () => {
+    const languageCode = "prometric_english_30_question_category_exam";
+    const examSessionId = "QhHSU5enEg--HeQIKA7MRogPRy6u--Md2sAG6krBtWYeqaM9UXeQ";
+
+    expect(
+      parseSvpCategories({
+        data: {
+          categories: [
+            {
+              id: 159,
+              english_name: "Welding",
+              prometric_codes: [
+                { code: languageCode, name: "English", question_count: 30, non_targeted: false },
+              ],
+            },
+          ],
+        },
+      }),
+    ).toEqual([
+      {
+        id: 159,
+        name: "Welding",
+        arabicName: null,
+        languages: [
+          { code: languageCode, label: "English", questionCount: 30, nonTargeted: false },
+        ],
+      },
+    ]);
+
+    expect(svpExamSessionIdSchema.parse(examSessionId)).toBe(examSessionId);
+    expect(svpExamSessionIdListSchema.parse([examSessionId])).toEqual([examSessionId]);
+    expect(svpExamSessionIdStringSchema.parse(examSessionId)).toBe(examSessionId);
+    expect(svpLanguageCodeSchema.parse(languageCode)).toBe(languageCode);
+    expect(() => svpExamSessionIdSchema.parse("x".repeat(201))).toThrow();
+    expect(() => svpLanguageCodeSchema.parse("x".repeat(121))).toThrow();
+
+    expect(
+      buildSvpReservationBody({
+        examSessionId,
+        occupationId: 11,
+        languageCode,
+        siteId: null,
+        siteCity: null,
+        holdId: null,
+        countryId: 4,
+      }),
+    ).toMatchObject({ exam_session_id: examSessionId, language_code: languageCode });
+  });
+
   it("reads test center cities and de-duplicates them", () => {
     expect(
       parseSvpCities({
@@ -153,6 +207,31 @@ describe("SVP response parsers", () => {
         centerName: "Dhaka Center",
         siteId: null,
       },
+    ]);
+  });
+
+  it("prefers the supplied test-center-local session time over UTC values", () => {
+    expect(
+      parseSvpExamSessions({
+        exam_sessions: [
+          {
+            id: "session-local-time",
+            start_at: "2026-10-28T03:30:00Z",
+            start_at_in_tc_time_zone: "2026-10-28 09:30:00",
+            end_at: "2026-10-28T04:30:00Z",
+            end_at_in_tc_time_zone: "2026-10-28 10:30:00",
+            test_center: { city: "Nilphamari", name: "Nilphamari Test Center" },
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        startAt: "2026-10-28 09:30:00",
+        endAt: "2026-10-28 10:30:00",
+        centerName: "Nilphamari Test Center",
+        availableSeats: null,
+        duration: 0,
+      }),
     ]);
   });
 
