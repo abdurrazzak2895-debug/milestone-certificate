@@ -1413,38 +1413,13 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v26
+              Official SVP API · live · v27
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
             </h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-300">
-              Check real availability, hold a seat and create the reservation for the signed-in SVP
-              account.
-            </p>
           </div>
           <div className="w-full space-y-2 sm:w-auto">
-            <div className="grid w-full gap-2 text-xs sm:grid-cols-2">
-              {[
-                { label: "Account", value: status?.userName ?? status?.login ?? "—" },
-                { label: "Country", value: overview?.permissions.countryName ?? "—" },
-                {
-                  label: "Flow",
-                  value: overview ? (isTargeted ? "Targeted" : "Site-based") : "—",
-                },
-                { label: "Credits", value: overview ? String(overview.credits) : "—" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="min-w-0 rounded-xl border border-white/10 bg-black/10 px-3 py-2"
-                >
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">
-                    {item.label}
-                  </p>
-                  <p className="truncate text-sm font-medium text-slate-100">{item.value}</p>
-                </div>
-              ))}
-            </div>
             <Button
               type="button"
               size="sm"
@@ -1568,36 +1543,6 @@ export function SvpBookingWizard() {
           </Button>
         </div>
 
-        {overview && (
-          <div className="space-y-2 border-t pt-3 text-xs text-muted-foreground">
-            <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full border px-2.5 py-0.5">
-                Country: {overview.permissions.countryName ?? "—"}
-              </span>
-              <span className="rounded-full border px-2.5 py-0.5">
-                Flow: {overview.permissions.targeted ? "targeted" : "site-based"}
-              </span>
-              <span className="rounded-full border px-2.5 py-0.5">
-                Free reservations: {overview.permissions.freeReservations ? "yes" : "no"}
-              </span>
-              <span className="rounded-full border px-2.5 py-0.5">Credits: {overview.credits}</span>
-              <span className="rounded-full border px-2.5 py-0.5">
-                Reschedules left: {overview.constraints.rescheduleTimes}
-              </span>
-              <span className="rounded-full border px-2.5 py-0.5">
-                Hold: {overview.constraints.bookingHoldSeconds}s
-              </span>
-              <span className="rounded-full border px-2.5 py-0.5">
-                Reschedule flow: {overview.flags.rescheduleEnabled ? "enabled" : "off"}
-              </span>
-            </div>
-            {overview.permissions.permissionKeys.length > 0 && (
-              <p className="truncate" title={overview.permissions.permissionKeys.join(", ")}>
-                SVP account permissions: {overview.permissions.permissionKeys.join(", ")}
-              </p>
-            )}
-          </div>
-        )}
         {overviewQuery.data && !overviewQuery.data.ok && (
           <p role="alert" className="text-sm text-destructive">
             {overviewQuery.data.message}
@@ -1843,10 +1788,7 @@ export function SvpBookingWizard() {
               !occupationSearch.trim() && (
                 <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm" role="status">
                   <p className="font-medium">SVP returned no occupations for this account.</p>
-                  <p className="text-xs text-muted-foreground">
-                    Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v26
-                  </p>
+                  <p className="text-xs text-muted-foreground">Build v27</p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
                     Occupation field to search SVP directly.
@@ -1962,12 +1904,6 @@ export function SvpBookingWizard() {
             {setupQuery.data && !setupQuery.data.ok && (
               <p role="alert" className="text-sm text-destructive">
                 {setupQuery.data.message}
-              </p>
-            )}
-            {setup && (
-              <p className="text-xs text-muted-foreground">
-                Free reservations: {setup.permissions.freeReservations ? "yes" : "no"} · SVP
-                credits: {setup.credits}
               </p>
             )}
 
