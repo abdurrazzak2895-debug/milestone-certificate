@@ -285,6 +285,7 @@ export type SvpAuthPayload = {
 export type SvpSessionUser = {
   id: string | null;
   name: string | null;
+  passport: string | null;
   countryTargeted: boolean | null;
   countryLoadBalancer: boolean | null;
 };
@@ -340,19 +341,39 @@ export function extractSvpAuthPayload(payload: unknown): SvpAuthPayload | null {
   return null;
 }
 
+/** Normalize only an explicitly named passport value; never infer it from IDs or tokens. */
+export function normalizeSvpPassport(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^[A-Za-z0-9]{5,20}$/.test(trimmed)) return null;
+  return trimmed.toUpperCase();
+}
+
 /** Read the signed-in labor identity from the OTP response. */
 export function extractSvpSessionUser(payload: unknown): SvpSessionUser {
   const root = asRecord(payload);
   const data = asRecord(root?.["data"]) ?? root;
   const user = asRecord(data?.["user"]);
-  const profile = asRecord(user?.["profile"]);
+  const profile = asRecord(user?.["profile"]) ?? asRecord(data?.["profile"]);
   const country = asRecord(user?.["country"]) ?? asRecord(data?.["country"]);
   const idValue = user?.["id"] ?? data?.["user_id"] ?? profile?.["id"];
   const nameValue =
     user?.["full_name"] ?? user?.["name"] ?? profile?.["full_name"] ?? profile?.["name"];
+  const passport =
+    [
+      user?.["passport_number"],
+      user?.["passport_no"],
+      user?.["passport"],
+      profile?.["passport_number"],
+      profile?.["passport_no"],
+      profile?.["passport"],
+    ]
+      .map(normalizeSvpPassport)
+      .find((value): value is string => value !== null) ?? null;
   return {
     id: idValue === undefined || idValue === null ? null : String(idValue),
     name: typeof nameValue === "string" && nameValue.trim() ? nameValue.trim() : null,
+    passport,
     countryTargeted:
       typeof country?.["targeted"] === "boolean" ? (country["targeted"] as boolean) : null,
     countryLoadBalancer:

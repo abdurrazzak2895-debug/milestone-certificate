@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
   extractSvpAuthPayload,
+  normalizeSvpPassport,
   svpErrorMessage,
   type SvpAuthPayload,
 } from "@/lib/svp-session.shared";
@@ -46,6 +47,7 @@ export type SvpSessionInfo = {
   login: string;
   userName: string | null;
   svpUserId: string | null;
+  passport: string | null;
   countryTargeted: boolean | null;
   countryLoadBalancer: boolean | null;
   expiresAt: number;
@@ -319,6 +321,7 @@ export function buildStoredSession(
   svpUserId: string | null,
   countryTargeted: boolean | null = null,
   countryLoadBalancer: boolean | null = null,
+  passport: string | null = null,
 ): SvpStoredSession | null {
   const auth = authFromPayload(payload);
   if (!auth) return null;
@@ -326,6 +329,7 @@ export function buildStoredSession(
     login,
     userName,
     svpUserId,
+    passport: normalizeSvpPassport(passport),
     countryTargeted,
     countryLoadBalancer,
     flagsVerifiedAt: Date.now(),

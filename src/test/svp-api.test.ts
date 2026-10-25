@@ -216,6 +216,7 @@ describe("SVP OTP session extraction", () => {
     expect(extractSvpSessionUser(payload)).toEqual({
       id: "969955",
       name: "Noor Rahman",
+      passport: null,
       countryTargeted: true,
       countryLoadBalancer: null,
     });

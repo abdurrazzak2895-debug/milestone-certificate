@@ -1,8 +1,11 @@
 // Pure helpers for the multi-account SVP token vault kept in one httpOnly cookie.
+import { normalizeSvpPassport } from "@/lib/svp-session.shared";
+
 export type SvpStoredSession = {
   login: string;
   userName: string | null;
   svpUserId: string | null;
+  passport: string | null;
   access: string;
   countryTargeted: boolean | null;
   countryLoadBalancer: boolean | null;
@@ -56,6 +59,7 @@ function sanitizeSession(value: unknown): SvpStoredSession | null {
     login,
     userName: text(record["userName"], 120),
     svpUserId: text(record["svpUserId"], 40),
+    passport: normalizeSvpPassport(record["passport"]),
     access,
     countryTargeted:
       typeof record["countryTargeted"] === "boolean"

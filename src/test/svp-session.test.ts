@@ -3,6 +3,7 @@ import {
   buildSvpLoginBody,
   buildSvpOtpBody,
   extractSvpAuthPayload,
+  extractSvpSessionUser,
   readSvpSessionResult,
 } from "@/lib/svp-session.shared";
 
@@ -129,5 +130,38 @@ describe("SVP token extraction", () => {
     expect(
       extractSvpAuthPayload({ access: "A", access_expires_at: 1_800_000_000_000 })?.accessExpiresAt,
     ).toBe(1_800_000_000);
+  });
+});
+
+describe("SVP passport identity extraction", () => {
+  it("normalizes an explicitly named passport from the user or profile", () => {
+    expect(
+      extractSvpSessionUser({
+        user: {
+          id: "user-id",
+          passport_number: "  ab12345 ",
+          profile: { passport_no: "profile999" },
+        },
+      }).passport,
+    ).toBe("AB12345");
+
+    expect(
+      extractSvpSessionUser({
+        user: { profile: { passport: "xy98765" } },
+      }).passport,
+    ).toBe("XY98765");
+  });
+
+  it("rejects invalid or generic identity values", () => {
+    expect(
+      extractSvpSessionUser({
+        user: {
+          id: "969955",
+          token: "TOKEN12345",
+          passport_number: "too-short",
+          passport_no: "A-12345",
+        },
+      }).passport,
+    ).toBeNull();
   });
 });

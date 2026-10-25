@@ -62,6 +62,10 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: () => ({ insert: mocks.insert }) },
 }));
 
+vi.mock("@/lib/svp-local-record", () => ({
+  saveSvpLocalBookingRecord: (_client: unknown, payload: unknown) => mocks.insert(payload),
+}));
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock("@/components/app/SvpLoginPanel", () => ({
@@ -97,6 +101,7 @@ beforeEach(() => {
   mocks.status.mockResolvedValue({
     signedIn: true,
     userName: "Noor Rahman",
+    userPassport: "AB123456",
     login: "noor@example.com",
     expiresAt: 1_900_000_000,
   });
@@ -200,7 +205,7 @@ beforeEach(() => {
     ok: true,
     data: { base64: globalThis.btoa("%PDF-1.4 ticket"), contentType: "application/pdf" },
   });
-  mocks.insert.mockResolvedValue({ error: null });
+  mocks.insert.mockResolvedValue("local-record-1");
   mocks.signOut.mockResolvedValue({ ok: true });
   mocks.accounts.mockResolvedValue({
     accounts: [
@@ -765,5 +770,156 @@ describe("temporary seat hold", () => {
 
     await waitFor(() => expect(mocks.targetedHold).toHaveBeenCalled());
     expect(screen.queryByText(/Step 3/)).not.toBeInTheDocument();
+  });
+});
+
+async function openConfirmation() {
+  await screen.findByText(/Signed in to SVP as Noor Rahman/);
+  fireEvent.focus(await screen.findByLabelText("Occupation *"));
+  fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
+  await screen.findByText(/Step 2/);
+  fireEvent.click(await screen.findByRole("button", { name: /5 Nov 2026/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await screen.findByText(/Step 3/);
+}
+
+function submitConfirmedBooking() {
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByRole("button", { name: "Create SVP booking" }));
+}
+
+describe("automatic SVP candidate record flow", () => {
+  it("fills name and passport from SVP while keeping agency optional", async () => {
+    renderWizard();
+    await openConfirmation();
+    expect(screen.getByLabelText("Candidate name *")).toHaveValue("Noor Rahman");
+    expect(screen.getByLabelText("Passport *")).toHaveValue("AB123456");
+    expect(screen.getByLabelText("Agency")).toHaveValue("");
+    expect(mocks.insert).not.toHaveBeenCalled();
+    submitConfirmedBooking();
+    expect(
+      await screen.findByText("Local reservation record saved automatically."),
+    ).toBeInTheDocument();
+    expect(mocks.insert).toHaveBeenCalledTimes(1);
+    expect(mocks.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ agency: null, reference_no: "R-123" }),
+    );
+  });
+
+  it("requires missing provider passport without inventing it", async () => {
+    mocks.status.mockResolvedValue({
+      signedIn: true,
+      userName: "Noor Rahman",
+      userPassport: null,
+      login: "noor@example.com",
+      expiresAt: 1_900_000_000,
+    });
+    renderWizard();
+    await openConfirmation();
+    expect(screen.getByLabelText("Candidate name *")).toHaveValue("Noor Rahman");
+    expect(screen.getByLabelText("Passport *")).toHaveValue("");
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("button", { name: "Create SVP booking" })).toBeDisabled();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it("blocks invalid passport formats before invoking SVP", async () => {
+    renderWizard();
+    await openConfirmation();
+    fireEvent.change(screen.getByLabelText("Passport *"), { target: { value: "AB-123456" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("button", { name: "Create SVP booking" })).toBeDisabled();
+    expect(screen.getByText(/Use 5–20 letters and numbers/)).toBeInTheDocument();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("never saves a local record when SVP rejects reservation creation", async () => {
+    mocks.create.mockResolvedValue({
+      ok: false,
+      needsSignIn: false,
+      message: "Reservation rejected",
+    });
+    renderWizard();
+    await openConfirmation();
+    submitConfirmedBooking();
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Create SVP booking" })).toBeEnabled(),
+    );
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(screen.queryByText("Reservation created")).not.toBeInTheDocument();
+  });
+
+  it("retries only the local save after a successful SVP booking", async () => {
+    mocks.insert
+      .mockRejectedValueOnce(new Error("Database unavailable"))
+      .mockResolvedValue("recovered-row");
+    renderWizard();
+    await openConfirmation();
+    submitConfirmedBooking();
+    const retry = await screen.findByRole("button", { name: "Retry local save" });
+    expect(screen.getByText(/Do not book again/)).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("button", { name: "New booking" })
+        .every((button) => (button as HTMLButtonElement).disabled),
+    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Book another" })).toBeDisabled();
+    fireEvent.click(retry);
+    expect(
+      await screen.findByText("Local reservation record saved automatically."),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("button", { name: "New booking" })
+        .every((button) => !(button as HTMLButtonElement).disabled),
+    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Book another" })).toBeEnabled();
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+    expect(mocks.insert).toHaveBeenCalledTimes(2);
+    expect(mocks.insert.mock.calls[1]?.[0]).toEqual(mocks.insert.mock.calls[0]?.[0]);
+  });
+
+  it("records pending-payment reservations without claiming they are confirmed", async () => {
+    mocks.create.mockResolvedValue({
+      ok: true,
+      data: {
+        reservationId: "R-124",
+        paid: false,
+        paymentRequired: true,
+        credits: 0,
+        message: "Payment pending",
+      },
+    });
+    renderWizard();
+    await openConfirmation();
+    submitConfirmedBooking();
+    await screen.findByText("Local reservation record saved automatically.");
+    expect(mocks.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ reference_no: "R-124", status: "draft" }),
+    );
+    expect(screen.getByText(/not confirmed until payment/)).toBeInTheDocument();
+  });
+
+  it("keeps the pre-submission snapshot and prevents concurrent local saves", async () => {
+    let finishSave!: (id: string) => void;
+    mocks.insert.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    renderWizard();
+    await openConfirmation();
+    submitConfirmedBooking();
+    await screen.findByText(/Saving the local reservation record automatically/);
+    expect(screen.getByRole("button", { name: "Book another" })).toBeDisabled();
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+    expect(mocks.insert).toHaveBeenCalledTimes(1);
+    finishSave("saved-row");
+    await screen.findByText("Local reservation record saved automatically.");
   });
 });

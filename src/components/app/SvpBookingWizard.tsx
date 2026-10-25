@@ -66,7 +66,12 @@ import type {
   SvpPrometricSlot,
   SvpReservation,
 } from "@/lib/svp-api.shared";
-import { normalizeSvpBookingForm, toSvpBookingInsert } from "@/lib/svp-booking.shared";
+import {
+  normalizeSvpBookingForm,
+  svpCandidateIdentitySchema,
+  toSvpBookingInsert,
+} from "@/lib/svp-booking.shared";
+import { saveSvpLocalBookingRecord, type SvpLocalRecordPayload } from "@/lib/svp-local-record";
 
 const SVP_PORTAL_BOOKING_URL = "https://svp-international.qiwa.sa/";
 const SESSION_QUERY_KEY = ["svp-session-status"] as const;
@@ -242,6 +247,32 @@ export function SvpBookingWizard() {
   const [result, setResult] = useState<SvpBookingResult | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [localSaveStatus, setLocalSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">(
+    "idle",
+  );
+  const localRecordRef = useRef<SvpLocalRecordPayload | null>(null);
+  const localSaveBusyRef = useRef(false);
+  const bookingSubmittedRef = useRef(false);
+  const identityAccountRef = useRef<string | null>(null);
+  const candidateValidation = svpCandidateIdentitySchema.safeParse({
+    candidate_name: candidateName,
+    passport,
+  });
+
+  useEffect(() => {
+    const login = signedIn ? (status?.login ?? null) : null;
+    if (identityAccountRef.current !== login) {
+      identityAccountRef.current = login;
+      setCandidateName(status?.userName ?? "");
+      setPassport(status?.userPassport ?? "");
+      setAgency("");
+      setAccepted(false);
+      return;
+    }
+    // Only fill empty fields on a same-account refresh; never overwrite a correction.
+    setCandidateName((current) => current || status?.userName || "");
+    setPassport((current) => current || status?.userPassport || "");
+  }, [signedIn, status?.login, status?.userName, status?.userPassport]);
 
   const invalidateSvpData = useCallback(() => {
     setForceTargeted(false);
@@ -786,11 +817,14 @@ export function SvpBookingWizard() {
     setHoldId(null);
     setPrometricHoldExpiresAt(null);
     setTargetedHoldExpiresAt(null);
-    setCandidateName("");
-    setPassport("");
+    setCandidateName(status?.userName ?? "");
+    setPassport(status?.userPassport ?? "");
     setAgency("");
     setAccepted(false);
     setResult(null);
+    setLocalSaveStatus("idle");
+    localRecordRef.current = null;
+    bookingSubmittedRef.current = false;
   };
 
   const downloadTicketById = async (
@@ -833,28 +867,20 @@ export function SvpBookingWizard() {
     if (!error) toast.success("Local record updated with the new appointment");
   };
 
-  const saveLocalRecord = async (booking: SvpBookingResult) => {
-    if (!occupation || !selectedSession) return;
-    const { date, time } = splitDateTime(selectedSession.startAt);
+  const saveLocalRecord = async (payload: SvpLocalRecordPayload) => {
+    if (localSaveBusyRef.current) return;
+    localSaveBusyRef.current = true;
+    setLocalSaveStatus("saving");
     try {
-      const normalized = normalizeSvpBookingForm({
-        candidate_name: candidateName,
-        passport,
-        occupation: occupation.name,
-        center: selectedSession.centerName ?? sessionCity,
-        exam_date: date,
-        exam_time: time,
-        agency,
-        login_email: status?.login?.includes("@") ? status.login : "",
-        reference_no: booking.reservationId,
-        notes: `SVP ${booking.reservationId}: ${booking.message}`,
-        status: date && time ? "booked" : "draft",
-      });
-      const { error } = await supabase.from("svp_bookings").insert(toSvpBookingInsert(normalized));
-      if (error) throw error;
-      toast.success("Saved to the manual record tracker");
+      await saveSvpLocalBookingRecord(supabase, payload);
+      setLocalSaveStatus("saved");
+      void queryClient.invalidateQueries({ queryKey: ["svp-bookings"] });
+      toast.success("SVP reservation saved automatically to the local records.");
     } catch {
+      setLocalSaveStatus("failed");
       toast.error("Booked in SVP, but the local record could not be saved.");
+    } finally {
+      localSaveBusyRef.current = false;
     }
   };
 
@@ -908,8 +934,34 @@ export function SvpBookingWizard() {
   ]);
 
   const bookingMutation = useMutation({
-    mutationFn: async (): Promise<SvpBookingResult> => {
+    mutationFn: async (): Promise<{
+      booking: SvpBookingResult;
+      localRecord: SvpLocalRecordPayload;
+    }> => {
+      if (bookingSubmittedRef.current)
+        throw new Error("This reservation is already being submitted.");
       if (!occupation || !selectedSession) throw new Error("Select an exam session first.");
+      if (!accepted) throw new Error("Confirm the candidate details and SVP rules first.");
+      if (occupation.driverLicenseRequired)
+        throw new Error("Use the official SVP portal for this occupation.");
+      const { date, time } = splitDateTime(selectedSession.startAt);
+      // Validate and snapshot the local identity before an irreversible upstream submission.
+      const localRecord = toSvpBookingInsert(
+        normalizeSvpBookingForm({
+          candidate_name: candidateName,
+          passport,
+          occupation: occupation.name,
+          center: selectedSession.centerName ?? selectedSession.city ?? sessionCity,
+          exam_date: date,
+          exam_time: time,
+          agency,
+          login_email: status?.login?.includes("@") ? status.login : "",
+          reference_no: "",
+          notes: "",
+          status: date && time ? "booked" : "draft",
+        }),
+      );
+      bookingSubmittedRef.current = true;
       const response = await createSvpBooking({
         data: {
           occupationId: occupation.id,
@@ -929,17 +981,30 @@ export function SvpBookingWizard() {
         if (response.needsSignIn) requireSignIn();
         throw new Error(response.message);
       }
-      return response.data;
+      const booking = response.data;
+      return {
+        booking,
+        localRecord: {
+          ...localRecord,
+          reference_no: booking.reservationId,
+          notes: `SVP ${booking.reservationId}: ${booking.message}`.slice(0, 1000),
+          // Pending payment is not a confirmed local booking.
+          status: booking.paymentRequired ? "draft" : localRecord.status,
+        },
+      };
     },
-    onSuccess: async (booking) => {
+    onSuccess: async ({ booking, localRecord }) => {
       setResult(booking);
       setStage("done");
-      await saveLocalRecord(booking);
+      localRecordRef.current = localRecord;
+      await saveLocalRecord(localRecord);
       void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
       void queryClient.invalidateQueries({ queryKey: ["svp-account-overview"] });
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "The SVP reservation failed."),
+    onError: (error) => {
+      bookingSubmittedRef.current = false;
+      toast.error(error instanceof Error ? error.message : "The SVP reservation failed.");
+    },
   });
 
   const signOutMutation = useMutation({
@@ -1148,6 +1213,11 @@ export function SvpBookingWizard() {
               size="sm"
               className="w-full bg-emerald-400 font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
               onClick={startNewBooking}
+              disabled={
+                bookingMutation.isPending ||
+                localSaveStatus === "saving" ||
+                Boolean(result && localSaveStatus !== "saved")
+              }
             >
               <Plus className="mr-1 h-4 w-4" /> New booking
             </Button>
@@ -1182,7 +1252,12 @@ export function SvpBookingWizard() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" onClick={startNewBooking}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={startNewBooking}
+              disabled={Boolean(result && localSaveStatus !== "saved")}
+            >
               <Plus className="mr-1 h-4 w-4" /> New booking
             </Button>
             <Button
@@ -2007,6 +2082,7 @@ export function SvpBookingWizard() {
                     maxLength={120}
                     autoComplete="off"
                     required
+                    disabled={bookingMutation.isPending}
                     onChange={(event) => setCandidateName(event.target.value)}
                     placeholder="Full name"
                   />
@@ -2018,6 +2094,8 @@ export function SvpBookingWizard() {
                     autoComplete="off"
                     required
                     pattern="[A-Za-z0-9]{5,20}"
+                    disabled={bookingMutation.isPending}
+                    aria-invalid={Boolean(passport.trim()) && !candidateValidation.success}
                     onChange={(event) => setPassport(event.target.value)}
                     placeholder="Passport number"
                   />
@@ -2026,15 +2104,22 @@ export function SvpBookingWizard() {
                   <Input
                     value={agency}
                     maxLength={120}
+                    disabled={bookingMutation.isPending}
                     onChange={(event) => setAgency(event.target.value)}
                     placeholder="Optional"
                   />
                 </Field>
               </div>
               <p className="text-xs text-muted-foreground">
-                Candidate name and passport are required for the local record that is saved after
-                the SVP booking succeeds.
+                Name and passport are filled automatically when supplied by this SVP account. Review
+                them or complete any missing details. Agency is optional. The local record is saved
+                automatically only after SVP creates the reservation.
               </p>
+              {passport.trim() && !/^[A-Za-z0-9]{5,20}$/.test(passport.trim()) && (
+                <p role="alert" className="text-xs text-destructive">
+                  Use 5–20 letters and numbers for the passport.
+                </p>
+              )}
 
               {occupation.driverLicenseRequired && (
                 <p
@@ -2052,6 +2137,7 @@ export function SvpBookingWizard() {
                   type="checkbox"
                   className="mt-0.5 h-4 w-4"
                   checked={accepted}
+                  disabled={bookingMutation.isPending}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
                 <span>
@@ -2071,11 +2157,13 @@ export function SvpBookingWizard() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => bookingMutation.mutate()}
+                  onClick={() => {
+                    if (!bookingSubmittedRef.current) bookingMutation.mutate();
+                  }}
                   disabled={
-                    !candidateName.trim() ||
-                    !passport.trim() ||
+                    !candidateValidation.success ||
                     !accepted ||
+                    occupation.driverLicenseRequired ||
                     bookingMutation.isPending
                   }
                 >
@@ -2102,6 +2190,43 @@ export function SvpBookingWizard() {
               </div>
             </div>
             <p className="rounded-lg border bg-muted/30 p-3 text-sm">{result.message}</p>
+            {localSaveStatus === "saving" && (
+              <p role="status" className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+                <LoaderCircle className="h-4 w-4 animate-spin" /> Saving the local reservation
+                record automatically…
+              </p>
+            )}
+            {localSaveStatus === "saved" && (
+              <p
+                role="status"
+                className="rounded-lg border bg-success-soft p-3 text-sm text-success"
+              >
+                Local reservation record saved automatically.
+              </p>
+            )}
+            {localSaveStatus === "failed" && (
+              <div
+                role="alert"
+                className="space-y-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+              >
+                <p>
+                  SVP created the reservation, but the local record was not saved. Do not book
+                  again.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (localRecordRef.current) void saveLocalRecord(localRecordRef.current);
+                  }}
+                >
+                  Retry local save
+                </Button>
+                <p className="text-xs">
+                  This retries the local record only; it does not create another SVP reservation.
+                </p>
+              </div>
+            )}
             {result.paymentRequired && (
               <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -2110,7 +2235,7 @@ export function SvpBookingWizard() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={resetFlow}>
+              <Button type="button" onClick={resetFlow} disabled={localSaveStatus !== "saved"}>
                 Book another
               </Button>
               {!result.paymentRequired && (
