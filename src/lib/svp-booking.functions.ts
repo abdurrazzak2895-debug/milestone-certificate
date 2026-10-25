@@ -1279,3 +1279,92 @@ export const getSvpExamSessionById = createServerFn({ method: "POST" })
       return failure("The exam session could not be loaded.");
     }
   });
+
+export type SvpDiagnostics = {
+  login: string | null;
+  svpUserId: string | null;
+  countryTargeted: boolean | null;
+  countryLoadBalancer: boolean | null;
+  permissions: {
+    status: number;
+    ok: boolean;
+    targeted: boolean | null;
+    loadBalancer: boolean | null;
+    country: string | null;
+  };
+  labor: { status: number; ok: boolean; count: number; message: string | null };
+  visitor: { status: number; ok: boolean; count: number; message: string | null };
+};
+
+/** One-click SVP diagnostics for the booking page (no tokens returned). */
+export const getSvpDiagnostics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SvpResult<SvpDiagnostics>> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    const session = readStoredSvpSession(context.userId);
+    if (!session) return failure("Sign in to SVP first.", true);
+    try {
+      const [permissionsResponse, laborResponse, visitorResponse] = await Promise.all([
+        svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/permissions",
+          { query: LOCALE_QUERY, timeoutMs: 8000, retries: 1 },
+          session,
+        ),
+        svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/occupations",
+          {
+            query: { ...LOCALE_QUERY, per_page: 5, page: 1, name: "" },
+            timeoutMs: 8000,
+            retries: 1,
+          },
+          session,
+        ),
+        svpAuthedRequest(
+          context.userId,
+          "/visitor_space/occupations",
+          { query: { ...LOCALE_QUERY, per_page: 5, page: 1 }, timeoutMs: 8000, retries: 1 },
+          session,
+        ),
+      ]);
+
+      const permissions = permissionsResponse.ok
+        ? parseSvpPermissions(permissionsResponse.payload)
+        : { targeted: null, loadBalancer: null, countryName: null };
+      const laborItems = laborResponse.ok ? parseSvpOccupations(laborResponse.payload) : [];
+      const visitorItems = visitorResponse.ok ? parseSvpOccupations(visitorResponse.payload) : [];
+
+      return {
+        ok: true,
+        data: {
+          login: session.login,
+          svpUserId: session.svpUserId,
+          countryTargeted: session.countryTargeted,
+          countryLoadBalancer: session.countryLoadBalancer,
+          permissions: {
+            status: permissionsResponse.status,
+            ok: permissionsResponse.ok,
+            targeted: permissions.targeted,
+            loadBalancer: permissions.loadBalancer,
+            country: permissions.countryName,
+          },
+          labor: {
+            status: laborResponse.status,
+            ok: laborResponse.ok,
+            count: laborItems.length,
+            message: laborResponse.message,
+          },
+          visitor: {
+            status: visitorResponse.status,
+            ok: visitorResponse.ok,
+            count: visitorItems.length,
+            message: visitorResponse.message,
+          },
+        },
+      };
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) return failure(error.message, true);
+      return failure("Diagnostics could not run.");
+    }
+  });

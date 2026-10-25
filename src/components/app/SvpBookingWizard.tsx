@@ -34,6 +34,7 @@ import {
   downloadSvpTicket,
   getSvpAccountOverview,
   getSvpBookingSetup,
+  getSvpDiagnostics,
   getSvpOccupationById,
   getSvpExamSessionById,
   listSvpAvailableDates,
@@ -45,6 +46,7 @@ import {
   listSvpTestCenterCities,
   searchSvpOccupations,
   type SvpBookingResult,
+  type SvpDiagnostics,
 } from "@/lib/svp-booking.functions";
 import { lookupTakamolAvailability } from "@/lib/takamol-availability.functions";
 import { parseSessionTableRows } from "@/lib/takamol-availability.ui";
@@ -209,6 +211,7 @@ export function SvpBookingWizard() {
   const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [forceTargeted, setForceTargeted] = useState(false);
   const [occupationLookup, setOccupationLookup] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<SvpDiagnostics | null>(null);
   const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
 
@@ -713,6 +716,17 @@ export function SvpBookingWizard() {
     if (prometricDate) void slotsQuery.refetch();
   };
 
+  const diagnosticsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await getSvpDiagnostics();
+      if (!response.ok) throw new Error(response.message);
+      return response.data;
+    },
+    onSuccess: (data) => setDiagnostics(data),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Diagnostics could not run."),
+  });
+
   const startNewBooking = () => {
     resetFlow();
     setAddAccountOpen(false);
@@ -1029,7 +1043,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v9
+              Official SVP API · live · v10
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1326,6 +1340,31 @@ export function SvpBookingWizard() {
                   </p>
                 )}
               </Field>
+              {languageOptions.length > 1 && (
+                <Field label="Exam language">
+                  <NativeSelect
+                    value={activeLanguageCode}
+                    onChange={(event) => {
+                      setLanguageCode(event.target.value);
+                      setSelectedDate(null);
+                      setSelectedSession(null);
+                      setSelectedSlot(null);
+                      setHoldId(null);
+                      setPrometricHoldExpiresAt(null);
+                      setTargetedHoldExpiresAt(null);
+                      setChecked(false);
+                      setEligibility(null);
+                      setStage("select");
+                    }}
+                  >
+                    {languageOptions.map((entry) => (
+                      <option key={entry.code} value={entry.code}>
+                        {entry.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              )}
               <Field label={isTargeted ? "Test center city" : "Test center city *"}>
                 {isTargeted ? (
                   <NativeSelect
@@ -1370,31 +1409,6 @@ export function SvpBookingWizard() {
                   </>
                 )}
               </Field>
-              {languageOptions.length > 1 && (
-                <Field label="Exam language">
-                  <NativeSelect
-                    value={activeLanguageCode}
-                    onChange={(event) => {
-                      setLanguageCode(event.target.value);
-                      setSelectedDate(null);
-                      setSelectedSession(null);
-                      setSelectedSlot(null);
-                      setHoldId(null);
-                      setPrometricHoldExpiresAt(null);
-                      setTargetedHoldExpiresAt(null);
-                      setChecked(false);
-                      setEligibility(null);
-                      setStage("select");
-                    }}
-                  >
-                    {languageOptions.map((entry) => (
-                      <option key={entry.code} value={entry.code}>
-                        {entry.label}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </Field>
-              )}
             </div>
 
             {occupationsQuery.isPending && (
@@ -1442,15 +1456,56 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v9
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v10
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
                     Occupation field to search SVP directly.
                   </p>
-                  <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                    Reload occupations
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
+                      Reload occupations
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => diagnosticsMutation.mutate()}
+                      disabled={diagnosticsMutation.isPending}
+                    >
+                      {diagnosticsMutation.isPending ? "Checking…" : "Run diagnostics"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => signOutMutation.mutate(false)}
+                      disabled={signOutMutation.isPending}
+                    >
+                      Sign out SVP & retry
+                    </Button>
+                  </div>
+                  {diagnostics && (
+                    <div className="grid gap-1 rounded-lg border bg-background/60 p-2 font-mono text-[11px] text-muted-foreground">
+                      <p>
+                        session: {diagnostics.login ?? "—"} · svp id: {diagnostics.svpUserId ?? "—"}{" "}
+                        · stored targeted: {String(diagnostics.countryTargeted)}
+                      </p>
+                      <p>
+                        permissions: HTTP {diagnostics.permissions.status} · targeted:{" "}
+                        {String(diagnostics.permissions.targeted)} · country:{" "}
+                        {diagnostics.permissions.country ?? "—"}
+                      </p>
+                      <p>
+                        labor occupations: HTTP {diagnostics.labor.status} ·{" "}
+                        {diagnostics.labor.count} items · {diagnostics.labor.message ?? "ok"}
+                      </p>
+                      <p>
+                        visitor occupations: HTTP {diagnostics.visitor.status} ·{" "}
+                        {diagnostics.visitor.count} items · {diagnostics.visitor.message ?? "ok"}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             {citiesQuery.data && !citiesQuery.data.ok && !isTargeted && (
