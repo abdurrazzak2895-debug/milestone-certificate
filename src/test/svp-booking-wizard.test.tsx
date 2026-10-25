@@ -1521,13 +1521,11 @@ describe("Takamol occupation language system", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
 
     const select = (await screen.findByLabelText("Exam language *")) as HTMLSelectElement;
-    await waitFor(() =>
-      expect(Array.from(select.options).some((option) => option.textContent === "WLDBB")).toBe(
-        true,
-      ),
-    );
-    // The language is still a manual choice.
-    expect(select).toHaveValue("");
+    await waitFor(() => expect(select).toHaveValue("WLDBB"));
+    // Only Takamol's language is shown and it is applied automatically.
+    expect(Array.from(select.options).filter((option) => option.value)).toHaveLength(1);
+    expect(select).toBeDisabled();
+    expect(screen.getByText(/applied automatically from Takamol/)).toBeInTheDocument();
   });
 
   it("sends SVP language fallbacks so a rejected code cannot block the booking", async () => {

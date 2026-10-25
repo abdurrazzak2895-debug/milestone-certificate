@@ -515,9 +515,31 @@ export function SvpBookingWizard() {
     occupation,
     takamolLanguageByOccupation,
   ]);
+  // Takamol returns one language code per occupation: show and apply it automatically.
+  const takamolLanguageCode = occupation
+    ? (takamolLanguageByOccupation.get(occupation.id) ?? null)
+    : null;
+  const languageChoices = useMemo(
+    () =>
+      takamolLanguageCode
+        ? [
+            {
+              code: takamolLanguageCode,
+              label: takamolLanguageCode,
+              questionCount: null,
+              nonTargeted: false,
+            },
+          ]
+        : languageOptions,
+    [languageOptions, takamolLanguageCode],
+  );
+  useEffect(() => {
+    if (!takamolLanguageCode) return;
+    setLanguageCode((current) => (current === takamolLanguageCode ? current : takamolLanguageCode));
+  }, [takamolLanguageCode]);
   // The exam language is always chosen manually; never auto-selected.
   const activeLanguageCode =
-    languageCode && languageOptions.some((entry) => entry.code === languageCode)
+    languageCode && languageChoices.some((entry) => entry.code === languageCode)
       ? languageCode
       : "";
 
@@ -760,7 +782,7 @@ export function SvpBookingWizard() {
   }, [takamolRows]);
   const apiLanguageLabel = apiLanguages.join(", ");
   const activeLanguageLabel =
-    languageOptions.find((entry) => entry.code === activeLanguageCode)?.label ?? activeLanguageCode;
+    languageChoices.find((entry) => entry.code === activeLanguageCode)?.label ?? activeLanguageCode;
   const languageMismatch =
     apiLanguages.length > 0 &&
     Boolean(activeLanguageLabel) &&
@@ -1783,22 +1805,28 @@ export function SvpBookingWizard() {
                     setEligibility(null);
                     setStage("select");
                   }}
-                  disabled={languageOptions.length === 0}
+                  disabled={languageChoices.length === 0 || Boolean(takamolLanguageCode)}
                   required
                 >
                   <option value="">
-                    {languageOptions.length === 0
+                    {languageChoices.length === 0
                       ? "Select an occupation first"
                       : "Select exam language"}
                   </option>
-                  {languageOptions.map((entry) => (
+                  {languageChoices.map((entry) => (
                     <option key={entry.code} value={entry.code}>
                       {entry.label}
                     </option>
                   ))}
                 </NativeSelect>
               </Field>
-              {occupation && languageOptions.length === 0 && (
+              {takamolLanguageCode && (
+                <p className="text-xs text-muted-foreground">
+                  Language {takamolLanguageCode} is applied automatically from Takamol for this
+                  occupation.
+                </p>
+              )}
+              {occupation && languageChoices.length === 0 && (
                 <p
                   role={overviewQuery.isFetching ? "status" : "alert"}
                   className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
