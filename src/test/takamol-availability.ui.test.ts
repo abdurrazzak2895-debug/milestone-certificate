@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseAvailableDates,
   parseCities,
+  parseOccupationLanguages,
   parseOccupations,
   parseSessionTableRows,
   parseSessions,
@@ -25,7 +26,7 @@ describe("Takamol selection data", () => {
     ]);
   });
 
-  it("keeps the languages reported by Takamol for an occupation", () => {
+  it("keeps the languages and language code reported by Takamol", () => {
     const [occupation] = parseOccupations({
       occupations: [
         {
@@ -33,11 +34,21 @@ describe("Takamol selection data", () => {
           occupation_id: 2008,
           english_name: "Barber",
           languages: ["Bengali", { name: "English" }],
+          language_code: "BRBBB",
         },
       ],
     });
 
     expect(occupation?.languages).toEqual(["Bengali", "English"]);
+    expect(occupation?.languageCode).toBe("BRBBB");
+    expect(
+      parseOccupationLanguages({
+        occupations: [
+          { id: 50, occupation_id: 2008, language_code: "BRBBB" },
+          { id: 49, occupation_id: 2009, language_code: "" },
+        ],
+      }),
+    ).toEqual([{ occupationId: "2008", languageCode: "BRBBB" }]);
   });
 
   it("normalizes and deduplicates city options", () => {

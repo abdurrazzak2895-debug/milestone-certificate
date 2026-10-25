@@ -63,7 +63,7 @@ import {
   type SvpDiagnostics,
 } from "@/lib/svp-booking.functions";
 import { lookupTakamolAvailability } from "@/lib/takamol-availability.functions";
-import { parseSessionTableRows } from "@/lib/takamol-availability.ui";
+import { parseOccupationLanguages, parseSessionTableRows } from "@/lib/takamol-availability.ui";
 import {
   getSvpSessionStatus,
   listSvpAccounts,
@@ -77,6 +77,7 @@ import type {
   SvpAvailableDate,
   SvpEligibility,
   SvpExamSession,
+  SvpLanguage,
   SvpOccupation,
   SvpPrometricSlot,
   SvpReservation,
@@ -350,14 +351,50 @@ export function SvpBookingWizard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const occupations = useMemo(
-    () => (occupationsQuery.data?.ok ? occupationsQuery.data.data : []),
-    [occupationsQuery.data],
-  );
-  const occupation = useMemo(
-    () => selectedOccupation ?? occupations.find((entry) => entry.id === occupationId) ?? null,
-    [occupationId, occupations, selectedOccupation],
-  );
+  // Takamol's catalogue carries the per-occupation language code used for the exam booking.
+  const takamolOccupationsQuery = useQuery({
+    queryKey: ["takamol-occupations"],
+    queryFn: () => lookupTakamolAvailability({ data: { endpoint: "occupations" } }),
+    enabled: signedIn,
+    retry: false,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const takamolLanguageByOccupation = useMemo(() => {
+    const map = new Map<number, string>();
+    const payload = takamolOccupationsQuery.data;
+    if (!payload?.success) return map;
+    for (const entry of parseOccupationLanguages(payload.data)) {
+      const id = Number(entry.occupationId);
+      if (Number.isInteger(id) && id > 0) map.set(id, entry.languageCode);
+    }
+    return map;
+  }, [takamolOccupationsQuery.data]);
+  const occupations = useMemo(() => {
+    const rows = occupationsQuery.data?.ok ? occupationsQuery.data.data : [];
+    if (takamolLanguageByOccupation.size === 0) return rows;
+    return rows.map((row) => {
+      if (row.languages.length > 0) return row;
+      const code = takamolLanguageByOccupation.get(row.id);
+      return code
+        ? {
+            ...row,
+            languages: [
+              { code, label: code, questionCount: null, nonTargeted: false } satisfies SvpLanguage,
+            ],
+          }
+        : row;
+    });
+  }, [occupationsQuery.data, takamolLanguageByOccupation]);
+  const occupation = useMemo(() => {
+    const fromList = occupations.find((entry) => entry.id === occupationId) ?? null;
+    if (!selectedOccupation) return fromList;
+    if (selectedOccupation.languages.length > 0) return selectedOccupation;
+    if (fromList && fromList.languages.length > selectedOccupation.languages.length) {
+      return fromList;
+    }
+    return selectedOccupation;
+  }, [occupationId, occupations, selectedOccupation]);
   const filteredOccupations = useMemo(() => {
     const needle = occupationSearch.trim().toLowerCase();
     const filtered = needle

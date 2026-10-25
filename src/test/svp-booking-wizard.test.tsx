@@ -1491,3 +1491,42 @@ describe("SVP account activity", () => {
     expect(confirmSpy).toHaveBeenCalled();
   });
 });
+
+describe("Takamol occupation language system", () => {
+  it("fills the language dropdown from the Takamol occupation language code", async () => {
+    mocks.occupations.mockResolvedValue({
+      ok: true,
+      data: [{ ...occupation, languages: [] }],
+    });
+    mocks.occupationById.mockResolvedValue({
+      ok: true,
+      data: { ...occupation, languages: [] },
+    });
+    mocks.takamol.mockImplementation((request: { data: { endpoint: string } }) =>
+      Promise.resolve(
+        request.data.endpoint === "occupations"
+          ? {
+              success: true,
+              data: {
+                occupations: [{ id: 159, occupation_id: 11, language_code: "WLDBB" }],
+              },
+            }
+          : { success: false, status: 200, message: "not loaded" },
+      ),
+    );
+
+    renderWizard();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+
+    const select = (await screen.findByLabelText("Exam language *")) as HTMLSelectElement;
+    await waitFor(() =>
+      expect(Array.from(select.options).some((option) => option.textContent === "WLDBB")).toBe(
+        true,
+      ),
+    );
+    // The language is still a manual choice.
+    expect(select).toHaveValue("");
+  });
+});

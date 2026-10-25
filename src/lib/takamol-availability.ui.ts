@@ -7,6 +7,8 @@ export type OccupationChoice = {
   category: string | null;
   /** Languages reported by Takamol for this occupation, when provided. */
   languages?: string[];
+  /** Takamol's occupation-specific language code used for the exam booking. */
+  languageCode?: string;
 };
 
 export type TestCenterChoice = {
@@ -69,6 +71,7 @@ export function parseOccupations(payload: unknown): OccupationChoice[] {
     seen.add(optionId);
     const category = firstText(row, ["category_name"]);
     const languages = occupationLanguages(row);
+    const languageCode = firstText(row, ["language_code", "languageCode"]);
     return [
       {
         optionId,
@@ -76,8 +79,23 @@ export function parseOccupations(payload: unknown): OccupationChoice[] {
         label,
         category: category && category !== label ? category : null,
         ...(languages.length > 0 ? { languages } : {}),
+        ...(languageCode ? { languageCode } : {}),
       },
     ];
+  });
+}
+
+/**
+ * Occupation id → Takamol language code. The occupations endpoint returns
+ * `{ occupation_id, id (category), language_code }` for every bookable occupation.
+ */
+export function parseOccupationLanguages(
+  payload: unknown,
+): { occupationId: string; languageCode: string }[] {
+  return rowsAt(payload, ["occupations"]).flatMap((row) => {
+    const occupationId = firstText(row, ["occupation_id", "occupationId"]);
+    const languageCode = firstText(row, ["language_code", "languageCode"]);
+    return occupationId && languageCode ? [{ occupationId, languageCode }] : [];
   });
 }
 

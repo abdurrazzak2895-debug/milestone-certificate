@@ -12,7 +12,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Field } from "@/components/app/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,26 +120,18 @@ function InlineState({ children, error = false }: { children: ReactNode; error?:
 
 export function TakamolAvailabilityPanel() {
   const [occupationSearch, setOccupationSearch] = useState("");
-  const [debouncedOccupationSearch, setDebouncedOccupationSearch] = useState("");
   const [selectedOccupation, setSelectedOccupation] = useState<OccupationChoice | null>(null);
   const [city, setCity] = useState("");
   const [examDate, setExamDate] = useState("");
   const [testCenterId, setTestCenterId] = useState("all");
 
-  useEffect(() => {
-    const timeout = window.setTimeout(
-      () => setDebouncedOccupationSearch(occupationSearch.trim()),
-      450,
-    );
-    return () => window.clearTimeout(timeout);
-  }, [occupationSearch]);
-
+  // The occupations route always returns the full catalogue (it has no search parameter),
+  // so load it once and filter locally.
   const occupationSearchQuery = useQuery({
-    queryKey: ["takamol", "occupations", debouncedOccupationSearch],
-    queryFn: () => getLookupData({ endpoint: "occupations", search: debouncedOccupationSearch }),
-    enabled: debouncedOccupationSearch.length >= 2,
+    queryKey: ["takamol", "occupations", "all"],
+    queryFn: () => getLookupData({ endpoint: "occupations" }),
     retry: false,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
 
@@ -172,14 +164,19 @@ export function TakamolAvailabilityPanel() {
     mutationFn: (request: SessionRequest) => getLookupData(request),
   });
 
-  const normalizedOccupationSearch = occupationSearch.trim();
-  const occupationSearchIsCurrent =
-    normalizedOccupationSearch.length >= 2 &&
-    normalizedOccupationSearch === debouncedOccupationSearch;
-  const occupationSearchIsLoading =
-    normalizedOccupationSearch.length >= 2 &&
-    (!occupationSearchIsCurrent || occupationSearchQuery.isFetching);
-  const occupations = occupationSearchIsCurrent ? parseOccupations(occupationSearchQuery.data) : [];
+  const normalizedOccupationSearch = occupationSearch.trim().toLowerCase();
+  const allOccupations = parseOccupations(occupationSearchQuery.data);
+  const occupations = (
+    normalizedOccupationSearch
+      ? allOccupations.filter((entry) =>
+          [entry.label, entry.category ?? "", entry.optionId, entry.languageCode ?? ""]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedOccupationSearch),
+        )
+      : allOccupations
+  ).slice(0, 60);
+  const occupationSearchIsLoading = occupationSearchQuery.isFetching;
   const cities = parseCities(citiesQuery.data);
   const dates = parseAvailableDates(datesQuery.data);
   const centers = parseTestCenters(centersQuery.data);
@@ -188,12 +185,7 @@ export function TakamolAvailabilityPanel() {
 
   const searchOccupations = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (normalizedOccupationSearch.length < 2) return;
-    if (normalizedOccupationSearch === debouncedOccupationSearch) {
-      void occupationSearchQuery.refetch();
-    } else {
-      setDebouncedOccupationSearch(normalizedOccupationSearch);
-    }
+    void occupationSearchQuery.refetch();
   };
 
   const changeOccupationSearch = (value: string) => {
@@ -236,7 +228,6 @@ export function TakamolAvailabilityPanel() {
 
   const clearSearch = () => {
     setOccupationSearch("");
-    setDebouncedOccupationSearch("");
     setSelectedOccupation(null);
     setCity("");
     setExamDate("");
@@ -327,33 +318,28 @@ export function TakamolAvailabilityPanel() {
                 />
               </Field>
               <div className="self-end">
-                <Button
-                  type="submit"
-                  disabled={normalizedOccupationSearch.length < 2 || occupationSearchIsLoading}
-                >
+                <Button type="submit" disabled={occupationSearchIsLoading}>
                   {occupationSearchIsLoading ? (
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <Search />
                   )}
-                  Search occupations
+                  Reload occupations
                 </Button>
               </div>
             </form>
-            {normalizedOccupationSearch.length < 2 && (
-              <p className="text-xs text-muted-foreground">
-                Type at least two characters. Matching occupations load automatically.
-              </p>
+            <p className="text-xs text-muted-foreground">
+              All {allOccupations.length} occupations load from Takamol; type to filter by name,
+              category or language code.
+            </p>
+            {occupationSearchIsLoading && allOccupations.length === 0 && (
+              <InlineState>Loading the occupation catalogue…</InlineState>
             )}
-            {occupationSearchIsLoading && (
-              <InlineState>Searching the occupation catalogue…</InlineState>
-            )}
-            {occupationSearchIsCurrent && occupationSearchQuery.isError && (
+            {occupationSearchQuery.isError && (
               <InlineState error>{errorText(occupationSearchQuery.error)}</InlineState>
             )}
-            {occupationSearchIsCurrent &&
+            {!occupationSearchIsLoading &&
               occupationSearchQuery.isSuccess &&
-              !occupationSearchQuery.isFetching &&
               occupations.length === 0 && (
                 <InlineState>No matches found. Try a broader occupation search.</InlineState>
               )}
@@ -389,9 +375,7 @@ export function TakamolAvailabilityPanel() {
                           </span>
                           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                             {occupation.category ?? `Category ${occupation.categoryId}`}
-                            {occupation.languages?.length
-                              ? ` · ${occupation.languages.join(", ")}`
-                              : ""}
+                            {occupation.languageCode ? ` · ${occupation.languageCode}` : ""}
                           </span>
                         </span>
                         {selected ? (
