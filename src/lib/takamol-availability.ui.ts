@@ -192,6 +192,29 @@ export function parseSessionTableRows(payload: unknown, fallbackCenterName?: str
       ]) ??
       firstText(session, ["exam_time", "session_time", "start_time", "time", "slot_time"]) ??
       "—";
+    const language =
+      firstText(row, [
+        "language_name",
+        "languageName",
+        "exam_language",
+        "examLanguage",
+        "session_language",
+        "test_language",
+        "language",
+        "language_code",
+        "languageCode",
+        "lang",
+      ]) ??
+      firstText(session, [
+        "language_name",
+        "exam_language",
+        "session_language",
+        "test_language",
+        "language",
+        "language_code",
+        "lang",
+      ]) ??
+      firstText(center ?? {}, ["language_name", "language"]);
     const seats =
       firstText(row, [
         "available_seats",
@@ -219,8 +242,24 @@ export function parseSessionTableRows(payload: unknown, fallbackCenterName?: str
       firstText(row, ["session_id", "exam_session_id", "id"]) ??
       `${index}-${centerName}-${examTime}`;
 
-    return { id, centerName, examSlot, examTime, seats };
+    return { id, centerName, examSlot, examTime, seats, language: normalizeLanguage(language) };
   });
+}
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  ar: "Arabic",
+  bn: "Bengali",
+  en: "English",
+  hi: "Hindi",
+  ne: "Nepali",
+  ur: "Urdu",
+};
+
+/** Language codes are shown as their full name; provider text is kept as-is. */
+function normalizeLanguage(value: string | null): string | null {
+  if (!value) return null;
+  const code = value.trim().toLowerCase();
+  return LANGUAGE_NAMES[code] ?? value.trim();
 }
 
 const PRIVATE_FIELD = /token|api[_-]?key|secret|password|authorization|cookie/i;

@@ -688,11 +688,30 @@ export function SvpBookingWizard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const takamolRows = takamolQuery.data?.success
-    ? parseSessionTableRows(takamolQuery.data.data, availabilityCity)
-    : [];
+  const takamolRows = useMemo(
+    () =>
+      takamolQuery.data?.success
+        ? parseSessionTableRows(takamolQuery.data.data, availabilityCity)
+        : [],
+    [availabilityCity, takamolQuery.data],
+  );
+  // The provider is the source of truth for the language actually offered for these sessions.
+  const apiLanguages = useMemo(() => {
+    const unique = new Set<string>();
+    for (const row of takamolRows) {
+      if (row.language) unique.add(row.language);
+    }
+    return [...unique];
+  }, [takamolRows]);
+  const apiLanguageLabel = apiLanguages.join(", ");
   const activeLanguageLabel =
     languageOptions.find((entry) => entry.code === activeLanguageCode)?.label ?? activeLanguageCode;
+  const languageMismatch =
+    apiLanguages.length > 0 &&
+    Boolean(activeLanguageLabel) &&
+    !apiLanguages.some(
+      (entry) => entry.trim().toLowerCase() === activeLanguageLabel.trim().toLowerCase(),
+    );
 
   // If the site-based attempt fails after eligibility but targeted dates exist, use them.
   useEffect(() => {
@@ -2183,7 +2202,7 @@ export function SvpBookingWizard() {
                         <p className="text-sm font-medium">Live availability · Takamol API</p>
                         <p className="text-xs text-muted-foreground">
                           {formatDateOnly(availabilityDate)} · {availabilityCity} ·{" "}
-                          {activeLanguageLabel}
+                          {apiLanguageLabel || activeLanguageLabel}
                         </p>
                       </div>
                       <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -2218,7 +2237,7 @@ export function SvpBookingWizard() {
                                 <td className="px-3 py-2 font-medium">{row.examTime}</td>
                                 <td className="px-3 py-2">{row.seats}</td>
                                 <td className="px-3 py-2">{row.examSlot}</td>
-                                <td className="px-3 py-2">{activeLanguageLabel}</td>
+                                <td className="px-3 py-2">{row.language ?? activeLanguageLabel}</td>
                                 <td className="px-3 py-2 text-right">
                                   {choice ? (
                                     <Button
@@ -2247,6 +2266,16 @@ export function SvpBookingWizard() {
                       Availability comes from the Takamol API; the row you click selects the real
                       SVP exam session that will be booked.
                     </p>
+                    {languageMismatch && (
+                      <p
+                        role="status"
+                        className="rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
+                      >
+                        Takamol lists {apiLanguageLabel} for this date, but the selected exam
+                        language is {activeLanguageLabel}. Check availability with a language the
+                        API reports.
+                      </p>
+                    )}
                   </div>
                 )}
 

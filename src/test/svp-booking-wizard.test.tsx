@@ -1084,6 +1084,7 @@ describe("Takamol availability selection", () => {
             exam_time: "2:00 PM",
             seats: 5,
             exam_slot: "Available",
+            language_name: "Bengali",
           },
         ],
       },
@@ -1103,6 +1104,9 @@ describe("Takamol availability selection", () => {
     await pickDate("5 Nov 2026");
 
     expect(await screen.findByText(/Live availability · Takamol API/)).toBeInTheDocument();
+    // The language comes from the API, not the manual dropdown.
+    expect(screen.getByText("Bengali")).toBeInTheDocument();
+    expect(screen.getByText(/Takamol lists Bengali for this date/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Selected" })).toBeInTheDocument();
   });
 });

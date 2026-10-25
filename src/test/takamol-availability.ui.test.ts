@@ -69,6 +69,7 @@ describe("Takamol selection data", () => {
             exam_slot: "available",
             exam_time: "10:00 AM",
             seats: 9,
+            language_name: "Bengali",
           },
           {
             session_id: "slot-2",
@@ -76,6 +77,7 @@ describe("Takamol selection data", () => {
             status: "Full",
             start_time: "11:30 AM",
             available_seats: 0,
+            language_code: "en",
           },
         ],
       }),
@@ -86,6 +88,7 @@ describe("Takamol selection data", () => {
         examSlot: "Available",
         examTime: "10:00 AM",
         seats: "9",
+        language: "Bengali",
       },
       {
         id: "slot-2",
@@ -93,6 +96,7 @@ describe("Takamol selection data", () => {
         examSlot: "Full",
         examTime: "11:30 AM",
         seats: "0",
+        language: "English",
       },
     ]);
   });
@@ -117,6 +121,7 @@ describe("Takamol selection data", () => {
         examSlot: "Available",
         examTime: "10:00 AM",
         seats: "9",
+        language: null,
       },
     ]);
     expect(
