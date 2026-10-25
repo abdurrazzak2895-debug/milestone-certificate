@@ -652,7 +652,10 @@ export function SvpBookingWizard() {
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const prometricSlots = slotsQuery.data?.ok ? slotsQuery.data.data : [];
+  const prometricSlots = useMemo(
+    () => (slotsQuery.data?.ok ? slotsQuery.data.data : []),
+    [slotsQuery.data],
+  );
 
   const availabilityCity = selectedDate?.city ?? city;
   const availabilityDate = isTargeted
@@ -780,23 +783,26 @@ export function SvpBookingWizard() {
     }
   };
 
-  const chooseSlot = (slot: SvpPrometricSlot) => {
-    const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
-    setSelectedSlot(slot);
-    setSelectedSession({
-      id: slot.id,
-      startAt: slot.startAt,
-      endAt: null,
-      duration: slot.duration,
-      availableSeats: null,
-      city: site?.city ?? city,
-      centerName: site?.name ?? null,
-      siteId: slot.siteId,
-    });
-    setHoldId(null);
-    setTargetedHoldExpiresAt(null);
-    setPrometricHoldExpiresAt(null);
-  };
+  const chooseSlot = useCallback(
+    (slot: SvpPrometricSlot) => {
+      const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
+      setSelectedSlot(slot);
+      setSelectedSession({
+        id: slot.id,
+        startAt: slot.startAt,
+        endAt: null,
+        duration: slot.duration,
+        availableSeats: null,
+        city: site?.city ?? city,
+        centerName: site?.name ?? null,
+        siteId: slot.siteId,
+      });
+      setHoldId(null);
+      setTargetedHoldExpiresAt(null);
+      setPrometricHoldExpiresAt(null);
+    },
+    [city, prometricSites],
+  );
 
   const holdMutation = useMutation({
     mutationFn: async () => {
@@ -1262,13 +1268,19 @@ export function SvpBookingWizard() {
       })
     : examSessions;
   // Each Takamol availability row maps to a real SVP session token so a click selects it.
-  // Load-balancer dates return several tokens for the same day: preselect the first so the
-  // Continue button always has a real session, and let a Takamol row override it.
+  // Picking a date preselects its first session so the test center is visible immediately,
+  // and a Takamol row or the test-center picker can still override it.
   useEffect(() => {
-    if (!isTargeted || !isLoadBalancer) return;
+    if (!isTargeted) return;
     if (selectedSession || visibleExamSessions.length === 0) return;
     setSelectedSession(visibleExamSessions[0]!);
-  }, [isLoadBalancer, isTargeted, selectedSession, visibleExamSessions]);
+  }, [isTargeted, selectedSession, visibleExamSessions]);
+
+  // Site-based dates also resolve their first test center as soon as the date is chosen.
+  useEffect(() => {
+    if (isTargeted || selectedSlot || prometricSlots.length === 0) return;
+    chooseSlot(prometricSlots[0]!);
+  }, [chooseSlot, isTargeted, prometricSlots, selectedSlot]);
 
   const takamolChoices = (() => {
     return takamolRows.map((row, index) => {
@@ -1330,6 +1342,11 @@ export function SvpBookingWizard() {
           onSelect: () => chooseSlot(slot),
         };
       });
+  // The date click resolves the real test center; show it directly without a session list.
+  const activeSessionView = sessionViews.find((view) => view.selected) ?? sessionViews[0] ?? null;
+  const sessionTimeLabel = activeSessionView?.startAt
+    ? splitDateTime(activeSessionView.startAt).time
+    : "";
   const sessionsLoading = isTargeted ? sessionsQuery.isFetching : slotsQuery.isFetching;
   const sessionsError = isTargeted
     ? sessionsQuery.data && !sessionsQuery.data.ok
@@ -1847,20 +1864,6 @@ export function SvpBookingWizard() {
                   )}
                 </div>
               )}
-            {citiesQuery.data && !citiesQuery.data.ok && !isTargeted && (
-              <div
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-xs text-amber-950"
-                role="status"
-              >
-                <span>
-                  City catalogue unavailable — Step 2 uses SVP availability cities or an explicit
-                  manual fallback. ({citiesQuery.data.message})
-                </span>
-                <Button type="button" size="sm" variant="outline" onClick={retryOccupations}>
-                  Retry
-                </Button>
-              </div>
-            )}
             {occupationLookup && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading the full occupation…
@@ -1904,11 +1907,6 @@ export function SvpBookingWizard() {
                   </Button>
                 </div>
               ))}
-            {setupQuery.isPending && occupationId !== null && (
-              <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading SVP permissions…
-              </p>
-            )}
             {setupQuery.data && !setupQuery.data.ok && (
               <p role="alert" className="text-sm text-destructive">
                 {setupQuery.data.message}
@@ -2012,40 +2010,10 @@ export function SvpBookingWizard() {
                   ))}
                 </NativeSelect>
               </Field>
-              {citiesLoading ? (
+              {citiesLoading && (
                 <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
                   <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading cities from SVP…
                 </p>
-              ) : cityOptions.length > 0 ? (
-                <p role="status" className="text-xs text-muted-foreground">
-                  {cityOptions.length === 1
-                    ? "The only available city is selected automatically."
-                    : "Choose a city to see its available dates and sessions."}
-                  {isTargeted || cities.length === 0
-                    ? " Cities loaded from SVP availability."
-                    : " Cities loaded from the SVP test-center catalogue."}
-                </p>
-              ) : citiesLoaded ? (
-                <p role="status" className="text-xs text-muted-foreground">
-                  SVP has not returned any city options for this occupation.
-                </p>
-              ) : null}
-              {cityError && (
-                <div
-                  role="alert"
-                  className="flex flex-wrap items-center gap-2 text-xs text-warning"
-                >
-                  <span>{cityError}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={refreshAvailability}
-                    disabled={citiesLoading}
-                  >
-                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry cities
-                  </Button>
-                </div>
               )}
               {manualCityFallback && (
                 <Field label="City (manual fallback)">
@@ -2063,11 +2031,6 @@ export function SvpBookingWizard() {
                 </Field>
               )}
             </div>
-            {!city.trim() && cityOptions.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Select the test center city to load matching availability.
-              </p>
-            )}
 
             {eligibility && eligibility.every((entry) => entry.passed) && (
               <p className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2 text-xs">
@@ -2114,62 +2077,60 @@ export function SvpBookingWizard() {
 
             {activeDateValue && (
               <div className="space-y-2">
-                {takamolRows.length === 0 && sessionViews.length > 0 && (
-                  <div className="space-y-2">
+                {takamolRows.length === 0 && sessionsLoading && (
+                  <p
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    <LoaderCircle className="h-4 w-4 animate-spin" /> Loading the test center…
+                  </p>
+                )}
+                {takamolRows.length === 0 && sessionsError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {sessionsError}
+                  </p>
+                )}
+                {takamolRows.length === 0 && activeSessionView && (
+                  <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">SVP sessions for this date</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDateOnly(availabilityDate)} · {availabilityCity || "any city"} ·{" "}
-                          {activeLanguageLabel}
-                        </p>
-                      </div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Test center
+                      </p>
                       {sessionsLoading && (
                         <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
                       )}
                     </div>
-                    {sessionsError && (
-                      <p role="alert" className="text-sm text-destructive">
-                        {sessionsError}
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {activeSessionView.center ?? activeSessionView.city ?? "SVP test center"}
                       </p>
-                    )}
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {sessionViews.map((view, index) => {
-                        const start = view.startAt ? formatSlot(view.startAt) : "Date confirmed";
-                        return (
-                          <button
-                            key={view.key}
-                            type="button"
-                            onClick={view.onSelect}
-                            aria-pressed={view.selected}
-                            className={`rounded-xl border p-3 text-left text-sm transition-colors ${
-                              view.selected
-                                ? "border-primary bg-primary-soft"
-                                : "bg-card hover:border-primary/50"
-                            }`}
-                          >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="font-semibold">
-                                {view.center ?? view.city ?? "SVP test center"}
-                              </span>
-                              {view.selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                            </span>
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              {start}
-                            </span>
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              {view.seats !== null ? `${view.seats} available · ` : ""}
-                              {view.duration
-                                ? `${view.duration} ${view.durationUnit === "minutes" ? "min" : "s"}`
-                                : "Seats confirmed by SVP on hold"}
-                            </span>
-                            <span className="mt-1 block text-[11px] text-muted-foreground">
-                              Session {index + 1}
-                            </span>
-                          </button>
-                        );
-                      })}
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {formatDateOnly(availabilityDate || activeDateValue)}
+                        {sessionTimeLabel ? ` · ${sessionTimeLabel}` : ""}
+                        {` · ${activeSessionView.city ?? availabilityCity}`}
+                        {` · ${activeLanguageLabel}`}
+                      </p>
                     </div>
+                    {sessionViews.length > 1 && (
+                      <Field label="Test center">
+                        <NativeSelect
+                          value={activeSessionView.key}
+                          onChange={(event) => {
+                            const view = sessionViews.find(
+                              (entry) => entry.key === event.target.value,
+                            );
+                            view?.onSelect();
+                          }}
+                        >
+                          {sessionViews.map((view) => (
+                            <option key={view.key} value={view.key}>
+                              {view.center ?? view.city ?? "SVP test center"}
+                              {view.startAt ? ` · ${formatSlot(view.startAt)}` : ""}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </Field>
+                    )}
                   </div>
                 )}
 

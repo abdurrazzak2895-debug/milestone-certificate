@@ -264,6 +264,13 @@ async function pickDate(label: string) {
   throw new Error(`Date option not found: ${label}`);
 }
 
+/** The date click resolves the test center automatically, so wait for Continue to enable. */
+async function clickContinue() {
+  const button = screen.getByRole("button", { name: "Continue" });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+}
+
 /** The exam language is a manual choice now, so every flow picks one first. */
 function pickLanguage(label = "English") {
   const select = screen.getByLabelText("Exam language *") as HTMLSelectElement;
@@ -370,7 +377,7 @@ async function openDatesStep() {
 }
 
 describe("SVP booking wizard", () => {
-  it("loads every session's center, time and seat details before any selection or hold", async () => {
+  it("shows the resolved test center details before any hold", async () => {
     mocks.sessions.mockResolvedValue({
       ok: true,
       data: [
@@ -387,14 +394,14 @@ describe("SVP booking wizard", () => {
     renderWizard();
     await openDatesStep();
     await pickDate("5 Nov 2026");
-    // Session details render as compact cards (no provider-placeholder table).
-    expect(await screen.findByText(/SVP sessions for this date/)).toBeInTheDocument();
+    // The date click resolves the test center directly; no session list or placeholder table.
+    expect(await screen.findByRole("option", { name: /Second Dhaka Center/ })).toBeInTheDocument();
+    expect(screen.queryByText(/SVP sessions for this date/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Session 1/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Not provided by SVP/)).not.toBeInTheDocument();
-    expect(screen.getByText("Dhaka Center")).toBeInTheDocument();
-    expect(screen.getByText("Second Dhaka Center")).toBeInTheDocument();
-    expect(screen.getByText("7 available · 3600 s")).toBeInTheDocument();
-    expect(screen.getByText("12 available · 3600 s")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    const centerPicker = await screen.findByLabelText("Test center");
+    expect(centerPicker).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     expect(mocks.targetedHold).not.toHaveBeenCalled();
     expect(mocks.hold).not.toHaveBeenCalled();
     expect(mocks.create).not.toHaveBeenCalled();
@@ -425,8 +432,7 @@ describe("SVP booking wizard", () => {
 
     expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
     await pickDate("5 Nov 2026");
-    fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await clickContinue();
 
     await waitFor(() =>
       expect(mocks.targetedHold).toHaveBeenCalledWith({
@@ -744,8 +750,7 @@ describe("SVP city dropdowns", () => {
     );
 
     await pickDate("2 Dec 2026");
-    fireEvent.click(await screen.findByRole("button", { name: /Rajshahi Site/ }));
-    expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
 
     fireEvent.change(citySelect, { target: { value: "Dhaka" } });
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled());
@@ -788,7 +793,7 @@ describe("SVP city dropdowns", () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
-  it("uses available-date cities when the site city catalogue errors and exposes retry", async () => {
+  it("uses available-date cities when the site city catalogue errors", async () => {
     configureSiteMode();
     mocks.cities.mockResolvedValue({
       ok: false,
@@ -810,9 +815,10 @@ describe("SVP city dropdowns", () => {
     expect(citySelect).toHaveValue("");
     expect(screen.getByRole("option", { name: "Dhaka" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Rajshahi" })).toBeInTheDocument();
-    expect(screen.getByText("The SVP city catalogue is unavailable.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Retry cities" }));
-    await waitFor(() => expect(mocks.cities).toHaveBeenCalledTimes(2));
+    // The catalogue error is not surfaced in the UI.
+    expect(screen.queryByText("The SVP city catalogue is unavailable.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry cities" })).not.toBeInTheDocument();
+    expect(mocks.cities).toHaveBeenCalledTimes(1);
   });
 
   it("shows a disabled city dropdown beside a manual fallback only when no city data exists", async () => {
@@ -896,8 +902,7 @@ describe("site-based booking flow", () => {
       target: { value: "Dhaka" },
     });
     await pickDate("1 Dec 2026");
-    fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await clickContinue();
 
     await waitFor(() =>
       expect(mocks.hold).toHaveBeenCalledWith({
@@ -1019,7 +1024,7 @@ describe("load-balancer targeted booking", () => {
     await pickDate("5 Nov 2026");
     // Load-balancer tokens are date-only: the first token is preselected, all are held.
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await clickContinue();
 
     await waitFor(() =>
       expect(mocks.targetedHold).toHaveBeenCalledWith({
@@ -1089,8 +1094,6 @@ describe("Takamol availability selection", () => {
     await pickDate("5 Nov 2026");
 
     expect(await screen.findByText(/Live availability · Takamol API/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Select" }));
-
     expect(await screen.findByRole("button", { name: "Selected" })).toBeInTheDocument();
   });
 });
@@ -1156,8 +1159,7 @@ describe("temporary seat hold", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     await pickDate("5 Nov 2026");
-    fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await clickContinue();
 
     await waitFor(() => expect(mocks.targetedHold).toHaveBeenCalled());
     expect(screen.queryByText(/Step 3/)).not.toBeInTheDocument();
@@ -1172,8 +1174,7 @@ async function openConfirmation() {
   fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
   await screen.findByText(/Step 2/);
   await pickDate("5 Nov 2026");
-  fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await clickContinue();
   await screen.findByText(/Step 3/);
 }
 
