@@ -1022,6 +1022,10 @@ describe("load-balancer targeted booking", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check eligibility" }));
     await screen.findByText(/Step 2/);
     await pickDate("5 Nov 2026");
+    // The date click shows the test center directly instead of an SVP session list.
+    expect(await screen.findByText("Test center")).toBeInTheDocument();
+    expect(screen.queryByText(/SVP sessions for this date/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Session 1/)).not.toBeInTheDocument();
     // Load-balancer tokens are date-only: the first token is preselected, all are held.
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     await clickContinue();
