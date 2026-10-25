@@ -1813,12 +1813,6 @@ export function SvpBookingWizard() {
                   ))}
                 </NativeSelect>
               </Field>
-              {takamolLanguageCode && (
-                <p className="text-xs text-muted-foreground">
-                  Language {takamolLanguageCode} is applied automatically from Takamol for this
-                  occupation.
-                </p>
-              )}
               {occupation && !takamolLanguageCode && (
                 <div
                   role={takamolOccupationsQuery.isFetching ? "status" : "alert"}

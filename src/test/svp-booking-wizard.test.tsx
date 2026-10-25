@@ -1557,7 +1557,7 @@ describe("Takamol occupation language system", () => {
     // Only Takamol's language is shown and it is applied automatically.
     expect(Array.from(select.options).filter((option) => option.value)).toHaveLength(1);
     expect(select).toBeDisabled();
-    expect(screen.getByText(/applied automatically from Takamol/)).toBeInTheDocument();
+    expect(screen.queryByText(/applied automatically from Takamol/)).not.toBeInTheDocument();
   });
 
   it("sends SVP language fallbacks so a rejected code cannot block the booking", async () => {
