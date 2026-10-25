@@ -4,17 +4,21 @@ import {
   CircleSlash,
   Clock3,
   Download,
+  FileText,
   LoaderCircle,
   Trophy,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { svpCbtResultFileName } from "@/lib/svp-result-pdf";
 import type { SvpReservation } from "@/lib/svp-api.shared";
 
 type Props = {
   reservation: SvpReservation;
   downloading: boolean;
   onDownloadCertificate: () => void;
+  /** Builds the local CBT result sheet (SVP has no result PDF endpoint). */
+  onDownloadCbtResult: (fileName: string) => void;
 };
 
 function resultTone(result: string | null): { label: string; className: string } {
@@ -26,7 +30,12 @@ function resultTone(result: string | null): { label: string; className: string }
 }
 
 /** Result status + score + real certificate download for one SVP reservation. */
-export function SvpResultPanel({ reservation, downloading, onDownloadCertificate }: Props) {
+export function SvpResultPanel({
+  reservation,
+  downloading,
+  onDownloadCertificate,
+  onDownloadCbtResult,
+}: Props) {
   const result = resultTone(reservation.finalResult ?? reservation.examResult);
   const certificate = reservation.certificate;
   const passed = result.label === "Passed";
@@ -72,12 +81,14 @@ export function SvpResultPanel({ reservation, downloading, onDownloadCertificate
       </div>
 
       {scores.length > 0 && (
-        <div className="flex flex-wrap gap-2 text-xs">
+        <div className="grid grid-cols-3 gap-2">
           {scores.map((score) => (
-            <span key={score.label} className="rounded-lg border bg-muted/30 px-2 py-1">
-              <span className="text-muted-foreground">{score.label}: </span>
-              <span className="font-semibold">{score.value}</span>
-            </span>
+            <div key={score.label} className="rounded-xl border bg-muted/30 px-2 py-2 text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {score.label}
+              </p>
+              <p className="font-display text-xl font-bold leading-tight">{score.value}</p>
+            </div>
           ))}
         </div>
       )}
@@ -94,16 +105,36 @@ export function SvpResultPanel({ reservation, downloading, onDownloadCertificate
         </div>
       )}
 
-      {hasCertificate ? (
-        <Button type="button" size="sm" onClick={onDownloadCertificate} disabled={downloading}>
-          {downloading ? (
-            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          Certificate PDF
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            onDownloadCbtResult(
+              svpCbtResultFileName(
+                reservation.laborName,
+                reservation.occupationEnglishName ?? reservation.occupationName,
+                reservation.centerName,
+              ),
+            )
+          }
+        >
+          <FileText className="mr-2 h-4 w-4" /> CBT result PDF
         </Button>
-      ) : (
+        {hasCertificate && (
+          <Button type="button" size="sm" onClick={onDownloadCertificate} disabled={downloading}>
+            {downloading ? (
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Certificate PDF
+          </Button>
+        )}
+      </div>
+
+      {hasCertificate ? null : (
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
           <CircleSlash className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {passed

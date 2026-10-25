@@ -12,6 +12,7 @@ import {
   Clock3,
   Download,
   ExternalLink,
+  FileText,
   LoaderCircle,
   LogOut,
   MapPin,
@@ -67,6 +68,7 @@ import {
   switchSvpAccount,
 } from "@/lib/svp-session.functions";
 import { svpCertificateFileName, svpTicketFileName } from "@/lib/svp-api.shared";
+import { buildSvpResultPdf, svpCbtResultFileName } from "@/lib/svp-result-pdf";
 import type {
   SvpAvailableDate,
   SvpEligibility,
@@ -998,6 +1000,43 @@ export function SvpBookingWizard() {
     }
   };
 
+  const downloadCbtResult = (entry: SvpReservation, fileName: string) => {
+    try {
+      const base64 = buildSvpResultPdf({
+        title: "SVP CBT Result",
+        subtitle: "Saudi Skill Verification Program · official SVP data",
+        candidateName: entry.laborName ?? status?.userName ?? candidateName,
+        passport: passport || null,
+        occupation: entry.occupationEnglishName ?? entry.occupationName,
+        testCenter: entry.centerName,
+        city: entry.city,
+        examDate: entry.startAt ? formatSlot(entry.startAt) : null,
+        result: entry.finalResult ?? entry.examResult,
+        scores: [
+          { label: "Total", value: entry.totalScore == null ? "-" : String(entry.totalScore) },
+          { label: "CBT", value: entry.cbtScore == null ? "-" : String(entry.cbtScore) },
+          {
+            label: "Practical",
+            value: entry.practicalScore == null ? "-" : String(entry.practicalScore),
+          },
+        ],
+        extra: [
+          { label: "Reservation", value: entry.id },
+          ...(entry.certificate?.certificateNumber
+            ? [{ label: "Certificate", value: entry.certificate.certificateNumber }]
+            : []),
+          ...(entry.certificate?.validUntil
+            ? [{ label: "Certificate valid until", value: entry.certificate.validUntil }]
+            : []),
+        ],
+      });
+      savePdfBase64(base64, "application/pdf", fileName);
+      toast.success(`CBT result saved as ${fileName}`);
+    } catch {
+      toast.error("The CBT result PDF could not be created.");
+    }
+  };
+
   const syncLocalReschedule = async (
     reservationId: string,
     updated: { startAt: string; city: string | null; centerName: string | null },
@@ -1344,7 +1383,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v22
+              Official SVP API · live · v23
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1783,7 +1822,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v22
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v23
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -2579,6 +2618,25 @@ export function SvpBookingWizard() {
                           Ticket PDF
                         </Button>
                       )}
+                      {(entry.examResult || entry.finalResult) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            downloadCbtResult(
+                              entry,
+                              svpCbtResultFileName(
+                                entry.laborName ?? status?.userName ?? candidateName,
+                                entry.occupationEnglishName ?? entry.occupationName,
+                                entry.centerName,
+                              ),
+                            )
+                          }
+                        >
+                          <FileText className="mr-1 h-3.5 w-3.5" /> CBT result PDF
+                        </Button>
+                      )}
                       {entry.certificate &&
                         entry.certificate.status?.toLowerCase() === "active" && (
                           <Button
@@ -2617,6 +2675,7 @@ export function SvpBookingWizard() {
                               entry.centerName ?? entry.city,
                             );
                           }}
+                          onDownloadCbtResult={(fileName) => downloadCbtResult(entry, fileName)}
                         />
                       </div>
                     )}
