@@ -677,12 +677,19 @@ export function SvpBookingWizard() {
   const selectOccupation = async (entry: SvpOccupation) => {
     const token = ++selectionTokenRef.current;
 
+    // Prefer the full loaded labour record (it carries prometric language codes).
+    const known = occupations.find((candidate) => candidate.id === entry.id) ?? null;
+    const base =
+      known && (known.languages.length > entry.languages.length || !entry.categoryId)
+        ? known
+        : entry;
+
     // Apply the selection immediately so the UI never stays on the old value.
     setManualCategoryId(null);
-    setSelectedOccupation(entry);
-    setOccupationId(entry.id);
+    setSelectedOccupation(base);
+    setOccupationId(base.id);
     setLanguageCode("");
-    setOccupationSearch(entry.name);
+    setOccupationSearch(base.name);
     setOccupationOpen(false);
     setChecked(false);
     setEligibility(null);
@@ -697,10 +704,12 @@ export function SvpBookingWizard() {
     setCityCountryId(null);
     setStage("select");
 
-    if (entry.categoryId) return;
+    if (base.categoryId && base.languages.length > 0) return;
     setOccupationLookup(true);
     try {
-      const detail = await getSvpOccupationById({ data: { occupationId: entry.id } });
+      const detail = await getSvpOccupationById({
+        data: { occupationId: base.id, name: base.name },
+      });
       if (detail.ok && selectionTokenRef.current === token) {
         setSelectedOccupation(detail.data);
       }
@@ -1248,7 +1257,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v18
+              Official SVP API · live · v19
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1503,8 +1512,11 @@ export function SvpBookingWizard() {
                   ) : (
                     <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
                       <p className="font-medium">{languageOptions[0]?.label}</p>
-                      <p className="break-all text-xs text-muted-foreground">
-                        Auto-selected from SVP · {activeLanguageCode}
+                      <p
+                        className="truncate text-xs text-muted-foreground"
+                        title={activeLanguageCode}
+                      >
+                        Auto-selected from SVP · code {activeLanguageCode.slice(0, 8)}…
                       </p>
                     </div>
                   )}
@@ -1684,7 +1696,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v18
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v19
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
@@ -2150,7 +2162,9 @@ export function SvpBookingWizard() {
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Language</dt>
-                  <dd className="font-medium">{activeLanguageCode}</dd>
+                  <dd className="font-medium" title={activeLanguageCode}>
+                    {activeLanguageLabel}
+                  </dd>
                 </div>
               </dl>
 

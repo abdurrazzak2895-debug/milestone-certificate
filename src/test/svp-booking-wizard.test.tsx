@@ -571,7 +571,9 @@ describe("occupation category enrichment", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Load and Unload Worker/ }));
 
     await waitFor(() =>
-      expect(mocks.occupationById).toHaveBeenCalledWith({ data: { occupationId: 77 } }),
+      expect(mocks.occupationById).toHaveBeenCalledWith({
+        data: { occupationId: 77, name: "Load and Unload Worker" },
+      }),
     );
     expect(await screen.findByText(/Selected: Load and Unload Worker/)).toBeInTheDocument();
     expect(screen.getByText(/category 159/)).toBeInTheDocument();
@@ -1153,7 +1155,7 @@ describe("automatic SVP candidate record flow", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
 
-    expect(await screen.findByText(`Auto-selected from SVP · ${languageCode}`)).toBeInTheDocument();
+    expect(await screen.findByText(/Auto-selected from SVP · code/)).toBeInTheDocument();
     expect(screen.getByText("English")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check eligibility" })).toBeEnabled();
   });

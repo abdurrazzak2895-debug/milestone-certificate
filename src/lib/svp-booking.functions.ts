@@ -206,7 +206,12 @@ export const listSvpBookingOccupations = createServerFn({ method: "POST" })
 export const getSvpOccupationById = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ occupationId: z.number().int().positive() }).parse(input),
+    z
+      .object({
+        occupationId: z.number().int().positive(),
+        name: z.string().trim().max(120).optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ context, data }): Promise<SvpResult<SvpOccupation>> => {
     await requireSvpAllowedRole(context.supabase, context.userId);
@@ -216,12 +221,34 @@ export const getSvpOccupationById = createServerFn({ method: "POST" })
         `/individual_labor_space/occupations/${data.occupationId}`,
         { query: { ...LOCALE_QUERY, per_page: 1 } },
       );
-      if (!response.ok) {
-        return failure(apiFailure(response.payload, "The occupation could not be loaded."));
+      let occupation: SvpOccupation | null = null;
+      if (response.ok) {
+        const root = record(response.payload);
+        const payload = root?.["data"] ?? root ?? {};
+        occupation = parseSvpOccupations({ occupations: [payload] })[0] ?? null;
       }
-      const root = record(response.payload);
-      const payload = root?.["data"] ?? root ?? {};
-      const occupation = parseSvpOccupations({ occupations: [payload] })[0];
+
+      // The detail endpoint can omit prometric codes; search the labor list by name as a fallback.
+      if ((!occupation || occupation.languages.length === 0) && data.name) {
+        const search = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/occupations",
+          { query: { ...LOCALE_QUERY, per_page: 50, page: 1, name: data.name } },
+        );
+        if (search.ok) {
+          const candidates = parseSvpOccupations(search.payload);
+          const match =
+            candidates.find((entry) => entry.id === data.occupationId) ??
+            candidates.find(
+              (entry) => entry.name.toLowerCase() === data.name?.trim().toLowerCase(),
+            ) ??
+            null;
+          if (match && (!occupation || match.languages.length > occupation.languages.length)) {
+            occupation = match;
+          }
+        }
+      }
+
       if (!occupation) return failure("SVP did not return this occupation.");
       return { ok: true, data: occupation };
     } catch (error) {
