@@ -238,6 +238,13 @@ export function SvpBookingWizard() {
   const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
 
+  // The card widget redirects back here with ?paymentId=…; verify it once.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const paymentId = new URLSearchParams(window.location.search).get("paymentId");
+    if (paymentId) setReturnPaymentId(paymentId);
+  }, []);
+
   const [stage, setStage] = useState<Stage>("select");
   const [occupationId, setOccupationId] = useState<number | null>(null);
   const [languageCode, setLanguageCode] = useState("");
@@ -263,6 +270,7 @@ export function SvpBookingWizard() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState<Record<string, SvpReservationDetail>>({});
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [returnPaymentId, setReturnPaymentId] = useState<string | null>(null);
   const [localSaveStatus, setLocalSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">(
     "idle",
   );
@@ -1413,7 +1421,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v27
+              Official SVP API · live · v28
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1788,7 +1796,7 @@ export function SvpBookingWizard() {
               !occupationSearch.trim() && (
                 <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm" role="status">
                   <p className="font-medium">SVP returned no occupations for this account.</p>
-                  <p className="text-xs text-muted-foreground">Build v27</p>
+                  <p className="text-xs text-muted-foreground">Build v28</p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
                     Occupation field to search SVP directly.
@@ -2497,6 +2505,7 @@ export function SvpBookingWizard() {
                 <SvpCardPayment
                   reservationId={result.reservationId}
                   amountHint={overview?.permissions.testPrice ?? null}
+                  initialPaymentId={returnPaymentId}
                   onPaid={() => {
                     setResult((current) =>
                       current ? { ...current, paid: true, paymentRequired: false } : current,

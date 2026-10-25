@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, CreditCard, LoaderCircle, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  LoaderCircle,
+  Lock,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getSvpPaymentStatus,
@@ -11,23 +19,74 @@ import {
 type Props = {
   reservationId: string;
   amountHint?: number | null;
+  /** Payment id returned by the provider redirect (?paymentId=). */
+  initialPaymentId?: string | null;
   onPaid?: (reservationId: string) => void;
 };
 
-const WIDGET_SCRIPT = /paymentWidgets\.js/;
+type WidgetStatus = "idle" | "loading" | "ready" | "error";
 
-/** Real SVP card payment: server-created payment session + official HyperPay widget. */
-export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
+const WIDGET_TIMEOUT_MS = 15_000;
+
+type WpwlOptions = Record<string, unknown>;
+
+/** Real SVP card payment: server-created HyperPay checkout + the official card widget. */
+export function SvpCardPayment({ reservationId, amountHint, initialPaymentId, onPaid }: Props) {
   const [session, setSession] = useState<SvpPaymentSession | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [widget, setWidget] = useState<WidgetStatus>("idle");
   const holderRef = useRef<HTMLDivElement | null>(null);
+  const verifyTriedRef = useRef(false);
+
+  const verify = useCallback(
+    async (paymentId: string, silent = false) => {
+      setChecking(true);
+      try {
+        const response = await getSvpPaymentStatus({ data: { paymentId } });
+        if (!response.ok) {
+          if (!silent) toast.error(response.message);
+          return false;
+        }
+        if (response.data.paid) {
+          setPaid(true);
+          toast.success("Payment completed and verified with SVP.");
+          onPaid?.(response.data.reservationId ?? reservationId);
+          return true;
+        }
+        if (!silent) {
+          toast.message(
+            `SVP payment status: ${response.data.transactionStatus ?? "pending"}. Finish the card form if it is still open.`,
+          );
+        }
+        return false;
+      } catch (caught) {
+        if (!silent) {
+          toast.error(
+            caught instanceof Error ? caught.message : "The payment status could not be checked.",
+          );
+        }
+        return false;
+      } finally {
+        setChecking(false);
+      }
+    },
+    [onPaid, reservationId],
+  );
+
+  // Returning from the provider: verify the payment id in the URL once.
+  useEffect(() => {
+    if (!initialPaymentId || verifyTriedRef.current) return;
+    verifyTriedRef.current = true;
+    void verify(initialPaymentId);
+  }, [initialPaymentId, verify]);
 
   const start = async () => {
     setStarting(true);
     setError(null);
+    setWidget("idle");
     try {
       const response = await startSvpReservationPayment({ data: { reservationId } });
       if (!response.ok) {
@@ -35,6 +94,11 @@ export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
         return;
       }
       setSession(response.data);
+      if (!response.data.hyperpayUrl || !response.data.checkoutId) {
+        setError(
+          "SVP did not return a card checkout for this reservation. Pay in the official SVP portal.",
+        );
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The card payment could not be started.");
     } finally {
@@ -42,23 +106,45 @@ export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
     }
   };
 
-  // Load the official provider widget once the checkout session exists.
+  // Mount the official HyperPay card widget once the checkout session exists.
   useEffect(() => {
-    if (!session?.hyperpayUrl || !session.checkoutId || !holderRef.current) return;
+    if (!session?.hyperpayUrl || !session.checkoutId) return;
     const holder = holderRef.current;
+    if (!holder) return;
+
+    setWidget("loading");
     holder.innerHTML = "";
 
     const form = document.createElement("form");
-    form.action = `${window.location.origin}/svp-booking?paymentId=${encodeURIComponent(session.paymentId)}`;
+    form.action = `${window.location.origin}/svp-booking?paymentId=${encodeURIComponent(
+      session.paymentId,
+    )}`;
     form.method = "GET";
     form.className = "paymentWidgets";
     form.setAttribute("data-brands", "VISA MASTER");
     holder.appendChild(form);
 
-    const existing = document.head.querySelector("script[data-svp-payment]");
-    existing?.remove();
+    // Widget options consumed by paymentWidgets.js (same shape the SVP portal uses).
+    const options: WpwlOptions = {
+      onSubmitCallback: () => {
+        setWidget("loading");
+      },
+      onReady: () => setWidget("ready"),
+      onError: () => {
+        setWidget("error");
+        setError("The card provider rejected the form. Start the payment again.");
+      },
+      labels: { cardHolder: "Card holder", cvv: "CVV" },
+      showCVVHint: true,
+      brandDetection: true,
+      style: { base: { fontSize: "14px", lineHeight: "1.4" } },
+    };
+    (window as unknown as { wpwlOptions?: WpwlOptions }).wpwlOptions = options;
+
+    document.head.querySelector("script[data-svp-payment]")?.remove();
     const script = document.createElement("script");
     script.dataset["svpPayment"] = "true";
+    script.async = true;
     script.src = `${session.hyperpayUrl}/v1/paymentWidgets.js?checkoutId=${encodeURIComponent(
       session.checkoutId,
     )}`;
@@ -66,41 +152,31 @@ export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
       script.integrity = session.integrity;
       script.crossOrigin = "anonymous";
     }
-    script.onerror = () =>
+    script.onerror = () => {
+      setWidget("error");
       setError("The card provider could not be loaded. Check the connection and try again.");
+    };
     document.head.appendChild(script);
 
+    // The widget replaces the form; treat a mounted field as ready.
+    const timer = window.setInterval(() => {
+      if (holder.querySelector("iframe, .wpwl-control, input")) {
+        setWidget("ready");
+        window.clearInterval(timer);
+      }
+    }, 600);
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(timer);
+      setWidget((current) => (current === "ready" ? current : "error"));
+    }, WIDGET_TIMEOUT_MS);
+
     return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(timeout);
       script.remove();
+      delete (window as unknown as { wpwlOptions?: WpwlOptions }).wpwlOptions;
     };
   }, [session]);
-
-  const checkStatus = async () => {
-    if (!session) return;
-    setChecking(true);
-    try {
-      const response = await getSvpPaymentStatus({ data: { paymentId: session.paymentId } });
-      if (!response.ok) {
-        toast.error(response.message);
-        return;
-      }
-      if (response.data.paid) {
-        setPaid(true);
-        toast.success("Payment completed and verified with SVP.");
-        onPaid?.(response.data.reservationId ?? reservationId);
-      } else {
-        toast.message(
-          `SVP payment status: ${response.data.transactionStatus ?? "pending"}. Complete the card form if it is still open.`,
-        );
-      }
-    } catch (caught) {
-      toast.error(
-        caught instanceof Error ? caught.message : "The payment status could not be checked.",
-      );
-    } finally {
-      setChecking(false);
-    }
-  };
 
   if (paid) {
     return (
@@ -128,7 +204,7 @@ export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
         <p className="text-xs text-muted-foreground">
           Start the official SVP card payment for reservation #{reservationId}
           {amountHint != null ? ` (about ${amountHint} SAR)` : ""}. Card details are entered in the
-          provider's secure widget, never in this app.
+          provider&apos;s secure widget, never in this app.
         </p>
       )}
 
@@ -139,11 +215,26 @@ export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
       )}
 
       {session && (
-        <div>
-          <div ref={holderRef} className="min-h-[6rem]" />
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Payment ID {session.paymentId}. After paying, use “Check payment status” to verify it
-            with SVP.
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Lock className="h-3 w-3" /> Secure card form provided by the payment gateway
+          </div>
+          <div ref={holderRef} className="min-h-[8rem] rounded-lg border bg-card p-2" />
+          {widget === "loading" && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading the secure card form…
+            </p>
+          )}
+          {widget === "error" && (
+            <p className="flex items-start gap-2 text-xs text-amber-700">
+              <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              The secure card form could not load. Restart the payment, or complete it in the
+              official SVP portal.
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Payment ID {session.paymentId}. After paying you are returned here and the payment is
+            verified with SVP automatically.
           </p>
         </div>
       )}
@@ -155,14 +246,26 @@ export function SvpCardPayment({ reservationId, amountHint, onPaid }: Props) {
             Start card payment
           </Button>
         ) : (
-          <Button type="button" size="sm" onClick={() => void checkStatus()} disabled={checking}>
-            {checking ? (
-              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+          <>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void verify(session.paymentId)}
+              disabled={checking}
+            >
+              {checking ? (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Check payment status
+            </Button>
+            {widget === "error" && (
+              <Button type="button" size="sm" variant="outline" onClick={() => void start()}>
+                Restart payment
+              </Button>
             )}
-            Check payment status
-          </Button>
+          </>
         )}
       </div>
     </div>
