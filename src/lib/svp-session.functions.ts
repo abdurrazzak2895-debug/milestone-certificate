@@ -5,6 +5,7 @@ import {
   buildSvpLoginBody,
   buildSvpOtpBody,
   extractSvpSessionUser,
+  findSvpPassport,
   svpLoginInputSchema,
   svpSessionInputSchema,
   type SvpSessionResult,
@@ -230,8 +231,13 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
         );
         if (permissionsResponse.ok) {
           const permissions = parseSvpPermissions(permissionsResponse.payload);
+          const identity = extractSvpSessionUser(permissionsResponse.payload);
+          const passport =
+            active.passport ?? identity.passport ?? findSvpPassport(permissionsResponse.payload);
           active = {
             ...active,
+            passport,
+            userName: active.userName ?? identity.name,
             countryTargeted: permissions.targeted,
             countryLoadBalancer: permissions.loadBalancer,
             flagsVerifiedAt: Date.now(),
@@ -240,6 +246,53 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
         }
       } catch (error) {
         // If SVP rejected the token, the helper already cleared it.
+        if (error instanceof SvpSessionMissingError) active = null;
+      }
+    }
+
+    // Older stored sessions can predate passport capture; heal it from the labor record.
+    if (active && !active.passport) {
+      try {
+        const reservationsResponse = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/exam_reservations",
+          { query: { locale: "en" }, timeoutMs: 5000, retries: 0 },
+          active,
+        );
+        if (reservationsResponse.ok) {
+          const passport = findSvpPassport(reservationsResponse.payload);
+          if (passport) {
+            active = { ...active, passport };
+            writeStoredSvpSession(context.userId, active);
+          }
+        }
+      } catch (error) {
+        if (error instanceof SvpSessionMissingError) active = null;
+      }
+    }
+
+    // Last resort: the labor's own user record carries the passport on most SVP tenants.
+    if (active && !active.passport && active.svpUserId) {
+      try {
+        const userResponse = await svpAuthedRequest(
+          context.userId,
+          `/users/${encodeURIComponent(active.svpUserId)}`,
+          { query: { locale: "en" }, timeoutMs: 5000, retries: 0 },
+          active,
+        );
+        if (userResponse.ok) {
+          const identity = extractSvpSessionUser(userResponse.payload);
+          const passport = findSvpPassport(userResponse.payload) ?? identity.passport;
+          if (passport) {
+            active = {
+              ...active,
+              passport,
+              userName: active.userName ?? identity.name,
+            };
+            writeStoredSvpSession(context.userId, active);
+          }
+        }
+      } catch (error) {
         if (error instanceof SvpSessionMissingError) active = null;
       }
     }

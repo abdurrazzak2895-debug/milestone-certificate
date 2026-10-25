@@ -343,10 +343,44 @@ export function extractSvpAuthPayload(payload: unknown): SvpAuthPayload | null {
 
 /** Normalize only an explicitly named passport value; never infer it from IDs or tokens. */
 export function normalizeSvpPassport(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  // Passports are often formatted with spaces ("A0 1234567"); keep the identifier only.
+  const trimmed = String(value).trim().replace(/\s+/g, "");
   if (!/^[A-Za-z0-9]{5,20}$/.test(trimmed)) return null;
   return trimmed.toUpperCase();
+}
+
+const PASSPORT_KEY = /passport/i;
+const PASSPORT_SKIP_KEY =
+  /(expiry|expiration|expire|issued|issue|country|type|status|image|photo|file|url|path|hash|id)/i;
+
+/**
+ * Find the passport anywhere in a provider payload (profiles are nested differently per
+ * endpoint). Values under non-passport keys such as expiry dates are ignored.
+ */
+export function findSvpPassport(value: unknown, depth = 0): string | null {
+  if (depth > 6 || value === null || typeof value !== "object") return null;
+  const record = asRecord(value);
+  if (!record) return null;
+
+  for (const [key, nested] of Object.entries(record)) {
+    if (!PASSPORT_KEY.test(key) || PASSPORT_SKIP_KEY.test(key)) continue;
+    const direct = normalizeSvpPassport(nested);
+    if (direct) return direct;
+    const inner = asRecord(nested);
+    if (inner) {
+      for (const innerKey of ["number", "no", "value", "passport_number", "passport_no"]) {
+        const found = normalizeSvpPassport(inner[innerKey]);
+        if (found) return found;
+      }
+    }
+  }
+
+  for (const nested of Object.values(record)) {
+    const found = findSvpPassport(nested, depth + 1);
+    if (found) return found;
+  }
+  return null;
 }
 
 /** Read the signed-in labor identity from the OTP response. */
@@ -369,7 +403,9 @@ export function extractSvpSessionUser(payload: unknown): SvpSessionUser {
       profile?.["passport"],
     ]
       .map(normalizeSvpPassport)
-      .find((value): value is string => value !== null) ?? null;
+      .find((value): value is string => value !== null) ??
+    findSvpPassport(data) ??
+    findSvpPassport(root);
   return {
     id: idValue === undefined || idValue === null ? null : String(idValue),
     name: typeof nameValue === "string" && nameValue.trim() ? nameValue.trim() : null,

@@ -284,6 +284,7 @@ export function SvpBookingWizard() {
   const localSaveBusyRef = useRef(false);
   const bookingSubmittedRef = useRef(false);
   const identityAccountRef = useRef<string | null>(null);
+  const identityHealRef = useRef(false);
   const candidateValidation = svpCandidateIdentitySchema.safeParse({
     candidate_name: candidateName,
     passport,
@@ -303,6 +304,17 @@ export function SvpBookingWizard() {
     setCandidateName((current) => current || status?.userName || "");
     setPassport((current) => current || status?.userPassport || "");
   }, [signedIn, status?.login, status?.userName, status?.userPassport]);
+
+  // A stored session can predate passport capture: ask the server to heal it once at confirm.
+  useEffect(() => {
+    if (stage !== "confirm") {
+      identityHealRef.current = false;
+      return;
+    }
+    if (!signedIn || passport || identityHealRef.current) return;
+    identityHealRef.current = true;
+    void queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+  }, [passport, queryClient, signedIn, stage]);
 
   const invalidateSvpData = useCallback(() => {
     setForceTargeted(false);
@@ -2396,7 +2408,14 @@ export function SvpBookingWizard() {
                     pattern="[A-Za-z0-9]{5,20}"
                     disabled={bookingMutation.isPending}
                     aria-invalid={Boolean(passport.trim()) && !candidateValidation.success}
-                    onChange={(event) => setPassport(event.target.value)}
+                    onChange={(event) =>
+                      setPassport(
+                        event.target.value
+                          .replace(/[^A-Za-z0-9]/g, "")
+                          .slice(0, 20)
+                          .toUpperCase(),
+                      )
+                    }
                     placeholder="Passport number"
                   />
                 </Field>

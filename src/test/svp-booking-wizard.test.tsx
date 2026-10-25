@@ -1282,11 +1282,17 @@ describe("automatic SVP candidate record flow", () => {
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 
-  it("blocks invalid passport formats before invoking SVP", async () => {
+  it("cleans a formatted passport and still blocks a short one", async () => {
     renderWizard();
     await openConfirmation();
-    fireEvent.change(screen.getByLabelText("Passport *"), { target: { value: "AB-123456" } });
+    const input = screen.getByLabelText("Passport *") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: "ab-123456" } });
+    expect(input.value).toBe("AB123456");
     fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("button", { name: "Create SVP booking" })).toBeEnabled();
+
+    fireEvent.change(input, { target: { value: "AB" } });
     expect(screen.getByRole("button", { name: "Create SVP booking" })).toBeDisabled();
     expect(screen.getByText(/Use 5–20 letters and numbers/)).toBeInTheDocument();
     expect(mocks.create).not.toHaveBeenCalled();

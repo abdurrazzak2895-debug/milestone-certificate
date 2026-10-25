@@ -164,4 +164,26 @@ describe("SVP passport identity extraction", () => {
       }).passport,
     ).toBeNull();
   });
+
+  it("finds a nested passport and removes spaces from it", () => {
+    expect(
+      extractSvpSessionUser({
+        data: {
+          user: { id: 969955, full_name: "Md Farid" },
+          labor: { profile: { passport_number: " a0 1234567 " } },
+        },
+      }).passport,
+    ).toBe("A01234567");
+
+    expect(
+      extractSvpSessionUser({
+        data: {
+          labor: {
+            passport: { number: "b1 7654321" },
+            passport_expiry_date: "2030-01-01",
+          },
+        },
+      }).passport,
+    ).toBe("B17654321");
+  });
 });
