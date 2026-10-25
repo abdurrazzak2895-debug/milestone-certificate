@@ -25,6 +25,21 @@ describe("Takamol selection data", () => {
     ]);
   });
 
+  it("keeps the languages reported by Takamol for an occupation", () => {
+    const [occupation] = parseOccupations({
+      occupations: [
+        {
+          id: 50,
+          occupation_id: 2008,
+          english_name: "Barber",
+          languages: ["Bengali", { name: "English" }],
+        },
+      ],
+    });
+
+    expect(occupation?.languages).toEqual(["Bengali", "English"]);
+  });
+
   it("normalizes and deduplicates city options", () => {
     expect(parseCities({ cities: ["Dhaka", " dhaka ", { name: "Rajshahi" }, null] })).toEqual([
       "Dhaka",

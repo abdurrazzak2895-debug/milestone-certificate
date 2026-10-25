@@ -498,6 +498,44 @@ describe("SVP targeted load-balancer sessions", () => {
   });
 });
 
+describe("SVP occupation languages", () => {
+  it("reads prometric codes and language lists from the occupation and its category", () => {
+    const [occupation] = parseSvpOccupations({
+      occupations: [
+        {
+          id: 11,
+          name: "Welder",
+          category_id: 159,
+          prometric_codes: [
+            { code: "en", name: "English", question_count: 30, non_targeted: false },
+          ],
+          languages: [{ name: "Bengali" }, "Urdu"],
+        },
+      ],
+    });
+
+    expect(occupation?.languages).toEqual([
+      { code: "en", label: "English", questionCount: 30, nonTargeted: false },
+      { code: "bn", label: "Bengali", questionCount: null, nonTargeted: false },
+      { code: "ur", label: "Urdu", questionCount: null, nonTargeted: false },
+    ]);
+  });
+
+  it("falls back to the nested category language list", () => {
+    const [occupation] = parseSvpOccupations({
+      occupations: [
+        {
+          id: 12,
+          name: "Mason",
+          category: { id: 160, name: "Construction", languages: ["English", "Arabic"] },
+        },
+      ],
+    });
+
+    expect(occupation?.languages.map((entry) => entry.code)).toEqual(["en", "ar"]);
+  });
+});
+
 describe("SVP payments, notifications and certificate price", () => {
   it("maps payment rows from the list and a single detail payload", () => {
     const payment = {

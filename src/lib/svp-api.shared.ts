@@ -229,20 +229,74 @@ function pickRecord(payload: unknown, key: string): Record<string, unknown> | nu
   return asRecord(root[key]) ?? asRecord(asRecord(root["data"])?.[key]);
 }
 
-function parseLanguages(category: Record<string, unknown> | null): SvpLanguage[] {
+const LANGUAGE_CODE_BY_NAME: Record<string, string> = {
+  arabic: "ar",
+  bangla: "bn",
+  bengali: "bn",
+  english: "en",
+  hindi: "hi",
+  nepali: "ne",
+  urdu: "ur",
+};
+
+/** Accept `{code,name}` prometric entries as well as plain names/codes from other payloads. */
+function toSvpLanguage(value: unknown): SvpLanguage | null {
+  if (typeof value === "string") {
+    const label = value.trim();
+    if (!label) return null;
+    const code = /^[A-Za-z]{2,3}$/.test(label)
+      ? label.toLowerCase()
+      : (LANGUAGE_CODE_BY_NAME[label.toLowerCase()] ?? null);
+    if (!code) return null;
+    return {
+      code,
+      label: /^[A-Za-z]{2,3}$/.test(label) ? label.toUpperCase() : label,
+      questionCount: null,
+      nonTargeted: false,
+    };
+  }
+  const item = asRecord(value);
+  if (!item) return null;
+  const name = text(item["name"]) ?? text(item["english_name"]) ?? text(item["label"]);
+  const code =
+    text(item["code"]) ??
+    text(item["language_code"]) ??
+    text(item["prometric_code"]) ??
+    (name ? LANGUAGE_CODE_BY_NAME[name.toLowerCase()] : null);
+  if (!code) return null;
+  return {
+    code,
+    label: name ?? code.toUpperCase(),
+    questionCount: number(item["question_count"]),
+    nonTargeted: Boolean(item["non_targeted"] ?? item["nonTargeted"]),
+  };
+}
+
+/**
+ * Prometric language codes can sit on the occupation, its category, or a `languages` list,
+ * depending on the SVP endpoint. Parse all of them so the language dropdown is never empty
+ * when the API did return supported languages.
+ */
+function parseLanguages(...sources: Array<Record<string, unknown> | null>): SvpLanguage[] {
   const languages: SvpLanguage[] = [];
-  for (const code of asArray(category?.["prometric_codes"])) {
-    const item = asRecord(code);
-    const languageCode = text(item?.["code"]);
-    if (!item || !languageCode || languages.some((entry) => entry.code === languageCode)) {
-      continue;
+  for (const source of sources) {
+    if (!source) continue;
+    for (const key of [
+      "prometric_codes",
+      "languages",
+      "language_codes",
+      "exam_languages",
+      "language",
+      "language_name",
+    ]) {
+      const raw = source[key];
+      const entries = Array.isArray(raw) ? raw : raw === undefined || raw === null ? [] : [raw];
+      for (const value of entries) {
+        const language = toSvpLanguage(value);
+        if (!language || languages.some((entry) => entry.code === language.code)) continue;
+        languages.push(language);
+      }
     }
-    languages.push({
-      code: languageCode,
-      label: text(item["name"]) ?? text(item["english_name"]) ?? languageCode.toUpperCase(),
-      questionCount: number(item["question_count"]),
-      nonTargeted: Boolean(item["non_targeted"]),
-    });
   }
   return languages;
 }
@@ -256,7 +310,7 @@ export function parseSvpOccupations(payload: unknown): SvpOccupation[] {
       const category = asRecord(record["category"]);
       if (id === null) return null;
       const categoryId = number(record["category_id"]) ?? number(category?.["id"]);
-      const languages = parseLanguages(category);
+      const languages = parseLanguages(record, category);
       return {
         id,
         name: text(record["name"]) ?? text(record["english_name"]) ?? `Occupation ${String(id)}`,

@@ -5,6 +5,8 @@ export type OccupationChoice = {
   categoryId: string;
   label: string;
   category: string | null;
+  /** Languages reported by Takamol for this occupation, when provided. */
+  languages?: string[];
 };
 
 export type TestCenterChoice = {
@@ -66,10 +68,44 @@ export function parseOccupations(payload: unknown): OccupationChoice[] {
     if (seen.has(optionId)) return [];
     seen.add(optionId);
     const category = firstText(row, ["category_name"]);
+    const languages = occupationLanguages(row);
     return [
-      { optionId, categoryId, label, category: category && category !== label ? category : null },
+      {
+        optionId,
+        categoryId,
+        label,
+        category: category && category !== label ? category : null,
+        ...(languages.length > 0 ? { languages } : {}),
+      },
     ];
   });
+}
+
+/** Language labels/codes reported by Takamol on the occupation or its category. */
+function occupationLanguages(row: RecordValue): string[] {
+  const names = new Set<string>();
+  for (const key of [
+    "languages",
+    "language_names",
+    "exam_languages",
+    "language_codes",
+    "prometric_codes",
+    "language",
+    "language_name",
+  ]) {
+    const value = row[key];
+    const entries = Array.isArray(value) ? value : value === undefined ? [] : [value];
+    for (const entry of entries) {
+      if (typeof entry === "string" && entry.trim()) {
+        names.add(entry.trim());
+        continue;
+      }
+      const record = asRecord(entry);
+      const text = firstText(record ?? {}, ["name", "label", "language_name", "language", "code"]);
+      if (text) names.add(text);
+    }
+  }
+  return [...names].slice(0, 8);
 }
 
 export function parseCities(payload: unknown): string[] {

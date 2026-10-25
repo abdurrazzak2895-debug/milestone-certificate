@@ -10,6 +10,20 @@ import {
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
+/** Resolve the key from the platform env or the Vite-injected env (dev). */
+function takamolApiKey(): string | null {
+  const candidates = [
+    process.env["TAKAMOL_API_KEY"],
+    (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.[
+      "TAKAMOL_API_KEY"
+    ],
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return null;
+}
+
 export const lookupTakamolAvailability = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => takamolLookupSchema.parse(input))
@@ -41,7 +55,7 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
       };
     }
 
-    const apiKey = process.env["TAKAMOL_API_KEY"]?.trim();
+    const apiKey = takamolApiKey();
     if (!apiKey) {
       return {
         success: false,

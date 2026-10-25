@@ -389,6 +389,9 @@ export function TakamolAvailabilityPanel() {
                           </span>
                           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                             {occupation.category ?? `Category ${occupation.categoryId}`}
+                            {occupation.languages?.length
+                              ? ` · ${occupation.languages.join(", ")}`
+                              : ""}
                           </span>
                         </span>
                         {selected ? (
