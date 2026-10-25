@@ -314,6 +314,13 @@ export function SvpBookingWizard() {
   }, [debouncedOccupationSearch, filteredOccupations, searchResults]);
   const occupationSearchPending =
     occupationSearch.trim() !== debouncedOccupationSearch || occupationSearchQuery.isFetching;
+  const selectableOccupations = useMemo(() => {
+    const merged = new Map<number, SvpOccupation>();
+    for (const entry of [...occupations, ...suggestions]) {
+      if (!merged.has(entry.id)) merged.set(entry.id, entry);
+    }
+    return [...merged.values()].slice(0, 300);
+  }, [occupations, suggestions]);
 
   const setupQuery = useQuery({
     queryKey: ["svp-setup", occupationId],
@@ -1104,7 +1111,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v14
+              Official SVP API · live · v15
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1347,85 +1354,123 @@ export function SvpBookingWizard() {
                   </NativeSelect>
                 </Field>
               )}
-              <Field label="Occupation *">
-                <div className="relative">
-                  <Input
-                    value={occupationSearch}
-                    onChange={(event) => {
-                      setOccupationSearch(event.target.value);
-                      setOccupationOpen(true);
-                    }}
-                    onFocus={() => setOccupationOpen(true)}
-                    onBlur={() => window.setTimeout(() => setOccupationOpen(false), 180)}
-                    placeholder="Type a name, e.g. welder or loading"
-                    autoComplete="off"
-                    aria-autocomplete="list"
-                    required
-                  />
-                  {occupationOpen && (
-                    <div
-                      className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg"
-                      aria-label="Similar occupations"
-                    >
-                      {occupationSearchPending && (
-                        <p
-                          className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"
-                          role="status"
-                        >
-                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Searching similar
-                          occupations…
-                        </p>
-                      )}
-                      {occupationSearchQuery.data && !occupationSearchQuery.data.ok && (
-                        <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
-                          {occupationSearchQuery.data.message}
-                        </p>
-                      )}
-                      {!occupationSearchPending &&
-                        debouncedOccupationSearch.length >= 1 &&
-                        suggestions.length === 0 &&
-                        occupationSearchQuery.data?.ok && (
-                          <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                            No similar occupation found for “{debouncedOccupationSearch}”.
+              <div className="space-y-2">
+                <Field label="Occupation *">
+                  <div className="relative" ref={occupationBoxRef}>
+                    <Input
+                      value={occupationSearch}
+                      onChange={(event) => {
+                        setOccupationSearch(event.target.value);
+                        setOccupationOpen(true);
+                      }}
+                      onFocus={() => setOccupationOpen(true)}
+                      placeholder="Type a name, e.g. welder or loading"
+                      autoComplete="off"
+                      aria-autocomplete="list"
+                      required
+                    />
+                    {occupationOpen && (
+                      <div
+                        className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+                        aria-label="Similar occupations"
+                      >
+                        {occupationSearchPending && (
+                          <p
+                            className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"
+                            role="status"
+                          >
+                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Searching similar
+                            occupations…
                           </p>
                         )}
-                      {suggestions.length > 0 && (
-                        <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                          {suggestions.length} similar occupation
-                          {suggestions.length === 1 ? "" : "s"}
-                        </p>
-                      )}
-                      {suggestions.map((entry) => (
-                        <button
-                          key={entry.id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => void selectOccupation(entry)}
-                          className="flex w-full items-start justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium">{entry.name}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {entry.occupationKey ? `${entry.occupationKey} · ` : ""}
-                              {entry.categoryName ?? "No SVP category"}
-                            </span>
-                          </span>
-                          {occupationId === entry.id && (
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        {occupationSearchQuery.data && !occupationSearchQuery.data.ok && (
+                          <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
+                            {occupationSearchQuery.data.message}
+                          </p>
+                        )}
+                        {!occupationSearchPending &&
+                          debouncedOccupationSearch.length >= 1 &&
+                          suggestions.length === 0 &&
+                          occupationSearchQuery.data?.ok && (
+                            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                              No similar occupation found for “{debouncedOccupationSearch}”.
+                            </p>
                           )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        {suggestions.length > 0 && (
+                          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            {suggestions.length} similar occupation
+                            {suggestions.length === 1 ? "" : "s"}
+                          </p>
+                        )}
+                        {suggestions.map((entry) => (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => void selectOccupation(entry)}
+                            className="flex w-full items-start justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium">{entry.name}</span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {entry.occupationKey ? `${entry.occupationKey} · ` : ""}
+                                {entry.categoryName ?? "No SVP category"}
+                              </span>
+                            </span>
+                            {occupationId === entry.id && (
+                              <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </Field>
                 {occupation && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Selected: {occupation.name}
-                    {occupation.occupationKey ? ` · ${occupation.occupationKey}` : ""}
-                    {effectiveCategoryId ? ` · category ${effectiveCategoryId}` : ""}
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">Selected: {occupation.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {occupation.occupationKey ?? occupation.id} · category{" "}
+                        {effectiveCategoryId ?? "not linked"}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setSelectedOccupation(null);
+                        setOccupationId(null);
+                        setOccupationSearch("");
+                        setOccupationOpen(true);
+                      }}
+                    >
+                      Change
+                    </Button>
+                  </div>
                 )}
-              </Field>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-muted-foreground">Or pick from the loaded list</p>
+                  <NativeSelect
+                    aria-label="Choose occupation from list"
+                    value={occupationId ?? ""}
+                    onChange={(event) => {
+                      const id = Number(event.target.value);
+                      const next = selectableOccupations.find((entry) => entry.id === id);
+                      if (next) void selectOccupation(next);
+                    }}
+                  >
+                    <option value="">Select an occupation</option>
+                    {selectableOccupations.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                        {entry.occupationKey ? ` · ${entry.occupationKey}` : ""}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              </div>
             </div>
 
             {occupationsQuery.isPending && (
@@ -1473,7 +1518,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v14
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v15
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
