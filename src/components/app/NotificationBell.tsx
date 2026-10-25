@@ -44,7 +44,11 @@ export function NotificationBell() {
         .select("id,title,body,read,created_at")
         .order("created_at", { ascending: false })
         .limit(30);
-      if (error) throw error;
+      if (error) {
+        // The notifications table is optional in some deployments; never break the shell.
+        if (["42P01", "PGRST205"].includes(error.code ?? "")) return [];
+        throw error;
+      }
       return data as Notif[];
     },
   });

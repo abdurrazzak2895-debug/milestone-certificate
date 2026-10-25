@@ -1065,6 +1065,15 @@ export function SvpBookingWizard() {
           Sign in to an SVP account. You can keep up to 4 accounts and switch between them without
           entering the password and OTP again.
         </p>
+        {(sessionQuery.data?.accountCount ?? 0) > 0 && (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+          >
+            Your saved SVP session expired. Sign in again with the username and password to refresh
+            it.
+          </p>
+        )}
         <SvpLoginPanel onSignedIn={handleSignedIn} />
       </div>
     );
@@ -1095,7 +1104,7 @@ export function SvpBookingWizard() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-medium text-emerald-100">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              Official SVP API · live · v13
+              Official SVP API · live · v14
             </div>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
               Book an SVP appointment
@@ -1464,7 +1473,7 @@ export function SvpBookingWizard() {
                   <p className="font-medium">SVP returned no occupations for this account.</p>
                   <p className="text-xs text-muted-foreground">
                     Account: {status?.login ?? "—"} · Flow: {isTargeted ? "targeted" : "site-based"}{" "}
-                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v13
+                    · Country: {overview?.permissions.countryName ?? "—"} · Build: v14
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Type a word such as <strong>welder</strong> or <strong>loading</strong> in the
