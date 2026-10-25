@@ -7,6 +7,7 @@ import {
   parseSvpExamSessions,
   parseSvpOccupations,
   parseSvpPermissions,
+  isSvpLanguageRejection,
   parseSvpPayment,
   parseSvpPayments,
   parseSvpNotifications,
@@ -499,6 +500,13 @@ describe("SVP targeted load-balancer sessions", () => {
 });
 
 describe("SVP occupation languages", () => {
+  it("detects a rejected language code from the provider message", () => {
+    expect(isSvpLanguageRejection("The selected language code is invalid.")).toBe(true);
+    expect(isSvpLanguageRejection("Prometric code not supported")).toBe(true);
+    expect(isSvpLanguageRejection("This seat is no longer available.")).toBe(false);
+    expect(isSvpLanguageRejection(null)).toBe(false);
+  });
+
   it("reads prometric codes and language lists from the occupation and its category", () => {
     const [occupation] = parseSvpOccupations({
       occupations: [

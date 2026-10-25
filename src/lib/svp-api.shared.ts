@@ -498,7 +498,12 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
     .filter((entry): entry is SvpReservation => entry !== null);
 }
 
-/** Provider message for a failed response, never leaking values. */
+/** Provider messages that mean the language/prometric code was rejected. */
+export function isSvpLanguageRejection(message: string | null): boolean {
+  return Boolean(message && /language|prometric|locale/i.test(message));
+}
+
+/** The provider message for a failed response, never leaking values. */
 export function parseSvpError(payload: unknown): string | null {
   return svpErrorMessage(payload);
 }

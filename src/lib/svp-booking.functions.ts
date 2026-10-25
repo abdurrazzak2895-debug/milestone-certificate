@@ -24,6 +24,7 @@ import {
   parseSvpReservations,
   parseSvpCertificatePrice,
   parseSvpNotifications,
+  isSvpLanguageRejection,
   svpExamSessionIdListSchema,
   svpExamSessionIdSchema,
   svpExamSessionIdStringSchema,
@@ -541,6 +542,8 @@ export const createSvpBooking = createServerFn({ method: "POST" })
         siteCity: z.string().trim().max(120).nullable().optional(),
         holdId: z.string().trim().max(64).nullable().optional(),
         countryId: z.number().int().positive().nullable().optional(),
+        /** SVP-owned language/prometric codes to try if the first one is rejected. */
+        fallbackLanguageCodes: z.array(svpLanguageCodeSchema).max(6).optional(),
       })
       .parse(input),
   )
@@ -592,7 +595,13 @@ export const createSvpBooking = createServerFn({ method: "POST" })
         }).catch(() => undefined);
       }
 
-      const create = await svpAuthedRequest(
+      // SVP rejects a language code that is not one of its prometric codes. Try the
+      // occupation's own codes as fallbacks so a Takamol-derived label cannot block booking.
+      const languageCodes = [data.languageCode, ...(data.fallbackLanguageCodes ?? [])].filter(
+        (code, index, list) => code && list.indexOf(code) === index,
+      );
+
+      let create = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/exam_reservations",
         {
@@ -601,7 +610,7 @@ export const createSvpBooking = createServerFn({ method: "POST" })
           body: buildSvpReservationBody({
             examSessionId: data.examSessionId,
             occupationId: data.occupationId,
-            languageCode: data.languageCode,
+            languageCode: languageCodes[0]!,
             methodology: data.methodology ?? "in_person",
             duration: data.duration,
             startAt: data.startAt,
@@ -612,6 +621,34 @@ export const createSvpBooking = createServerFn({ method: "POST" })
           }),
         },
       );
+
+      for (const code of languageCodes.slice(1)) {
+        if (create.ok) break;
+        const message = parseSvpError(create.payload);
+        // 422 validation failures may also be the language code; try the SVP-owned codes.
+        if (!isSvpLanguageRejection(message) && create.status !== 422) break;
+        create = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/exam_reservations",
+          {
+            method: "POST",
+            query: LOCALE_QUERY,
+            body: buildSvpReservationBody({
+              examSessionId: data.examSessionId,
+              occupationId: data.occupationId,
+              languageCode: code,
+              methodology: data.methodology ?? "in_person",
+              duration: data.duration,
+              startAt: data.startAt,
+              siteId: data.siteId ?? null,
+              siteCity: data.siteCity ?? null,
+              holdId: data.holdId ?? null,
+              countryId: data.countryId ?? null,
+            }),
+          },
+        );
+      }
+
       if (!create.ok) {
         return failure(
           apiFailure(create.payload, "SVP did not accept the reservation. Check the details."),

@@ -1291,6 +1291,10 @@ export function SvpBookingWizard() {
         }),
       );
       bookingSubmittedRef.current = true;
+      const fallbackLanguageCodes = languageOptions
+        .map((entry) => entry.code)
+        .filter((code) => code && code !== activeLanguageCode)
+        .slice(0, 6);
       const response = await createSvpBooking({
         data: {
           occupationId: occupation.id,
@@ -1305,6 +1309,7 @@ export function SvpBookingWizard() {
           siteCity: selectedSession.siteId ? (selectedSession.city ?? sessionCity) : null,
           holdId: isTargeted ? null : holdId,
           countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
+          ...(fallbackLanguageCodes.length > 0 ? { fallbackLanguageCodes } : {}),
         },
       });
       if (!response.ok) {

@@ -1529,4 +1529,34 @@ describe("Takamol occupation language system", () => {
     // The language is still a manual choice.
     expect(select).toHaveValue("");
   });
+
+  it("sends SVP language fallbacks so a rejected code cannot block the booking", async () => {
+    mocks.occupations.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          ...occupation,
+          languages: [
+            { code: "en", label: "English", questionCount: 30, nonTargeted: false },
+            { code: "ar", label: "Arabic", questionCount: 30, nonTargeted: false },
+          ],
+        },
+      ],
+    });
+
+    renderWizard();
+    await openConfirmation();
+    submitConfirmedBooking();
+
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            languageCode: "en",
+            fallbackLanguageCodes: ["ar"],
+          }),
+        }),
+      ),
+    );
+  });
 });
