@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
+import { requestWalletDeposit } from "@/lib/wallet";
 
 type Transaction = {
   id: string;
@@ -213,18 +214,23 @@ export function WalletPanel() {
       setMessage({ tone: "error", text: "সঠিক টাকার পরিমাণ লিখুন।" });
       return;
     }
+    if (!userId) {
+      setMessage({ tone: "error", text: "লগইন সেশন পাওয়া যায়নি — আবার লগইন করুন।" });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
-      const { error } = await supabase.from("wallet_deposits").insert({
-        user_id: userId as string,
+      const result = await requestWalletDeposit({
         amount: value,
         method,
         reference: reference.trim() || null,
         note: note.trim() || null,
-        status: "pending",
       });
-      if (error) throw error;
+      if (!result.ok) {
+        setMessage({ tone: "error", text: `ডিপোজিট রিকোয়েস্ট জমা হয়নি: ${result.message}` });
+        return;
+      }
       setAmount("");
       setReference("");
       setNote("");
@@ -233,8 +239,14 @@ export function WalletPanel() {
         text: "ডিপোজিট রিকোয়েস্ট জমা হয়েছে — admin approve করলে ব্যালেন্স যোগ হবে।",
       });
       void depositsQuery.refetch();
-    } catch {
-      setMessage({ tone: "error", text: "ডিপোজিট রিকোয়েস্ট জমা করা যায়নি।" });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text:
+          error instanceof Error && error.message
+            ? `ডিপোজিট রিকোয়েস্ট জমা হয়নি: ${error.message}`
+            : "ডিপোজিট রিকোয়েস্ট জমা করা যায়নি।",
+      });
     } finally {
       setBusy(false);
     }

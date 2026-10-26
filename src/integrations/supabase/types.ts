@@ -1186,6 +1186,15 @@ export type Database = {
         Args: { _approve: boolean; _deposit_id: string; _note?: string };
         Returns: Json;
       };
+      wallet_request_deposit: {
+        Args: {
+          _amount: number;
+          _method?: string;
+          _note?: string;
+          _reference?: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       app_role: "admin" | "staff" | "agent" | "service_provider" | "management";
