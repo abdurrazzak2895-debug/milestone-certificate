@@ -24,14 +24,12 @@ export type NavigationItem = {
 const commonNav: readonly NavigationItem[] = [
   { to: "/dashboard", label: "হোম", icon: Home },
   { to: "/wallet", label: "ব্যালেন্স", icon: Wallet },
-  { to: "/svp-history", label: "SVP হিস্ট্রি", icon: ClipboardCheck },
   { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck, desktopOnly: true },
   { to: "/management", label: "রিসেপশন", icon: UserCheck, desktopOnly: true },
   { to: "/candidates", label: "পরীক্ষার্থী", icon: Users },
   { to: "/exams", label: "পরীক্ষা", icon: CalendarDays },
   { to: "/results", label: "রেজাল্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/reports", label: "রিপোর্ট", icon: BarChart3 },
-  { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users, desktopOnly: true },
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck, desktopOnly: true },
   { to: "/settings", label: "সেটিংস", icon: Settings },
 ];
@@ -43,6 +41,8 @@ const svpBookingNav: NavigationItem = {
 };
 
 const adminNav: readonly NavigationItem[] = [
+  { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users },
+  { to: "/svp-history", label: "SVP হিস্ট্রি", icon: ClipboardCheck },
   { to: "/messages", label: "মেসেজ ম্যানেজমেন্ট", icon: ClipboardCheck },
   { to: "/center-addresses", label: "কেন্দ্রের ঠিকানা", icon: MapPin, desktopOnly: true },
   { to: "/agency-report", label: "এজেন্সি রিপোর্ট", icon: BarChart3 },

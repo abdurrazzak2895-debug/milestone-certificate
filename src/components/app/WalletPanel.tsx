@@ -68,6 +68,7 @@ export function WalletPanel() {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [isStaff, setIsStaff] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -88,6 +89,7 @@ export function WalletPanel() {
       const roles = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
       const list = (roles.data ?? []).map((row) => row.role);
       setIsStaff(list.includes("admin") || list.includes("staff"));
+      setIsAdmin(list.includes("admin"));
     })();
   }, []);
 
@@ -362,10 +364,10 @@ export function WalletPanel() {
         </p>
       )}
 
-      {isStaff && (
+      {isAdmin && (
         <section className="card-surface space-y-3 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold">সব ইউজারের ব্যালেন্স</h2>
+            <h2 className="text-lg font-bold">সব ইউজারের ব্যালেন্স (admin only)</h2>
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}

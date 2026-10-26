@@ -17,6 +17,8 @@ export const ADMIN_ONLY_PATHS = [
   "/agency-report",
   "/messages",
   "/center-addresses",
+  "/accounts",
+  "/svp-history",
 ] as const;
 export const MANAGEMENT_PATHS = ["/management", "/submissions"] as const;
 /** Agent-only workspace; managers without the agent role cannot open it. */

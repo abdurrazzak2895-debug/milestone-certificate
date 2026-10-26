@@ -15,9 +15,16 @@ describe("role-based navigation", () => {
     for (const roles of [["admin"], ["staff"]]) {
       const paths = pathsFor(roles);
       expect(paths).not.toContain("/svp-booking");
-      expect(paths).toContain("/svp-history");
       expect(paths).toContain("/dashboard");
     }
+
+    const adminPaths = pathsFor(["admin"]);
+    expect(adminPaths).toContain("/accounts");
+    expect(adminPaths).toContain("/svp-history");
+
+    const staffPaths = pathsFor(["staff"]);
+    expect(staffPaths).not.toContain("/accounts");
+    expect(staffPaths).not.toContain("/svp-history");
   });
 
   it("keeps manager navigation precedence for mixed admin and agent roles", () => {
@@ -57,6 +64,14 @@ describe("authenticated path policy", () => {
     expect(canAccessPath("/svp-booking", ["agent"])).toBe(true);
     expect(canAccessPath("/finance", ["staff"])).toBe(false);
     expect(canAccessPath("/finance", ["admin"])).toBe(true);
+  });
+
+  it("shows the account and SVP history lists only to admins", () => {
+    for (const path of ["/accounts", "/svp-history"]) {
+      expect(canAccessPath(path, ["admin"])).toBe(true);
+      expect(canAccessPath(path, ["staff"])).toBe(false);
+      expect(canAccessPath(path, ["agent"])).toBe(false);
+    }
   });
 
   it("denies booking to provider and management-only roles", () => {
