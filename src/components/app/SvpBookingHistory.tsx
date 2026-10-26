@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, LoaderCircle, RefreshCw, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { SVP_BOOKING_COST_BDT } from "@/lib/svp-booking.shared";
 
 type LocalBooking = {
   id: string;
@@ -72,7 +73,7 @@ function kindLabel(kind: Kind): string {
   return "Pending";
 }
 
-/** Free SVP booking history recorded by our own system (no live SVP/payment calls). */
+/** SVP booking history recorded by our own system (no live SVP/payment calls). */
 export function SvpBookingHistory() {
   const [userId, setUserId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | Kind>("all");
@@ -145,7 +146,8 @@ export function SvpBookingHistory() {
         <div>
           <h2 className="text-lg font-bold">SVP বুকিং হিস্ট্রি</h2>
           <p className="text-xs text-muted-foreground">
-            আমাদের নিজের ফ্রি বুকিং সিস্টেমের রেকর্ড — Complite, Cancel ও Free booking.
+            আমাদের নিজের বুকিং সিস্টেমের রেকর্ড — Complite, Cancel ও বুকিং কস্ট ৳
+            {SVP_BOOKING_COST_BDT}।
           </p>
         </div>
         <Button
@@ -178,9 +180,11 @@ export function SvpBookingHistory() {
           <p className="mt-1 text-2xl font-bold text-rose-400">{counts.cancelled}</p>
         </div>
         <div className="rounded-2xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">Free booking</p>
-          <p className="mt-1 text-2xl font-bold text-sky-400">{counts.all}</p>
-          <p className="text-[11px] text-muted-foreground">Card charge নেই</p>
+          <p className="text-xs text-muted-foreground">Booking cost</p>
+          <p className="mt-1 text-2xl font-bold text-sky-400">
+            ৳{(counts.all * SVP_BOOKING_COST_BDT).toLocaleString("en-BD")}
+          </p>
+          <p className="text-[11px] text-muted-foreground">প্রতি বুকিং ৳{SVP_BOOKING_COST_BDT}</p>
         </div>
       </div>
 
@@ -234,7 +238,7 @@ export function SvpBookingHistory() {
                     {kindLabel(row.kind)}
                   </span>
                   <span className="rounded-full border border-sky-300/60 bg-sky-500/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300">
-                    Free
+                    ৳{SVP_BOOKING_COST_BDT}
                   </span>
                 </div>
               </div>
@@ -245,7 +249,7 @@ export function SvpBookingHistory() {
                 </span>
                 <span>পেশা: {row.occupation ?? "—"}</span>
                 <span>কেন্দ্র: {row.center ?? "—"}</span>
-                <span>Free booking — কোনো কার্ড চার্জ নেই।</span>
+                <span>বুকিং কস্ট: ৳{SVP_BOOKING_COST_BDT}</span>
               </div>
             </div>
           ))}

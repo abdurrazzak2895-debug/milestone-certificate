@@ -1707,3 +1707,13 @@ describe("manual language fallback", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
   });
 });
+
+describe("SVP booking cost", () => {
+  it("shows the ৳100 booking cost on the confirmation step", async () => {
+    renderWizard();
+    await openConfirmation();
+
+    expect(screen.getByText("Booking cost")).toBeInTheDocument();
+    expect(screen.getByText("৳100")).toBeInTheDocument();
+  });
+});

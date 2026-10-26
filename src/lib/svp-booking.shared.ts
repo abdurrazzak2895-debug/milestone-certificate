@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** App charge for every SVP booking created from this workspace (BDT). */
+export const SVP_BOOKING_COST_BDT = 100;
+
 export const SVP_BOOKING_STATUSES = [
   "draft",
   "booked",

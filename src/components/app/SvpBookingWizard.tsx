@@ -85,6 +85,7 @@ import type {
 } from "@/lib/svp-api.shared";
 import {
   normalizeSvpBookingForm,
+  SVP_BOOKING_COST_BDT,
   svpCandidateIdentitySchema,
   toSvpBookingInsert,
 } from "@/lib/svp-booking.shared";
@@ -1914,7 +1915,7 @@ export function SvpBookingWizard() {
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 Use the signed-in candidate&apos;s SVP account. Only occupations linked to an SVP
-                category can be booked.
+                category can be booked. Booking cost ৳{SVP_BOOKING_COST_BDT} per reservation.
               </p>
             </div>
 
@@ -2582,6 +2583,10 @@ export function SvpBookingWizard() {
                   <dd className="font-medium" title={activeLanguageCode}>
                     {activeLanguageLabel}
                   </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Booking cost</dt>
+                  <dd className="font-medium">৳{SVP_BOOKING_COST_BDT}</dd>
                 </div>
               </dl>
 
