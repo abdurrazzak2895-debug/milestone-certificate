@@ -71,7 +71,8 @@ const managementNav: readonly NavigationItem[] = [
 /** Return the menu for a role set. Manager roles intentionally take precedence over agent menus. */
 export function navigationForRoles(roles: string[]): NavigationItem[] {
   if (isManager(roles)) {
-    return [svpBookingNav, ...commonNav, ...(roles.includes("admin") ? adminNav : [])];
+    // Admins/staff run the management systems; the SVP booking workspace is agent-only.
+    return [...commonNav, ...(roles.includes("admin") ? adminNav : [])];
   }
 
   return [

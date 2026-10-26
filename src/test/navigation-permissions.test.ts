@@ -6,19 +6,23 @@ import { canAccessPath } from "@/lib/roles";
 const pathsFor = (roles: string[]) => navigationForRoles(roles).map((item) => item.to);
 
 describe("role-based navigation", () => {
-  it("puts SVP booking first and keeps Dashboard below it for admins, staff, and agents", () => {
-    for (const roles of [["admin"], ["staff"], ["agent"]]) {
+  it("puts SVP booking first for agents and keeps it out of the admin menu", () => {
+    const agentPaths = pathsFor(["agent"]);
+    expect(agentPaths[0]).toBe("/svp-booking");
+    expect(agentPaths).toContain("/dashboard");
+    expect(agentPaths).not.toContain("/takamol");
+
+    for (const roles of [["admin"], ["staff"]]) {
       const paths = pathsFor(roles);
-      expect(paths[0]).toBe("/svp-booking");
+      expect(paths).not.toContain("/svp-booking");
       expect(paths).toContain("/dashboard");
-      expect(paths).not.toContain("/takamol");
     }
   });
 
   it("keeps manager navigation precedence for mixed admin and agent roles", () => {
     const paths = pathsFor(["admin", "agent"]);
 
-    expect(paths[0]).toBe("/svp-booking");
+    expect(paths).not.toContain("/svp-booking");
     expect(paths).not.toContain("/takamol");
     expect(paths).toContain("/finance");
     expect(paths).not.toContain("/submit-job");
@@ -45,12 +49,9 @@ describe("role-based navigation", () => {
 });
 
 describe("authenticated path policy", () => {
-  it("allows staff and admins to access the SVP booking workspace", () => {
-    expect(canAccessPath("/svp-booking", ["staff"])).toBe(true);
-    expect(canAccessPath("/svp-booking", ["admin"])).toBe(true);
-  });
-
-  it("allows agents to use booking while keeping finance admin-only", () => {
+  it("keeps SVP booking agent-only while finance stays admin-only", () => {
+    expect(canAccessPath("/svp-booking", ["staff"])).toBe(false);
+    expect(canAccessPath("/svp-booking", ["admin"])).toBe(false);
     expect(canAccessPath("/takamol", ["agent"])).toBe(false);
     expect(canAccessPath("/svp-booking", ["agent"])).toBe(true);
     expect(canAccessPath("/finance", ["staff"])).toBe(false);

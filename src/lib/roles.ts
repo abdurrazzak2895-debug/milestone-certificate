@@ -19,6 +19,8 @@ export const ADMIN_ONLY_PATHS = [
   "/center-addresses",
 ] as const;
 export const MANAGEMENT_PATHS = ["/management", "/submissions"] as const;
+/** Agent-only workspace; managers without the agent role cannot open it. */
+export const AGENT_ONLY_PATHS = ["/svp-booking"] as const;
 
 /** Pick the landing page for a set of roles. No role = customer portal. */
 export function homeForRoles(
@@ -40,6 +42,9 @@ export const isManager = (roles: string[]) => roles.includes("admin") || roles.i
 export function canAccessPath(path: string, roles: string[]): boolean {
   if (ADMIN_ONLY_PATHS.includes(path as (typeof ADMIN_ONLY_PATHS)[number])) {
     return roles.includes("admin");
+  }
+  if (AGENT_ONLY_PATHS.includes(path as (typeof AGENT_ONLY_PATHS)[number])) {
+    return roles.includes("agent");
   }
   if (isManager(roles)) return true;
 
