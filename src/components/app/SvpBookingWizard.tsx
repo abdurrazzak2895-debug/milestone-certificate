@@ -1776,58 +1776,60 @@ export function SvpBookingWizard() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Exam language *">
-                <NativeSelect
-                  value={activeLanguageCode}
-                  onChange={(event) => {
-                    setLanguageCode(event.target.value);
-                    setSelectedDate(null);
-                    setSelectedSession(null);
-                    setSelectedSlot(null);
-                    setHoldId(null);
-                    setPrometricHoldExpiresAt(null);
-                    setTargetedHoldExpiresAt(null);
-                    setChecked(false);
-                    setEligibility(null);
-                    setStage("select");
-                  }}
-                  disabled={languageChoices.length === 0 || Boolean(takamolLanguageCode)}
-                  required
-                >
-                  <option value="">
-                    {languageChoices.length === 0
-                      ? "Select an occupation first"
-                      : "Select exam language"}
-                  </option>
-                  {languageChoices.map((entry) => (
-                    <option key={entry.code} value={entry.code}>
-                      {entry.label}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </Field>
-              {occupation && !takamolLanguageCode && (
-                <div
-                  role={takamolOccupationsQuery.isFetching ? "status" : "alert"}
-                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
-                >
-                  <span>
-                    {takamolOccupationsQuery.isFetching
-                      ? "Loading the Takamol language…"
-                      : "Takamol has no language code for this occupation. Booking is disabled until the API returns one."}
-                  </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void takamolOccupationsQuery.refetch()}
-                    disabled={takamolOccupationsQuery.isFetching}
+              <div className="order-2 space-y-2">
+                <Field label="Exam language *">
+                  <NativeSelect
+                    value={activeLanguageCode}
+                    onChange={(event) => {
+                      setLanguageCode(event.target.value);
+                      setSelectedDate(null);
+                      setSelectedSession(null);
+                      setSelectedSlot(null);
+                      setHoldId(null);
+                      setPrometricHoldExpiresAt(null);
+                      setTargetedHoldExpiresAt(null);
+                      setChecked(false);
+                      setEligibility(null);
+                      setStage("select");
+                    }}
+                    disabled={languageChoices.length === 0 || Boolean(takamolLanguageCode)}
+                    required
                   >
-                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry language
-                  </Button>
-                </div>
-              )}
-              <div className="space-y-2">
+                    <option value="">
+                      {languageChoices.length === 0
+                        ? "Select an occupation first"
+                        : "Select exam language"}
+                    </option>
+                    {languageChoices.map((entry) => (
+                      <option key={entry.code} value={entry.code}>
+                        {entry.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                {occupation && !takamolLanguageCode && (
+                  <div
+                    role={takamolOccupationsQuery.isFetching ? "status" : "alert"}
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+                  >
+                    <span>
+                      {takamolOccupationsQuery.isFetching
+                        ? "Loading the Takamol language…"
+                        : "Takamol has no language code for this occupation. Booking is disabled until the API returns one."}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void takamolOccupationsQuery.refetch()}
+                      disabled={takamolOccupationsQuery.isFetching}
+                    >
+                      <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry language
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="order-1 space-y-2">
                 <Field label="Occupation *">
                   <div className="relative" ref={occupationBoxRef}>
                     <Input
