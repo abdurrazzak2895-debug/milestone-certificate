@@ -4,6 +4,7 @@ import { CalendarDays, LoaderCircle, RefreshCw, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SVP_BOOKING_COST_BDT } from "@/lib/svp-booking.shared";
+import { cancelStaleSvpBookings } from "@/lib/svp-pending-cancel";
 
 type LocalBooking = {
   id: string;
@@ -86,6 +87,7 @@ export function SvpBookingHistory() {
     queryKey: ["my-svp-bookings", userId],
     enabled: Boolean(userId),
     queryFn: async (): Promise<LocalBooking[]> => {
+      await cancelStaleSvpBookings();
       const { data, error } = await supabase
         .from("svp_bookings")
         .select(
@@ -147,7 +149,7 @@ export function SvpBookingHistory() {
           <h2 className="text-lg font-bold">SVP বুকিং হিস্ট্রি</h2>
           <p className="text-xs text-muted-foreground">
             আমাদের নিজের বুকিং সিস্টেমের রেকর্ড — Complite, Cancel ও বুকিং কস্ট ৳
-            {SVP_BOOKING_COST_BDT}।
+            {SVP_BOOKING_COST_BDT}। Payment ছাড়া pending booking ৩০ মিনিট পরে auto cancel হয়।
           </p>
         </div>
         <Button

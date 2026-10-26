@@ -9,6 +9,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { TechBackground } from "./TechBackground";
 import brandLogo from "@/assets/brand-logo.png.asset.json";
 import { navigationForRoles } from "@/lib/navigation";
+import { cancelStaleSvpBookings } from "@/lib/svp-pending-cancel";
+import { useEffect } from "react";
 
 export function AppShell({ children, roles = [] }: { children: ReactNode; roles?: string[] }) {
   useWorksRealtime();
@@ -16,6 +18,21 @@ export function AppShell({ children, roles = [] }: { children: ReactNode; roles?
   const items = navigationForRoles(roles);
   const navigate = useNavigate();
   const qc = useQueryClient();
+
+  // Pending SVP bookings expire automatically; sweep at most every five minutes.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = "svp-pending-sweep";
+    const last = Number(window.sessionStorage.getItem(key) ?? 0);
+    if (Number.isFinite(last) && Date.now() - last < 5 * 60_000) return;
+    window.sessionStorage.setItem(key, String(Date.now()));
+    void cancelStaleSvpBookings().then((count) => {
+      if (count > 0) {
+        void qc.invalidateQueries({ queryKey: ["my-svp-bookings"] });
+        void qc.invalidateQueries({ queryKey: ["admin-svp-bookings"] });
+      }
+    });
+  }, [qc]);
   const logout = async () => {
     await supabase.auth.signOut();
     qc.clear();

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SVP_BOOKING_COST_BDT } from "@/lib/svp-booking.shared";
+import { cancelStaleSvpBookings } from "@/lib/svp-pending-cancel";
 
 type BookingRow = {
   id: string;
@@ -65,6 +66,7 @@ export function SvpBookingAdminHistory() {
   const bookingsQuery = useQuery({
     queryKey: ["admin-svp-bookings"],
     queryFn: async (): Promise<BookingRow[]> => {
+      await cancelStaleSvpBookings();
       const { data, error } = await supabase
         .from("svp_bookings")
         .select(

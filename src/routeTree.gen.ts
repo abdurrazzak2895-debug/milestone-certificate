@@ -43,6 +43,7 @@ import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as ApiPublicCronExamSmsRouteImport } from './routes/api/public/cron/exam-sms'
 import { Route as ApiPublicCronMessagingRouteImport } from './routes/api/public/cron/messaging'
+import { Route as ApiPublicCronSvpPendingCancelRouteImport } from './routes/api/public/cron/svp-pending-cancel'
 import { Route as ApiPublicCronSvpResultsRouteImport } from './routes/api/public/cron/svp-results'
 
 const IndexRoute = IndexRouteImport.update({
@@ -220,6 +221,12 @@ const ApiPublicCronMessagingRoute = ApiPublicCronMessagingRouteImport.update({
   path: '/api/public/cron/messaging',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronSvpPendingCancelRoute =
+  ApiPublicCronSvpPendingCancelRouteImport.update({
+    id: '/api/public/cron/svp-pending-cancel',
+    path: '/api/public/cron/svp-pending-cancel',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronSvpResultsRoute = ApiPublicCronSvpResultsRouteImport.update({
   id: '/api/public/cron/svp-results',
   path: '/api/public/cron/svp-results',
@@ -260,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/candidates/': typeof AuthenticatedCandidatesIndexRoute
   '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
   '/api/public/cron/messaging': typeof ApiPublicCronMessagingRoute
+  '/api/public/cron/svp-pending-cancel': typeof ApiPublicCronSvpPendingCancelRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesByTo {
@@ -296,6 +304,7 @@ export interface FileRoutesByTo {
   '/candidates': typeof AuthenticatedCandidatesIndexRoute
   '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
   '/api/public/cron/messaging': typeof ApiPublicCronMessagingRoute
+  '/api/public/cron/svp-pending-cancel': typeof ApiPublicCronSvpPendingCancelRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRoutesById {
@@ -334,6 +343,7 @@ export interface FileRoutesById {
   '/_authenticated/candidates/': typeof AuthenticatedCandidatesIndexRoute
   '/api/public/cron/exam-sms': typeof ApiPublicCronExamSmsRoute
   '/api/public/cron/messaging': typeof ApiPublicCronMessagingRoute
+  '/api/public/cron/svp-pending-cancel': typeof ApiPublicCronSvpPendingCancelRoute
   '/api/public/cron/svp-results': typeof ApiPublicCronSvpResultsRoute
 }
 export interface FileRouteTypes {
@@ -372,6 +382,7 @@ export interface FileRouteTypes {
     | '/candidates/'
     | '/api/public/cron/exam-sms'
     | '/api/public/cron/messaging'
+    | '/api/public/cron/svp-pending-cancel'
     | '/api/public/cron/svp-results'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/candidates'
     | '/api/public/cron/exam-sms'
     | '/api/public/cron/messaging'
+    | '/api/public/cron/svp-pending-cancel'
     | '/api/public/cron/svp-results'
   id:
     | '__root__'
@@ -445,6 +457,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidates/'
     | '/api/public/cron/exam-sms'
     | '/api/public/cron/messaging'
+    | '/api/public/cron/svp-pending-cancel'
     | '/api/public/cron/svp-results'
   fileRoutesById: FileRoutesById
 }
@@ -458,6 +471,7 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   ApiPublicCronExamSmsRoute: typeof ApiPublicCronExamSmsRoute
   ApiPublicCronMessagingRoute: typeof ApiPublicCronMessagingRoute
+  ApiPublicCronSvpPendingCancelRoute: typeof ApiPublicCronSvpPendingCancelRoute
   ApiPublicCronSvpResultsRoute: typeof ApiPublicCronSvpResultsRoute
 }
 
@@ -701,6 +715,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronMessagingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/svp-pending-cancel': {
+      id: '/api/public/cron/svp-pending-cancel'
+      path: '/api/public/cron/svp-pending-cancel'
+      fullPath: '/api/public/cron/svp-pending-cancel'
+      preLoaderRoute: typeof ApiPublicCronSvpPendingCancelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/svp-results': {
       id: '/api/public/cron/svp-results'
       path: '/api/public/cron/svp-results'
@@ -780,6 +801,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   ApiPublicCronExamSmsRoute: ApiPublicCronExamSmsRoute,
   ApiPublicCronMessagingRoute: ApiPublicCronMessagingRoute,
+  ApiPublicCronSvpPendingCancelRoute: ApiPublicCronSvpPendingCancelRoute,
   ApiPublicCronSvpResultsRoute: ApiPublicCronSvpResultsRoute,
 }
 export const routeTree = rootRouteImport

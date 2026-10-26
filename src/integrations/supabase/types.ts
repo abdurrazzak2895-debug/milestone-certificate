@@ -1166,6 +1166,10 @@ export type Database = {
         Args: { _name: string; _token: string };
         Returns: boolean;
       };
+      cancel_stale_svp_bookings: {
+        Args: { _minutes?: number };
+        Returns: number;
+      };
       wallet_admin_adjust: {
         Args: { _amount: number; _note?: string; _user_id: string };
         Returns: Json;
