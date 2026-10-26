@@ -77,6 +77,7 @@ export function WalletPanel() {
   const [adjustUser, setAdjustUser] = useState("");
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustNote, setAdjustNote] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -151,10 +152,27 @@ export function WalletPanel() {
     refetchOnWindowFocus: false,
   });
 
+  const accountsQuery = useQuery({
+    queryKey: ["wallet-accounts"],
+    enabled: isStaff,
+    queryFn: async (): Promise<{ user_id: string; balance: number }[]> => {
+      const { data, error } = await supabase
+        .from("wallet_accounts")
+        .select("user_id, balance")
+        .order("balance", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as { user_id: string; balance: number }[];
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   const balance = balanceQuery.data ?? 0;
   const transactions = useMemo(() => transactionsQuery.data ?? [], [transactionsQuery.data]);
   const deposits = useMemo(() => depositsQuery.data ?? [], [depositsQuery.data]);
   const profiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const profileName = useMemo(() => {
     const map = new Map<string, string>();
     for (const profile of profiles) {
@@ -162,6 +180,14 @@ export function WalletPanel() {
     }
     return map;
   }, [profiles]);
+
+  const filteredAccounts = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return accounts;
+    return accounts.filter((entry) =>
+      (profileName.get(entry.user_id) ?? entry.user_id).toLowerCase().includes(needle),
+    );
+  }, [accounts, profileName, search]);
 
   const pendingDeposits = deposits.filter((entry) => entry.status === "pending");
   const totalDeposit = transactions
@@ -175,7 +201,10 @@ export function WalletPanel() {
     void queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
     void transactionsQuery.refetch();
     void depositsQuery.refetch();
-    if (isStaff) void profilesQuery.refetch();
+    if (isStaff) {
+      void profilesQuery.refetch();
+      void accountsQuery.refetch();
+    }
   };
 
   const requestDeposit = async () => {
@@ -319,6 +348,58 @@ export function WalletPanel() {
         >
           {message.text}
         </p>
+      )}
+
+      {isStaff && (
+        <section className="card-surface space-y-3 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold">সব ইউজারের ব্যালেন্স</h2>
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="নাম / ইমেইল দিয়ে খুঁজুন"
+              className="h-9 w-full sm:w-64"
+            />
+          </div>
+          {filteredAccounts.length === 0 ? (
+            <p className="rounded-xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+              কোনো wallet account নেই।
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {filteredAccounts.map((entry) => (
+                <div
+                  key={entry.user_id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-background/40 p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {profileName.get(entry.user_id) ?? entry.user_id}
+                    </p>
+                    <p className="truncate text-[11px] text-muted-foreground">{entry.user_id}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-emerald-400">
+                      {taka(entry.balance)}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setAdjustUser(entry.user_id);
+                        setAdjustAmount("");
+                        setAdjustNote("");
+                      }}
+                    >
+                      Adjust
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       <section className="card-surface space-y-3 p-4 sm:p-5">
