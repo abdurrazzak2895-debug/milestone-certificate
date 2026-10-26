@@ -130,7 +130,10 @@ export const createAccount = createServerFn({ method: "POST" })
     if (failure) {
       // Never leave a half-created login behind.
       await supabaseAdmin.auth.admin.deleteUser(uid).catch(() => undefined);
-      return { ok: false as const, message: `অ্যাকাউন্ট সেটআপ ব্যর্থ: ${failure.message}` };
+      const hint = /schema cache|could not find the table/i.test(failure.message)
+        ? " — Supabase-এ migration apply করা হয়নি; migration চালান বা SQL Editor-এ টেবিলটি তৈরি করুন।"
+        : "";
+      return { ok: false as const, message: `অ্যাকাউন্ট সেটআপ ব্যর্থ: ${failure.message}${hint}` };
     }
     return { ok: true as const };
   });
@@ -384,7 +387,10 @@ export const createSubAgent = createServerFn({ method: "POST" })
     const failure = profileRes.error ?? roleRes.error ?? accountRes.error;
     if (failure) {
       await supabaseAdmin.auth.admin.deleteUser(uid).catch(() => undefined);
-      return { ok: false as const, message: `সাব-এজেন্ট সেটআপ ব্যর্থ: ${failure.message}` };
+      const hint = /schema cache|could not find the table/i.test(failure.message)
+        ? " — Supabase-এ migration apply করা হয়নি; migration চালান বা SQL Editor-এ টেবিলটি তৈরি করুন।"
+        : "";
+      return { ok: false as const, message: `সাব-এজেন্ট সেটআপ ব্যর্থ: ${failure.message}${hint}` };
     }
     return { ok: true as const };
   });
