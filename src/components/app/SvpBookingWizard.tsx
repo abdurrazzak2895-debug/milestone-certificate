@@ -419,13 +419,6 @@ export function SvpBookingWizard() {
   }, [debouncedOccupationSearch, filteredOccupations, searchResults]);
   const occupationSearchPending =
     occupationSearch.trim() !== debouncedOccupationSearch || occupationSearchQuery.isFetching;
-  const selectableOccupations = useMemo(() => {
-    const merged = new Map<number, SvpOccupation>();
-    for (const entry of [...occupations, ...suggestions]) {
-      if (!merged.has(entry.id)) merged.set(entry.id, entry);
-    }
-    return [...merged.values()].slice(0, 300);
-  }, [occupations, suggestions]);
 
   const setupQuery = useQuery({
     queryKey: ["svp-setup", occupationId],
@@ -1928,26 +1921,6 @@ export function SvpBookingWizard() {
                     </Button>
                   </div>
                 )}
-                <div className="mt-2 space-y-1">
-                  <p className="text-xs text-muted-foreground">Or pick from the loaded list</p>
-                  <NativeSelect
-                    aria-label="Choose occupation from list"
-                    value={occupationId ?? ""}
-                    onChange={(event) => {
-                      const id = Number(event.target.value);
-                      const next = selectableOccupations.find((entry) => entry.id === id);
-                      if (next) void selectOccupation(next);
-                    }}
-                  >
-                    <option value="">Select an occupation</option>
-                    {selectableOccupations.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.name}
-                        {entry.occupationKey ? ` · ${entry.occupationKey}` : ""}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
               </div>
             </div>
 
