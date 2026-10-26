@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   payments: vi.fn(),
   notifications: vi.fn(),
   cancel: vi.fn(),
+  rpc: vi.fn(),
 }));
 
 vi.mock("@/lib/svp-session.functions", () => ({
@@ -71,7 +72,10 @@ vi.mock("@/lib/svp-booking.functions", () => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: () => ({ insert: mocks.insert }) },
+  supabase: {
+    from: () => ({ insert: mocks.insert }),
+    rpc: mocks.rpc,
+  },
 }));
 
 vi.mock("@/lib/takamol-availability.functions", () => ({
@@ -198,6 +202,7 @@ beforeEach(() => {
     ok: true,
     message: "OTP sent to the saved SVP email.",
   });
+  mocks.rpc.mockResolvedValue({ data: 1000, error: null });
   mocks.payments.mockResolvedValue({ ok: true, data: [] });
   mocks.notifications.mockResolvedValue({ ok: true, data: [] });
   mocks.cancel.mockResolvedValue({
@@ -1715,5 +1720,14 @@ describe("SVP booking cost", () => {
 
     expect(screen.getByText("Booking cost")).toBeInTheDocument();
     expect(screen.getByText("৳100")).toBeInTheDocument();
+  });
+
+  it("blocks the booking when the wallet balance is below the fee", async () => {
+    mocks.rpc.mockResolvedValue({ data: 50, error: null });
+    renderWizard();
+    await openConfirmation();
+
+    expect(await screen.findByText(/ব্যালেন্স কম/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create SVP booking" })).toBeDisabled();
   });
 });

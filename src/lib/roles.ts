@@ -9,6 +9,7 @@ export const AGENT_PATHS = [
   "/about",
   "/agent-results",
   "/svp-booking",
+  "/wallet",
 ] as const;
 export const PROVIDER_PATHS = ["/provider"] as const;
 export const ADMIN_ONLY_PATHS = [

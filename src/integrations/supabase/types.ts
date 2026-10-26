@@ -1018,6 +1018,105 @@ export type Database = {
           },
         ];
       };
+      wallet_accounts: {
+        Row: {
+          balance: number;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          balance?: number;
+          created_at?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          balance?: number;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      wallet_deposits: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: string;
+          method: string;
+          note: string | null;
+          reference: string | null;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: string;
+          user_id: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: string;
+          method?: string;
+          note?: string | null;
+          reference?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          user_id: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: string;
+          method?: string;
+          note?: string | null;
+          reference?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      wallet_transactions: {
+        Row: {
+          amount: number;
+          balance_after: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          note: string | null;
+          reference: string | null;
+          type: string;
+          user_id: string;
+        };
+        Insert: {
+          amount: number;
+          balance_after: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          note?: string | null;
+          reference?: string | null;
+          type: string;
+          user_id: string;
+        };
+        Update: {
+          amount?: number;
+          balance_after?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          note?: string | null;
+          reference?: string | null;
+          type?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1066,6 +1165,22 @@ export type Database = {
       verify_cron_token: {
         Args: { _name: string; _token: string };
         Returns: boolean;
+      };
+      wallet_admin_adjust: {
+        Args: { _amount: number; _note?: string; _user_id: string };
+        Returns: Json;
+      };
+      wallet_charge_booking: {
+        Args: { _amount?: number; _reservation_id: string };
+        Returns: Json;
+      };
+      wallet_my_balance: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
+      wallet_review_deposit: {
+        Args: { _approve: boolean; _deposit_id: string; _note?: string };
+        Returns: Json;
       };
     };
     Enums: {

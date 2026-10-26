@@ -9,6 +9,7 @@ import {
   Settings,
   UserCheck,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { isManager } from "./roles";
@@ -22,6 +23,7 @@ export type NavigationItem = {
 
 const commonNav: readonly NavigationItem[] = [
   { to: "/dashboard", label: "হোম", icon: Home },
+  { to: "/wallet", label: "ব্যালেন্স", icon: Wallet },
   { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck, desktopOnly: true },
   { to: "/management", label: "রিসেপশন", icon: UserCheck, desktopOnly: true },
   { to: "/candidates", label: "পরীক্ষার্থী", icon: Users },
@@ -48,6 +50,7 @@ const adminNav: readonly NavigationItem[] = [
 
 const agentNav: readonly NavigationItem[] = [
   { to: "/dashboard", label: "ড্যাশবোর্ড", icon: Home },
+  { to: "/wallet", label: "ব্যালেন্স", icon: Wallet },
   { to: "/submit-job", label: "Submit Work", icon: ClipboardCheck },
   { to: "/my-works", label: "আমার কাজ", icon: Briefcase },
   { to: "/sub-agents", label: "সাব-এজেন্ট", icon: Users },

@@ -247,6 +247,20 @@ export function SvpBookingWizard() {
   const occupationBoxRef = useRef<HTMLDivElement | null>(null);
   const signedIn = Boolean(status?.signedIn);
 
+  const walletBalanceQuery = useQuery({
+    queryKey: ["wallet-balance"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("wallet_my_balance");
+      if (error) throw error;
+      return Number(data ?? 0);
+    },
+    enabled: signedIn,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const walletBalance = walletBalanceQuery.data ?? 0;
+  const canAffordBooking = walletBalanceQuery.isPending || walletBalance >= SVP_BOOKING_COST_BDT;
+
   // The card widget redirects back here with ?paymentId=…; verify it once.
   // A dedicated payment tab uses ?payReservation=… and stays on the payment page.
   useEffect(() => {
@@ -1349,6 +1363,26 @@ export function SvpBookingWizard() {
       setResult(booking);
       setStage("done");
       localRecordRef.current = localRecord;
+      try {
+        const { data: charge } = await supabase.rpc("wallet_charge_booking", {
+          _reservation_id: booking.reservationId,
+          _amount: SVP_BOOKING_COST_BDT,
+        });
+        const result = charge as { ok?: boolean; reason?: string } | null;
+        if (result && result.ok === false) {
+          toast.error(
+            result.reason === "insufficient"
+              ? `Booking created, but the wallet is short for the ৳${SVP_BOOKING_COST_BDT} fee. Please top up.`
+              : "Booking created, but the booking fee could not be charged.",
+          );
+        } else {
+          toast.success(`৳${SVP_BOOKING_COST_BDT} booking fee charged from your balance.`);
+        }
+      } catch {
+        toast.error("Booking created, but the wallet fee could not be recorded.");
+      }
+      void queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
+      void queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
       if (booking.paymentRequired) {
         // Complete the SVP card payment in the provider widget tab that was opened on click.
         const paymentUrl = `/svp-booking?payReservation=${encodeURIComponent(booking.reservationId)}`;
@@ -2588,7 +2622,28 @@ export function SvpBookingWizard() {
                   <dt className="text-xs text-muted-foreground">Booking cost</dt>
                   <dd className="font-medium">৳{SVP_BOOKING_COST_BDT}</dd>
                 </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Wallet balance</dt>
+                  <dd className={`font-medium ${canAffordBooking ? "" : "text-destructive"}`}>
+                    ৳{walletBalance.toLocaleString("en-BD")}
+                  </dd>
+                </div>
               </dl>
+
+              {!canAffordBooking && (
+                <p
+                  role="alert"
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+                >
+                  <span>
+                    ব্যালেন্স কম — প্রতি বুকিং ৳{SVP_BOOKING_COST_BDT} লাগবে। অন্তত ৳
+                    {SVP_BOOKING_COST_BDT} ব্যালেন্স রাখুন।
+                  </span>
+                  <a href="/wallet" className="font-semibold underline">
+                    ডিপোজিট করুন
+                  </a>
+                </p>
+              )}
 
               {isTargeted && targetedHoldExpiresAt && (
                 <p className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground">
@@ -2703,6 +2758,7 @@ export function SvpBookingWizard() {
                   disabled={
                     !candidateValidation.success ||
                     !accepted ||
+                    !canAffordBooking ||
                     occupation.driverLicenseRequired ||
                     bookingMutation.isPending
                   }
