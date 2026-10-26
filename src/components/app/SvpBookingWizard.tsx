@@ -145,6 +145,20 @@ function formatHoldExpiry(value: string): string {
   return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
+function BookingPayloadPreview({ payload }: { payload: Record<string, unknown> }) {
+  return (
+    <details className="rounded-xl border bg-muted/20 p-3 text-xs">
+      <summary className="cursor-pointer text-sm font-semibold">Real booking payload</summary>
+      <pre className="mt-2 overflow-x-auto rounded-lg bg-background/70 p-2 font-mono text-[11px] leading-relaxed">
+        {JSON.stringify(payload, null, 2)}
+      </pre>
+      <p className="mt-1 text-muted-foreground">
+        This is the exact object sent to SVP for the real reservation.
+      </p>
+    </details>
+  );
+}
+
 function formatDateOnly(date: string): string {
   const parsed = new Date(`${date}T12:00:00`);
   if (Number.isNaN(parsed.getTime())) return date;
@@ -583,7 +597,7 @@ export function SvpBookingWizard() {
           countryId: cityCountryId ?? setup?.permissions.countryId ?? null,
         },
       }),
-    enabled: signedIn && checked && categoryId !== null,
+    enabled: signedIn && categoryId !== null,
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -625,12 +639,12 @@ export function SvpBookingWizard() {
     ? datesQuery.isFetching
     : citiesQuery.isFetching || (cities.length === 0 && datesQuery.isFetching);
   useEffect(() => {
-    if (!signedIn || !checked || citiesLoading || stage !== "dates" || cityOptions.length === 0)
-      return;
+    if (!signedIn || citiesLoading || cityOptions.length === 0) return;
+    if (stage !== "select" && stage !== "dates") return;
     if (city && cityOptions.some((entry) => entry.city === city)) return;
     const nextCity = cityOptions.length === 1 ? cityOptions[0].city : "";
     if (nextCity !== city) chooseCity(nextCity);
-  }, [checked, chooseCity, citiesLoading, city, cityOptions, signedIn, stage]);
+  }, [chooseCity, citiesLoading, city, cityOptions, signedIn, stage]);
   const citiesLoaded = isTargeted
     ? Boolean(datesQuery.data?.ok)
     : Boolean(citiesQuery.data?.ok || datesQuery.data?.ok);
@@ -1893,8 +1907,7 @@ export function SvpBookingWizard() {
                             <span className="min-w-0">
                               <span className="block truncate font-medium">{entry.name}</span>
                               <span className="block truncate text-xs text-muted-foreground">
-                                {entry.occupationKey ? `${entry.occupationKey} · ` : ""}
-                                {entry.categoryName ?? "No SVP category"}
+                                {entry.occupationKey ?? `Occupation ${entry.id}`}
                               </span>
                             </span>
                             {occupationId === entry.id && (
@@ -1911,8 +1924,7 @@ export function SvpBookingWizard() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">Selected: {occupation.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {occupation.occupationKey ?? occupation.id} · category{" "}
-                        {effectiveCategoryId ?? "not linked"}
+                        {occupation.occupationKey ?? `Occupation ${occupation.id}`}
                       </p>
                     </div>
                     <Button
@@ -1952,6 +1964,62 @@ export function SvpBookingWizard() {
                 </div>
               </div>
             </div>
+
+            <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
+              <Field label={isTargeted ? "Test center city" : "Test center city *"}>
+                <NativeSelect
+                  value={cityOptions.some((entry) => entry.city === city) ? city : ""}
+                  onChange={(event) => chooseCity(event.target.value)}
+                  disabled={cityOptions.length === 0}
+                  aria-busy={citiesLoading}
+                  required
+                >
+                  <option value="">
+                    {citiesLoading && cityOptions.length === 0
+                      ? "Loading available cities…"
+                      : cityOptions.length === 0
+                        ? "No cities returned by SVP"
+                        : "Select an available city"}
+                  </option>
+                  {cityOptions.map((entry) => (
+                    <option key={entry.city} value={entry.city}>
+                      {entry.city}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              {citiesLoading && (
+                <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading available cities…
+                </p>
+              )}
+              {manualCityFallback && (
+                <Field label="City (manual fallback)">
+                  <Input
+                    value={city}
+                    onChange={(event) => chooseCity(event.target.value)}
+                    maxLength={120}
+                    placeholder="Enter a known SVP test center city"
+                    required
+                  />
+                  <span className="block text-xs text-muted-foreground">
+                    The API has no city list. Enter a city only if you know the SVP test center;
+                    availability must still be confirmed by SVP.
+                  </span>
+                </Field>
+              )}
+            </div>
+
+            <BookingPayloadPreview
+              payload={{
+                occupation_id: occupationId,
+                category_id: effectiveCategoryId,
+                language_code: activeLanguageCode || null,
+                city: city || null,
+                country_id: cityCountryId ?? setup?.permissions.countryId ?? null,
+                methodology: "in_person",
+              }}
+            />
 
             {occupationsQuery.isPending && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
@@ -2052,44 +2120,11 @@ export function SvpBookingWizard() {
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading the full occupation…
               </p>
             )}
-            {occupation &&
-              !occupation.categoryId &&
-              !occupationLookup &&
-              (categoryOptions.length > 0 ? (
-                <Field label="SVP category *">
-                  <NativeSelect
-                    value={manualCategoryId ?? matchedCategory?.id ?? ""}
-                    onChange={(event) => setManualCategoryId(Number(event.target.value) || null)}
-                  >
-                    <option value="">Select the SVP category</option>
-                    {categoryOptions.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {matchedCategory
-                      ? `Auto-matched to “${matchedCategory.name}” from the SVP category catalogue. Change it if needed.`
-                      : "This occupation has no category in SVP. Choose the matching category to continue."}
-                  </p>
-                </Field>
-              ) : (
-                <div
-                  className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-2 text-sm text-amber-950"
-                  role="alert"
-                >
-                  <span>No SVP category list is available. Sign out SVP and retry.</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => signOutMutation.mutate(false)}
-                  >
-                    Sign out SVP
-                  </Button>
-                </div>
-              ))}
+            {occupation && !effectiveCategoryId && !occupationLookup && (
+              <p role="alert" className="text-sm text-destructive">
+                This occupation is not linked to a bookable SVP category.
+              </p>
+            )}
             {setupQuery.data && !setupQuery.data.ok && (
               <p role="alert" className="text-sm text-destructive">
                 {setupQuery.data.message}
@@ -2129,6 +2164,7 @@ export function SvpBookingWizard() {
                   !effectiveCategoryId ||
                   !activeLanguageCode ||
                   occupationLookup ||
+                  (!city.trim() && cityOptions.length > 0) ||
                   eligibilityMutation.isPending
                 }
               >
@@ -2167,49 +2203,11 @@ export function SvpBookingWizard() {
               </Button>
             </div>
 
-            <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-              <Field label={isTargeted ? "Test center city" : "Test center city *"}>
-                <NativeSelect
-                  value={cityOptions.some((entry) => entry.city === city) ? city : ""}
-                  onChange={(event) => chooseCity(event.target.value)}
-                  disabled={cityOptions.length === 0}
-                  aria-busy={citiesLoading}
-                  required
-                >
-                  <option value="">
-                    {citiesLoading && cityOptions.length === 0
-                      ? "Loading cities from SVP…"
-                      : cityOptions.length === 0
-                        ? "No cities returned by SVP"
-                        : "Select a city"}
-                  </option>
-                  {cityOptions.map((entry) => (
-                    <option key={entry.city} value={entry.city}>
-                      {entry.city}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </Field>
-              {citiesLoading && (
-                <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading cities from SVP…
-                </p>
-              )}
-              {manualCityFallback && (
-                <Field label="City (manual fallback)">
-                  <Input
-                    value={city}
-                    onChange={(event) => chooseCity(event.target.value)}
-                    maxLength={120}
-                    placeholder="Enter a known SVP test center city"
-                    required
-                  />
-                  <span className="block text-xs text-muted-foreground">
-                    The API has no city list. Enter a city only if you know the SVP test center;
-                    availability must still be confirmed by SVP.
-                  </span>
-                </Field>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Select an available date first; the test centers and sessions for that date load
+                automatically.
+              </p>
             </div>
 
             {eligibility && eligibility.every((entry) => entry.passed) && (
@@ -2251,6 +2249,24 @@ export function SvpBookingWizard() {
                     city,
                   };
                   selectDateOption(entry);
+                }}
+              />
+            )}
+
+            {activeDateValue && (
+              <BookingPayloadPreview
+                payload={{
+                  occupation_id: occupation?.id ?? null,
+                  category_id: effectiveCategoryId,
+                  language_code: activeLanguageCode || null,
+                  city: availabilityCity || null,
+                  country_id: cityCountryId ?? setup?.permissions.countryId ?? null,
+                  methodology: "in_person",
+                  exam_session_id: selectedSession?.id ?? null,
+                  duration: selectedSession?.duration ?? null,
+                  start_at: selectedSession?.startAt ?? null,
+                  site_id: selectedSession?.siteId ?? null,
+                  site_city: selectedSession?.siteId ? (selectedSession.city ?? sessionCity) : null,
                 }}
               />
             )}

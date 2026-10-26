@@ -412,12 +412,19 @@ function configureTargetedMode() {
   });
 }
 
-async function openDatesStep() {
+async function openDatesStep(city?: string) {
   await screen.findByText(/Signed in to SVP as Noor Rahman/);
   fireEvent.focus(await screen.findByLabelText("Occupation *"));
   fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
   pickLanguage();
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  if (city) {
+    const citySelect = await screen.findByLabelText(/Test center city/);
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: new RegExp(city) })).toBeInTheDocument(),
+    );
+    fireEvent.change(citySelect, { target: { value: city } });
+  }
+  await clickContinue();
   await screen.findByText(/Step 2/);
 }
 
@@ -446,6 +453,9 @@ describe("SVP booking wizard", () => {
     expect(screen.queryByText(/Not provided by SVP/)).not.toBeInTheDocument();
     const centerPicker = await screen.findByLabelText("Test center");
     expect(centerPicker).toBeInTheDocument();
+    // The city is chosen on Step 1; Step 2 starts with the date and then loads the test center.
+    expect(screen.queryByLabelText(/Test center city/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Real booking payload/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     expect(mocks.targetedHold).not.toHaveBeenCalled();
     expect(mocks.hold).not.toHaveBeenCalled();
@@ -663,7 +673,8 @@ describe("occupation category enrichment", () => {
       }),
     );
     expect(await screen.findByText(/Selected: Load and Unload Worker/)).toBeInTheDocument();
-    expect(screen.getByText(/category 159/)).toBeInTheDocument();
+    expect(screen.getByText(/Real booking payload/)).toBeInTheDocument();
+    expect(screen.getByText(/"category_id": 159/)).toBeInTheDocument();
     pickLanguage();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
@@ -715,7 +726,8 @@ describe("SVP category auto-match", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Load and Unload Worker/ }));
 
     await waitFor(() => expect(mocks.occupationById).toHaveBeenCalled());
-    expect(await screen.findByText(/Auto-matched to/)).toBeInTheDocument();
+    expect(screen.getByText(/Real booking payload/)).toBeInTheDocument();
+    expect(screen.getByText(/"category_id": 159/)).toBeInTheDocument();
     pickLanguage();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
@@ -742,10 +754,14 @@ describe("SVP city dropdowns", () => {
     });
 
     renderWizard();
-    await openDatesStep();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
 
     const citySelect = await screen.findByLabelText("Test center city *");
-    expect(citySelect).toHaveValue("Dhaka");
+    await waitFor(() => expect(citySelect).toHaveValue("Dhaka"));
+    await clickContinue();
     await waitFor(() =>
       expect(mocks.sites).toHaveBeenCalledWith({
         data: { prometricCode: "en", city: "Dhaka", countryId: 77 },
@@ -783,11 +799,18 @@ describe("SVP city dropdowns", () => {
     });
 
     renderWizard();
-    await openDatesStep();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
 
     const citySelect = await screen.findByLabelText("Test center city *");
-    expect(citySelect).toHaveValue("");
+    await waitFor(() => expect(citySelect).toHaveValue(""));
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: "Rajshahi" })).toBeInTheDocument(),
+    );
     fireEvent.change(citySelect, { target: { value: "Rajshahi" } });
+    await clickContinue();
     await waitFor(() =>
       expect(mocks.sites).toHaveBeenCalledWith({
         data: { prometricCode: "en", city: "Rajshahi", countryId: 88 },
@@ -797,8 +820,14 @@ describe("SVP city dropdowns", () => {
     await pickDate("2 Dec 2026");
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
 
-    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    const citySelectAgain = await screen.findByLabelText("Test center city *");
+    fireEvent.change(citySelectAgain, { target: { value: "Dhaka" } });
+    await clickContinue();
+    await screen.findByText(/Step 2/);
+
+    // Changing the city resets the date/session cascade.
+    expect(screen.getByRole("button", { name: "Exam date" })).not.toHaveTextContent(/2 Dec 2026/);
     expect(mocks.hold).not.toHaveBeenCalled();
     expect(mocks.create).not.toHaveBeenCalled();
   });
@@ -819,11 +848,8 @@ describe("SVP city dropdowns", () => {
     });
 
     renderWizard();
-    await openDatesStep();
+    await openDatesStep("Dhaka");
 
-    const citySelect = await screen.findByLabelText("Test center city");
-    expect(citySelect).toHaveValue("");
-    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
     fireEvent.click(await screen.findByRole("button", { name: "Exam date" }));
     expect(await screen.findByRole("button", { name: /5 Nov 2026/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /7 Nov 2026/ })).not.toBeInTheDocument();
@@ -854,12 +880,15 @@ describe("SVP city dropdowns", () => {
     });
 
     renderWizard();
-    await openDatesStep();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
 
     const citySelect = await screen.findByLabelText("Test center city *");
     expect(citySelect).toHaveValue("");
-    expect(screen.getByRole("option", { name: "Dhaka" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Rajshahi" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Dhaka" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Rajshahi" })).toBeInTheDocument();
     // The catalogue error is not surfaced in the UI.
     expect(screen.queryByText("The SVP city catalogue is unavailable.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry cities" })).not.toBeInTheDocument();
@@ -871,7 +900,10 @@ describe("SVP city dropdowns", () => {
     mocks.dates.mockResolvedValue({ ok: true, data: [] });
 
     renderWizard();
-    await openDatesStep();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
 
     expect(await screen.findByLabelText("Test center city")).toBeDisabled();
     expect(
@@ -891,12 +923,18 @@ describe("SVP city dropdowns", () => {
     );
 
     renderWizard();
-    await openDatesStep();
-    expect(
-      screen
-        .getAllByRole("status")
-        .some((status) => /Loading cities from SVP/i.test(status.textContent ?? "")),
-    ).toBe(true);
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole("status")
+          .some((status) => /Loading available cities/i.test(status.textContent ?? "")),
+      ).toBe(true),
+    );
 
     resolveCities({ ok: true, data: [{ city: "Dhaka", countryId: 77 }] });
     expect(await screen.findByLabelText("Test center city *")).toHaveValue("Dhaka");
@@ -940,12 +978,12 @@ describe("site-based booking flow", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-
-    expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText("Test center city *"), {
       target: { value: "Dhaka" },
     });
+    await clickContinue();
+
+    expect(await screen.findByText(/Step 2/)).toBeInTheDocument();
     await pickDate("1 Dec 2026");
     await clickContinue();
 
@@ -1146,12 +1184,11 @@ describe("Takamol availability selection", () => {
     fireEvent.focus(await screen.findByLabelText("Occupation *"));
     fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
     pickLanguage();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.change(await screen.findByLabelText("Test center city"), {
+      target: { value: "Dhaka" },
+    });
+    await clickContinue();
     await screen.findByText(/Step 2/);
-    // City first (choosing a city resets the date), then the date.
-    const citySelect = await screen.findByLabelText("Test center city");
-    await waitFor(() => expect(citySelect).not.toBeDisabled());
-    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
     await pickDate("5 Nov 2026");
 
     expect(await screen.findByText(/Live availability · Takamol API/)).toBeInTheDocument();
@@ -1235,7 +1272,7 @@ async function openConfirmation() {
   fireEvent.focus(await screen.findByLabelText("Occupation *"));
   fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
   pickLanguage();
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await clickContinue();
   await screen.findByText(/Step 2/);
   await pickDate("5 Nov 2026");
   await clickContinue();
