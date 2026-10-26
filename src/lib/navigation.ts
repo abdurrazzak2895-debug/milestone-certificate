@@ -24,6 +24,7 @@ export type NavigationItem = {
 const commonNav: readonly NavigationItem[] = [
   { to: "/dashboard", label: "হোম", icon: Home },
   { to: "/wallet", label: "ব্যালেন্স", icon: Wallet },
+  { to: "/svp-history", label: "SVP হিস্ট্রি", icon: ClipboardCheck },
   { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck, desktopOnly: true },
   { to: "/management", label: "রিসেপশন", icon: UserCheck, desktopOnly: true },
   { to: "/candidates", label: "পরীক্ষার্থী", icon: Users },

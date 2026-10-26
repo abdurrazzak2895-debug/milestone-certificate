@@ -15,6 +15,7 @@ describe("role-based navigation", () => {
     for (const roles of [["admin"], ["staff"]]) {
       const paths = pathsFor(roles);
       expect(paths).not.toContain("/svp-booking");
+      expect(paths).toContain("/svp-history");
       expect(paths).toContain("/dashboard");
     }
   });

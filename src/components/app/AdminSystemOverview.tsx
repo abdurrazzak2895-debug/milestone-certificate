@@ -24,6 +24,7 @@ const ADMIN_LINKS = [
   { to: "/accounts", label: "এজেন্ট/প্রোভাইডার", icon: Users },
   { to: "/payments", label: "পেমেন্ট", icon: ClipboardCheck },
   { to: "/wallet", label: "ব্যালেন্স/ডিপোজিট", icon: Wallet },
+  { to: "/svp-history", label: "SVP বুকিং হিস্ট্রি", icon: ClipboardCheck },
   { to: "/messages", label: "মেসেজ ম্যানেজমেন্ট", icon: MessageSquare },
   { to: "/center-addresses", label: "কেন্দ্রের ঠিকানা", icon: MapPin },
   { to: "/agency-report", label: "এজেন্সি রিপোর্ট", icon: BarChart3 },

@@ -36,6 +36,7 @@ import { Route as AuthenticatedSubAgentsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSubmissionsRouteImport } from './routes/_authenticated/submissions'
 import { Route as AuthenticatedSubmitJobRouteImport } from './routes/_authenticated/submit-job'
 import { Route as AuthenticatedSvpBookingRouteImport } from './routes/_authenticated/svp-booking'
+import { Route as AuthenticatedSvpHistoryRouteImport } from './routes/_authenticated/svp-history'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AuthenticatedCandidatesIndexRouteImport } from './routes/_authenticated/candidates.index'
@@ -182,6 +183,11 @@ const AuthenticatedSvpBookingRoute = AuthenticatedSvpBookingRouteImport.update({
   path: '/svp-booking',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSvpHistoryRoute = AuthenticatedSvpHistoryRouteImport.update({
+  id: '/svp-history',
+  path: '/svp-history',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
   '/svp-booking': typeof AuthenticatedSvpBookingRoute
+  '/svp-history': typeof AuthenticatedSvpHistoryRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -282,6 +289,7 @@ export interface FileRoutesByTo {
   '/submissions': typeof AuthenticatedSubmissionsRoute
   '/submit-job': typeof AuthenticatedSubmitJobRoute
   '/svp-booking': typeof AuthenticatedSvpBookingRoute
+  '/svp-history': typeof AuthenticatedSvpHistoryRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/admin/login': typeof AdminLoginRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/_authenticated/submissions': typeof AuthenticatedSubmissionsRoute
   '/_authenticated/submit-job': typeof AuthenticatedSubmitJobRoute
   '/_authenticated/svp-booking': typeof AuthenticatedSvpBookingRoute
+  '/_authenticated/svp-history': typeof AuthenticatedSvpHistoryRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/admin/login': typeof AdminLoginRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/submissions'
     | '/submit-job'
     | '/svp-booking'
+    | '/svp-history'
     | '/wallet'
     | '/admin/login'
     | '/candidates/$id'
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/submissions'
     | '/submit-job'
     | '/svp-booking'
+    | '/svp-history'
     | '/wallet'
     | '/admin/login'
     | '/candidates/$id'
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '/_authenticated/submissions'
     | '/_authenticated/submit-job'
     | '/_authenticated/svp-booking'
+    | '/_authenticated/svp-history'
     | '/_authenticated/wallet'
     | '/admin/login'
     | '/_authenticated/candidates/$id'
@@ -640,6 +652,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSvpBookingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/svp-history': {
+      id: '/_authenticated/svp-history'
+      path: '/svp-history'
+      fullPath: '/svp-history'
+      preLoaderRoute: typeof AuthenticatedSvpHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/wallet': {
       id: '/_authenticated/wallet'
       path: '/wallet'
@@ -714,6 +733,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSubmissionsRoute: typeof AuthenticatedSubmissionsRoute
   AuthenticatedSubmitJobRoute: typeof AuthenticatedSubmitJobRoute
   AuthenticatedSvpBookingRoute: typeof AuthenticatedSvpBookingRoute
+  AuthenticatedSvpHistoryRoute: typeof AuthenticatedSvpHistoryRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesIndexRoute: typeof AuthenticatedCandidatesIndexRoute
@@ -741,6 +761,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSubmissionsRoute: AuthenticatedSubmissionsRoute,
   AuthenticatedSubmitJobRoute: AuthenticatedSubmitJobRoute,
   AuthenticatedSvpBookingRoute: AuthenticatedSvpBookingRoute,
+  AuthenticatedSvpHistoryRoute: AuthenticatedSvpHistoryRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesIndexRoute: AuthenticatedCandidatesIndexRoute,
