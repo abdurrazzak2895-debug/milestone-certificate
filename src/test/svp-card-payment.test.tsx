@@ -63,6 +63,13 @@ describe("SVP card payment", () => {
     expect(form).not.toBeNull();
     expect(form?.getAttribute("data-brands")).toBe("VISA MASTER");
     expect(form?.action).toContain("/svp-booking?paymentId=2596452");
+
+    // The widget sits in a white card and receives explicit light-theme colours.
+    expect(form?.closest(".svp-card-widget")).not.toBeNull();
+    const options = (
+      window as unknown as { wpwlOptions?: { style?: { base?: { color?: string } } } }
+    ).wpwlOptions;
+    expect(options?.style?.base?.color).toBe("#0f172a");
   });
 
   it("verifies the payment id returned by the provider redirect", async () => {
@@ -119,6 +126,7 @@ describe("SVP card payment", () => {
   it("starts the checkout automatically in the payment tab and posts back to it", async () => {
     mocks.start.mockResolvedValue({ ok: true, data: session });
     render(<SvpPaymentPage reservationId="4066364" />);
+    expect(document.querySelector(".svp-payment-page")).not.toBeNull();
 
     await waitFor(() =>
       expect(mocks.start).toHaveBeenCalledWith({ data: { reservationId: "4066364" } }),
