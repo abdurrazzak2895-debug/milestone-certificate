@@ -251,7 +251,7 @@ export function SvpCardPayment({
           </div>
           <div
             ref={holderRef}
-            className="svp-card-widget min-h-[8rem] rounded-lg border border-slate-200 bg-white p-2"
+            className="svp-card-widget mt-1 min-h-[8rem] rounded-xl border border-emerald-100 bg-white p-2"
           />
           {widget === "loading" && (
             <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
@@ -320,40 +320,52 @@ export function SvpPaymentPage({
   return (
     <div className="svp-payment-page">
       <div className="mx-auto max-w-xl px-4 py-8 sm:px-6">
-        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm sm:p-6">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">SVP card payment</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Reservation #{reservationId}. Card details are entered in the provider&apos;s secure
-              widget, never in this app.
-            </p>
-          </div>
-          <SvpCardPayment
-            reservationId={reservationId}
-            initialPaymentId={initialPaymentId}
-            autoStart={!initialPaymentId}
-            returnTo={`/svp-booking?payReservation=${encodeURIComponent(reservationId)}`}
-            onPaid={() => setPaid(true)}
-          />
-          {paid && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-              Payment verified. You can close this tab and return to the booking page.
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (typeof window !== "undefined") window.close();
-              }}
-            >
-              Close this tab
-            </Button>
-            <a href="/svp-booking" className="text-sm font-medium text-emerald-700 underline">
-              Back to SVP booking
-            </a>
+        <div className="payment-card overflow-hidden rounded-2xl bg-white text-slate-900">
+          <div className="h-1.5 w-full bg-emerald-600" />
+          <div className="space-y-4 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <CreditCard className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                  Secure payment
+                </p>
+                <h1 className="text-xl font-bold text-slate-900">SVP card payment</h1>
+                <p className="mt-1 text-sm text-slate-600">
+                  Reservation #{reservationId}. Card details are entered in the provider&apos;s
+                  secure widget, never in this app.
+                </p>
+              </div>
+            </div>
+            <SvpCardPayment
+              reservationId={reservationId}
+              initialPaymentId={initialPaymentId}
+              autoStart={!initialPaymentId}
+              returnTo={`/svp-booking?payReservation=${encodeURIComponent(reservationId)}`}
+              onPaid={() => setPaid(true)}
+            />
+            {paid && (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                Payment verified. You can close this tab and return to the booking page.
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+                onClick={() => {
+                  if (typeof window !== "undefined") window.close();
+                }}
+              >
+                Close this tab
+              </Button>
+              <a href="/svp-booking" className="text-sm font-medium text-emerald-700 underline">
+                Back to SVP booking
+              </a>
+            </div>
           </div>
         </div>
       </div>

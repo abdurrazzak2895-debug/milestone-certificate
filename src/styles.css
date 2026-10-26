@@ -276,7 +276,7 @@
 
 /* Light, readable SVP card payment page (provider widget stays white). */
 .svp-payment-page {
-  --background: oklch(0.985 0.004 250);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.21 0.02 260);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.02 260);
@@ -290,8 +290,13 @@
   --primary-foreground: oklch(0.99 0 0);
   --ring: oklch(0.6 0.14 155);
   min-height: 100vh;
-  background: oklch(0.985 0.004 250);
+  background: #ffffff;
   color: oklch(0.21 0.02 260);
+}
+
+.svp-payment-page .payment-card {
+  border: 1px solid #a7f3d0;
+  box-shadow: 0 18px 45px -28px rgba(4, 120, 87, 0.55);
 }
 
 .svp-payment-page h1,
@@ -343,6 +348,11 @@
   font-size: 14px !important;
   line-height: 1.4 !important;
   box-shadow: none !important;
+}
+.svp-card-widget .wpwl-control:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16) !important;
+  outline: none !important;
 }
 .svp-card-widget .wpwl-control::placeholder {
   color: #94a3b8 !important;

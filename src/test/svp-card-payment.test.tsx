@@ -127,6 +127,7 @@ describe("SVP card payment", () => {
     mocks.start.mockResolvedValue({ ok: true, data: session });
     render(<SvpPaymentPage reservationId="4066364" />);
     expect(document.querySelector(".svp-payment-page")).not.toBeNull();
+    expect(document.querySelector(".payment-card")).not.toBeNull();
 
     await waitFor(() =>
       expect(mocks.start).toHaveBeenCalledWith({ data: { reservationId: "4066364" } }),
