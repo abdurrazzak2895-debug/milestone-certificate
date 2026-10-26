@@ -145,20 +145,6 @@ function formatHoldExpiry(value: string): string {
   return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-function BookingPayloadPreview({ payload }: { payload: Record<string, unknown> }) {
-  return (
-    <details className="rounded-xl border bg-muted/20 p-3 text-xs">
-      <summary className="cursor-pointer text-sm font-semibold">Real booking payload</summary>
-      <pre className="mt-2 overflow-x-auto rounded-lg bg-background/70 p-2 font-mono text-[11px] leading-relaxed">
-        {JSON.stringify(payload, null, 2)}
-      </pre>
-      <p className="mt-1 text-muted-foreground">
-        This is the exact object sent to SVP for the real reservation.
-      </p>
-    </details>
-  );
-}
-
 function formatDateOnly(date: string): string {
   const parsed = new Date(`${date}T12:00:00`);
   if (Number.isNaN(parsed.getTime())) return date;
@@ -2010,17 +1996,6 @@ export function SvpBookingWizard() {
               )}
             </div>
 
-            <BookingPayloadPreview
-              payload={{
-                occupation_id: occupationId,
-                category_id: effectiveCategoryId,
-                language_code: activeLanguageCode || null,
-                city: city || null,
-                country_id: cityCountryId ?? setup?.permissions.countryId ?? null,
-                methodology: "in_person",
-              }}
-            />
-
             {occupationsQuery.isPending && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading occupations from SVP…
@@ -2249,24 +2224,6 @@ export function SvpBookingWizard() {
                     city,
                   };
                   selectDateOption(entry);
-                }}
-              />
-            )}
-
-            {activeDateValue && (
-              <BookingPayloadPreview
-                payload={{
-                  occupation_id: occupation?.id ?? null,
-                  category_id: effectiveCategoryId,
-                  language_code: activeLanguageCode || null,
-                  city: availabilityCity || null,
-                  country_id: cityCountryId ?? setup?.permissions.countryId ?? null,
-                  methodology: "in_person",
-                  exam_session_id: selectedSession?.id ?? null,
-                  duration: selectedSession?.duration ?? null,
-                  start_at: selectedSession?.startAt ?? null,
-                  site_id: selectedSession?.siteId ?? null,
-                  site_city: selectedSession?.siteId ? (selectedSession.city ?? sessionCity) : null,
                 }}
               />
             )}

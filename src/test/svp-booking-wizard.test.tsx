@@ -455,7 +455,7 @@ describe("SVP booking wizard", () => {
     expect(centerPicker).toBeInTheDocument();
     // The city is chosen on Step 1; Step 2 starts with the date and then loads the test center.
     expect(screen.queryByLabelText(/Test center city/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Real booking payload/)).toBeInTheDocument();
+    expect(screen.queryByText(/Real booking payload/)).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
     expect(mocks.targetedHold).not.toHaveBeenCalled();
     expect(mocks.hold).not.toHaveBeenCalled();
@@ -673,8 +673,7 @@ describe("occupation category enrichment", () => {
       }),
     );
     expect(await screen.findByText(/Selected: Load and Unload Worker/)).toBeInTheDocument();
-    expect(screen.getByText(/Real booking payload/)).toBeInTheDocument();
-    expect(screen.getByText(/"category_id": 159/)).toBeInTheDocument();
+    expect(screen.queryByText(/category 159/)).not.toBeInTheDocument();
     pickLanguage();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
@@ -726,8 +725,7 @@ describe("SVP category auto-match", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Load and Unload Worker/ }));
 
     await waitFor(() => expect(mocks.occupationById).toHaveBeenCalled());
-    expect(screen.getByText(/Real booking payload/)).toBeInTheDocument();
-    expect(screen.getByText(/"category_id": 159/)).toBeInTheDocument();
+    expect(screen.queryByText(/Auto-matched to/)).not.toBeInTheDocument();
     pickLanguage();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
   });
