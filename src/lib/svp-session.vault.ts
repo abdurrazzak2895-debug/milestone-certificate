@@ -6,6 +6,8 @@ export type SvpStoredSession = {
   userName: string | null;
   svpUserId: string | null;
   passport: string | null;
+  /** AES-GCM encrypted SVP password used by the reconnect button (never sent to the browser). */
+  passwordCipher?: string | null;
   access: string;
   countryTargeted: boolean | null;
   countryLoadBalancer: boolean | null;
@@ -60,6 +62,10 @@ function sanitizeSession(value: unknown): SvpStoredSession | null {
     userName: text(record["userName"], 120),
     svpUserId: text(record["svpUserId"], 40),
     passport: normalizeSvpPassport(record["passport"]),
+    passwordCipher:
+      typeof record["passwordCipher"] === "string" && record["passwordCipher"].trim()
+        ? record["passwordCipher"].trim().slice(0, 512)
+        : null,
     access,
     countryTargeted:
       typeof record["countryTargeted"] === "boolean"

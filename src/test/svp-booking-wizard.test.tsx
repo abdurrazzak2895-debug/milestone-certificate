@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   accounts: vi.fn(),
   switchAccount: vi.fn(),
   removeAccount: vi.fn(),
+  reconnect: vi.fn(),
   payments: vi.fn(),
   notifications: vi.fn(),
   cancel: vi.fn(),
@@ -40,7 +41,9 @@ vi.mock("@/lib/svp-session.functions", () => ({
   listSvpAccounts: mocks.accounts,
   switchSvpAccount: mocks.switchAccount,
   removeSvpAccount: mocks.removeAccount,
+  reconnectSvpAccount: mocks.reconnect,
   submitSvpLogin: vi.fn(),
+  submitStoredSvpOtp: vi.fn(),
 }));
 
 vi.mock("@/lib/svp-booking.functions", () => ({
@@ -191,6 +194,10 @@ beforeEach(() => {
   });
   mocks.sessions.mockResolvedValue({ ok: true, data: [session] });
   mocks.reservations.mockResolvedValue({ ok: true, data: [] });
+  mocks.reconnect.mockResolvedValue({
+    ok: true,
+    message: "OTP sent to the saved SVP email.",
+  });
   mocks.payments.mockResolvedValue({ ok: true, data: [] });
   mocks.notifications.mockResolvedValue({ ok: true, data: [] });
   mocks.cancel.mockResolvedValue({
@@ -615,11 +622,53 @@ describe("SVP multi-account vault UI", () => {
     });
 
     renderWizard();
-    const select = await screen.findByLabelText("Active SVP account");
-    fireEvent.change(select, { target: { value: "other@example.com" } });
+    const useButtons = await screen.findAllByRole("button", { name: "Use account" });
+    fireEvent.click(useButtons[0]!);
 
     await waitFor(() =>
       expect(mocks.switchAccount).toHaveBeenCalledWith({ data: { login: "other@example.com" } }),
+    );
+  });
+
+  it("reconnects a saved account with OTP only and can delete it", async () => {
+    mocks.accounts.mockResolvedValue({
+      accounts: [
+        {
+          login: "noor@example.com",
+          userName: "Noor Rahman",
+          expiresAt: 1_900_000_000,
+          active: true,
+        },
+        {
+          login: "other@example.com",
+          userName: "Other Labor",
+          expiresAt: 1_900_000_000,
+          active: false,
+        },
+      ],
+      activeLogin: "noor@example.com",
+    });
+    mocks.reconnect.mockResolvedValue({
+      ok: true,
+      message: "OTP sent to the saved SVP email.",
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderWizard();
+
+    const reconnectButtons = await screen.findAllByRole("button", { name: "Reconnect" });
+    fireEvent.click(reconnectButtons[1]!);
+
+    await waitFor(() =>
+      expect(mocks.reconnect).toHaveBeenCalledWith({ data: { login: "other@example.com" } }),
+    );
+    expect(await screen.findByText(/OTP sent to the saved email/)).toBeInTheDocument();
+    expect(screen.getByText("SVPLOGINPANEL")).toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    fireEvent.click(deleteButtons[1]!);
+    await waitFor(() =>
+      expect(mocks.removeAccount).toHaveBeenCalledWith({ data: { login: "other@example.com" } }),
     );
   });
 

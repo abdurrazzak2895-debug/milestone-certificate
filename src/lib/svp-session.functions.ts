@@ -19,6 +19,7 @@ import {
   listStoredSvpAccounts,
   mergeCookiePairs,
   readPendingSvpSession,
+  readStoredSvpAccount,
   readStoredSvpSession,
   removeStoredSvpAccount,
   requireSvpAllowedRole,
@@ -30,6 +31,7 @@ import {
   writePendingSvpSession,
   writeStoredSvpSession,
 } from "@/lib/svp-session.server";
+import { decryptSvpPassword, encryptSvpPassword } from "@/lib/svp-credentials.server";
 import type { SvpAccountSummary } from "@/lib/svp-session.vault";
 import { parseSvpPermissions } from "@/lib/svp-api.shared";
 
@@ -136,6 +138,7 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
       responseCookies(response),
     );
     const user = extractSvpSessionUser(payload);
+    const passwordCipher = await encryptSvpPassword(data.password);
     const session = buildStoredSession(
       data.login,
       payload,
@@ -145,6 +148,7 @@ export const submitSvpLogin = createServerFn({ method: "POST" })
       null,
       null,
       user.passport,
+      passwordCipher,
     );
 
     if (!session) {
@@ -306,6 +310,109 @@ export const getSvpSessionStatus = createServerFn({ method: "POST" })
       expiresAt: active?.expiresAt ?? 0,
       accountCount: listStoredSvpAccounts(context.userId).length,
     };
+  });
+
+/**
+ * Reconnect a saved SVP account: re-send the OTP with the stored credentials so the
+ * operator only has to type the OTP. The password never reaches the browser.
+ */
+export const reconnectSvpAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ login: z.string().trim().min(1).max(254) }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<{ ok: boolean; message: string }> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    const account = readStoredSvpAccount(context.userId, data.login);
+    if (!account) {
+      return { ok: false, message: "This SVP account is not saved. Sign in once to save it." };
+    }
+    const password = await decryptSvpPassword(account.passwordCipher);
+    if (!password) {
+      return {
+        ok: false,
+        message:
+          "No saved password for this SVP account. Sign in once with the password to enable reconnect.",
+      };
+    }
+    const { response, message } = await svpLoginRequest(
+      "/sessions/login",
+      buildSvpLoginBody({ login: account.login, password }, SVP_SYSTEM_CONFIG),
+    );
+    if (!response.ok) {
+      return { ok: false, message: message ?? "SVP rejected the saved credentials." };
+    }
+    writePendingSvpSession(context.userId, {
+      login: account.login,
+      refreshCookies: mergeCookiePairs("", responseCookies(response)),
+      savedAt: Date.now(),
+      passwordCipher: account.passwordCipher ?? null,
+    });
+    return { ok: true, message: message ?? "OTP sent to the saved SVP email." };
+  });
+
+/** Finish a reconnect using only the OTP; the saved password completes the login. */
+export const submitStoredSvpOtp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ otpAttempt: z.string().trim().min(1).max(128) }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<{ ok: boolean; message: string }> => {
+    await requireSvpAllowedRole(context.supabase, context.userId);
+    const pending = readPendingSvpSession(context.userId);
+    if (!pending) return { ok: false, message: "Start the SVP login again." };
+    const password = await decryptSvpPassword(pending.passwordCipher);
+    if (!password) {
+      return {
+        ok: false,
+        message: "The saved SVP password is unavailable. Sign in with the password once.",
+      };
+    }
+    const { response, payload, message } = await svpLoginRequest(
+      "/sessions/otp",
+      buildSvpOtpBody(
+        { login: pending.login, password, otpAttempt: data.otpAttempt },
+        SVP_SYSTEM_CONFIG,
+      ),
+    );
+    if (!response.ok) return { ok: false, message: message ?? "SVP rejected this OTP." };
+
+    const refreshCookies = mergeCookiePairs(pending.refreshCookies, responseCookies(response));
+    const user = extractSvpSessionUser(payload);
+    const session = buildStoredSession(
+      pending.login,
+      payload,
+      refreshCookies,
+      user.name,
+      user.id,
+      null,
+      null,
+      user.passport,
+      pending.passwordCipher ?? null,
+    );
+    if (!session) {
+      return { ok: false, message: "SVP accepted the OTP but did not return a session token." };
+    }
+    writeStoredSvpSession(context.userId, session);
+    clearPendingSvpSession(context.userId);
+
+    try {
+      const verification = await svpAuthedRequest(
+        context.userId,
+        "/individual_labor_space/occupations",
+        { query: { locale: "en", per_page: 1, page: 1, name: "" } },
+        session,
+      );
+      if (verification.status === 401) {
+        clearStoredSvpSession(context.userId);
+        return { ok: false, message: "SVP rejected the session token. Try reconnecting again." };
+      }
+    } catch (error) {
+      if (error instanceof SvpSessionMissingError) {
+        return { ok: false, message: "SVP rejected the session token. Try reconnecting again." };
+      }
+    }
+    return { ok: true, message: message ?? "Signed in to SVP." };
   });
 
 /** Forget the stored SVP session for this app user. */

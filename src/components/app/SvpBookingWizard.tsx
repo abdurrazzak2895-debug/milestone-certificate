@@ -67,6 +67,7 @@ import { parseOccupationLanguages, parseSessionTableRows } from "@/lib/takamol-a
 import {
   getSvpSessionStatus,
   listSvpAccounts,
+  reconnectSvpAccount,
   removeSvpAccount,
   signOutSvpSession,
   switchSvpAccount,
@@ -236,6 +237,7 @@ export function SvpBookingWizard() {
   });
   const accounts = accountsQuery.data?.accounts ?? [];
   const [addAccountOpen, setAddAccountOpen] = useState(false);
+  const [reconnectLogin, setReconnectLogin] = useState<string | null>(null);
   const [forceTargeted, setForceTargeted] = useState(false);
   const [occupationLookup, setOccupationLookup] = useState(false);
   const [manualCategoryId, setManualCategoryId] = useState<number | null>(null);
@@ -1376,6 +1378,20 @@ export function SvpBookingWizard() {
     onError: () => toast.error("Could not sign out of SVP."),
   });
 
+  const reconnectMutation = useMutation({
+    mutationFn: (login: string) => reconnectSvpAccount({ data: { login } }),
+    onSuccess: (response, login) => {
+      if (!response.ok) {
+        toast.error(response.message);
+        return;
+      }
+      setReconnectLogin(login);
+      setAddAccountOpen(false);
+      toast.success(response.message);
+    },
+    onError: () => toast.error("SVP could not send the OTP. Try again."),
+  });
+
   const switchMutation = useMutation({
     mutationFn: (login: string) => switchSvpAccount({ data: { login } }),
     onSuccess: () => {
@@ -1691,37 +1707,153 @@ export function SvpBookingWizard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-2 border-t pt-3">
-          <div className="min-w-[16rem] flex-1">
-            <Field label="Active SVP account">
-              <NativeSelect
-                value={status?.login ?? ""}
-                onChange={(event) => switchMutation.mutate(event.target.value)}
-                disabled={switchMutation.isPending || accounts.length < 2}
-              >
-                {(accounts.length > 0
-                  ? accounts
-                  : [{ login: status?.login ?? "", userName: status?.userName ?? null }]
-                ).map((account) => (
-                  <option key={account.login} value={account.login}>
-                    {account.userName ? `${account.userName} · ${account.login}` : account.login}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
+        {overviewQuery.data && !overviewQuery.data.ok && (
+          <p role="alert" className="text-sm text-destructive">
+            {overviewQuery.data.message}
+          </p>
+        )}
+      </section>
+
+      <section className="card-surface space-y-3 p-4 sm:p-5" aria-labelledby="svp-accounts">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              SVP accounts
+            </p>
+            <h2 id="svp-accounts" className="text-lg font-bold">
+              Active SVP account
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {accounts.length} saved · Reconnect sends a fresh OTP with the saved email and
+              password.
+            </p>
           </div>
-          <Button type="button" size="sm" variant="outline" onClick={() => setAddAccountOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> Add account
-          </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => status?.login && removeMutation.mutate(status.login)}
-            disabled={!status?.login || removeMutation.isPending}
+            onClick={() => {
+              setReconnectLogin(null);
+              setAddAccountOpen(true);
+            }}
           >
-            Remove
+            <Plus className="mr-1 h-4 w-4" /> Add account
           </Button>
+        </div>
+
+        {reconnectLogin && (
+          <div className="space-y-2">
+            <p className="rounded-lg border border-primary/30 bg-primary/5 p-2 text-xs">
+              OTP sent to the saved email for {reconnectLogin}. Enter it below to reconnect — no
+              password needed.
+            </p>
+            <SvpLoginPanel
+              key={reconnectLogin}
+              otpOnly
+              login={reconnectLogin}
+              onSignedIn={() => {
+                setReconnectLogin(null);
+                handleSignedIn();
+              }}
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {(accounts.length > 0
+            ? accounts
+            : status?.login
+              ? [
+                  {
+                    login: status.login,
+                    userName: status.userName,
+                    expiresAt: status.expiresAt,
+                    active: true,
+                  },
+                ]
+              : []
+          ).map((account) => (
+            <div
+              key={account.login}
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
+                account.active ? "border-primary/40 bg-primary/5" : "bg-background/40"
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">
+                  {account.userName ?? account.login}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{account.login}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {account.active ? "Active account" : "Saved account"}
+                  {account.expiresAt > 0
+                    ? ` · session valid until ${new Date(account.expiresAt * 1000).toLocaleString(
+                        "en-GB",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}`
+                    : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!account.active && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => switchMutation.mutate(account.login)}
+                    disabled={switchMutation.isPending}
+                  >
+                    Use account
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => reconnectMutation.mutate(account.login)}
+                  disabled={
+                    reconnectMutation.isPending && reconnectMutation.variables === account.login
+                  }
+                >
+                  <RefreshCw
+                    className={`mr-1 h-3.5 w-3.5 ${
+                      reconnectMutation.isPending && reconnectMutation.variables === account.login
+                        ? "animate-spin"
+                        : ""
+                    }`}
+                  />
+                  Reconnect
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (window.confirm(`Delete the saved SVP account ${account.login}?`)) {
+                      removeMutation.mutate(account.login);
+                    }
+                  }}
+                  disabled={removeMutation.isPending}
+                >
+                  <XCircle className="mr-1 h-3.5 w-3.5" /> Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+          {accounts.length === 0 && !status?.login && (
+            <p className="rounded-xl border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+              No saved SVP accounts yet. Sign in once to save the email and password for reconnect.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-t pt-3">
           <Button
             type="button"
             size="sm"
@@ -1731,13 +1863,18 @@ export function SvpBookingWizard() {
           >
             Sign out all
           </Button>
+          {status?.login && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => signOutMutation.mutate(false)}
+              disabled={signOutMutation.isPending}
+            >
+              <LogOut className="mr-1 h-4 w-4" /> Remove active
+            </Button>
+          )}
         </div>
-
-        {overviewQuery.data && !overviewQuery.data.ok && (
-          <p role="alert" className="text-sm text-destructive">
-            {overviewQuery.data.message}
-          </p>
-        )}
       </section>
 
       <BookingStepper stage={stage} />

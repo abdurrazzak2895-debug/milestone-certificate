@@ -2,11 +2,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SvpLoginPanel } from "@/components/app/SvpLoginPanel";
 
-const mocks = vi.hoisted(() => ({ submit: vi.fn(), resend: vi.fn() }));
+const mocks = vi.hoisted(() => ({ submit: vi.fn(), resend: vi.fn(), storedOtp: vi.fn() }));
 
 vi.mock("@/lib/svp-session.functions", () => ({
   submitSvpLogin: mocks.submit,
   resendSvpOtp: mocks.resend,
+  submitStoredSvpOtp: mocks.storedOtp,
 }));
 
 afterEach(cleanup);
@@ -174,5 +175,23 @@ describe("SVP OTP resend", () => {
       await screen.findByText("A new OTP has been sent to the registered email."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Resend in \d+s/ })).toBeDisabled();
+  });
+
+  it("reconnect mode asks only for the OTP and completes with the stored password", async () => {
+    mocks.storedOtp.mockResolvedValue({ ok: true, message: "Signed in to SVP." });
+
+    render(<SvpLoginPanel otpOnly login="noor@example.com" />);
+
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.getByText(/OTP sent for noor@example.com/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("One-time password (OTP)"), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Verify OTP" }));
+
+    await waitFor(() =>
+      expect(mocks.storedOtp).toHaveBeenCalledWith({ data: { otpAttempt: "123456" } }),
+    );
   });
 });

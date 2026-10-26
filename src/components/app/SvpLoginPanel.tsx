@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Eye, EyeOff, RotateCcw } from "lucide-react";
-import { resendSvpOtp, submitSvpLogin } from "@/lib/svp-session.functions";
+import { resendSvpOtp, submitStoredSvpOtp, submitSvpLogin } from "@/lib/svp-session.functions";
 import { svpLoginInputSchema, svpOtpInputSchema } from "@/lib/svp-session.shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,18 @@ type Status = { tone: "ok" | "error"; text: string; details?: string };
 
 const EMPTY_FORM: FormState = { login: "", password: "", otpAttempt: "" };
 
-export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) {
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [step, setStep] = useState<LoginStep>("login");
+export function SvpLoginPanel({
+  onSignedIn,
+  otpOnly = false,
+  login = "",
+}: {
+  onSignedIn?: () => void;
+  /** Reconnect mode: the password is already stored server-side, only the OTP is needed. */
+  otpOnly?: boolean;
+  login?: string;
+} = {}) {
+  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, login });
+  const [step, setStep] = useState<LoginStep>(otpOnly ? "otp" : "login");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -69,8 +78,9 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
     event.preventDefault();
     if (busyRef.current) return;
 
-    const parsed =
-      step === "login"
+    const parsed = otpOnly
+      ? null
+      : step === "login"
         ? svpLoginInputSchema.safeParse({ login: form.login, password: form.password })
         : svpOtpInputSchema.safeParse({
             login: form.login,
@@ -78,7 +88,7 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
             otpAttempt: form.otpAttempt,
           });
 
-    if (!parsed.success) {
+    if (!otpOnly && !parsed?.success) {
       setStatus({
         tone: "error",
         text: step === "login" ? "Enter the SVP username and password." : "Enter the OTP.",
@@ -90,10 +100,20 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
     setBusy(true);
     setStatus(null);
     try {
+      if (otpOnly) {
+        if (!form.otpAttempt.trim()) {
+          setStatus({ tone: "error", text: "Enter the OTP." });
+          return;
+        }
+        const stored = await submitStoredSvpOtp({ data: { otpAttempt: form.otpAttempt } });
+        setStatus({ tone: stored.ok ? "ok" : "error", text: stored.message });
+        if (stored.ok) onSignedIn?.();
+        return;
+      }
       const result =
         step === "login"
-          ? await submitSvpLogin({ data: { ...parsed.data, step: "login" } })
-          : await submitSvpLogin({ data: { ...parsed.data, step: "otp" } });
+          ? await submitSvpLogin({ data: { ...parsed!.data, step: "login" } })
+          : await submitSvpLogin({ data: { ...parsed!.data, step: "otp" } });
 
       setStatus({
         tone: result.ok ? "ok" : "error",
@@ -191,7 +211,7 @@ export function SvpLoginPanel({ onSignedIn }: { onSignedIn?: () => void } = {}) 
           <Button type="submit" disabled={busy}>
             {busy ? "Please wait…" : step === "login" ? "Continue" : "Verify OTP"}
           </Button>
-          {step === "otp" && (
+          {step === "otp" && !otpOnly && (
             <Button
               type="button"
               variant="outline"

@@ -12,6 +12,7 @@ import {
 } from "@/lib/svp-session.shared";
 import {
   activeSession,
+  accountKey,
   createVault,
   isEmptyVault,
   listAccounts,
@@ -57,6 +58,7 @@ export type SvpPendingSession = {
   login: string;
   refreshCookies: string;
   savedAt: number;
+  passwordCipher?: string | null;
 };
 
 export type SvpApiResponse = {
@@ -111,6 +113,12 @@ function writeVault(appUserId: string, vault: SvpSessionVault): void {
 /** Active SVP account for this app user. */
 export function readStoredSvpSession(appUserId: string): SvpStoredSession | null {
   return activeSession(readVault(appUserId));
+}
+
+/** One saved SVP account by login (used by the reconnect button). */
+export function readStoredSvpAccount(appUserId: string, login: string): SvpStoredSession | null {
+  const vault = readVault(appUserId);
+  return vault.sessions[accountKey(login)] ?? null;
 }
 
 /** Add or update one SVP account and make it active. */
@@ -324,6 +332,7 @@ export function buildStoredSession(
   countryTargeted: boolean | null = null,
   countryLoadBalancer: boolean | null = null,
   passport: string | null = null,
+  passwordCipher: string | null = null,
 ): SvpStoredSession | null {
   const auth = authFromPayload(payload);
   if (!auth) return null;
@@ -332,6 +341,7 @@ export function buildStoredSession(
     userName,
     svpUserId,
     passport: normalizeSvpPassport(passport),
+    passwordCipher,
     countryTargeted,
     countryLoadBalancer,
     flagsVerifiedAt: Date.now(),
