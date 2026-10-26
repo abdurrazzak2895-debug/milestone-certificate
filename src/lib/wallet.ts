@@ -41,6 +41,16 @@ export async function requestWalletDeposit(input: {
     })
     .select("id")
     .single();
-  if (fallback.error) return { ok: false, message: fallback.error.message };
+  if (fallback.error) {
+    return { ok: false, message: describeWalletError(fallback.error.message) };
+  }
   return { ok: true, id: String(fallback.data?.id ?? "") };
+}
+
+/** Turn database setup errors into a clear, actionable message. */
+export function describeWalletError(message: string): string {
+  if (/schema cache|could not find the table|does not exist/i.test(message)) {
+    return "Wallet সিস্টেম database-এ setup হয়নি (wallet_deposits টেবিল নেই)। Supabase SQL Editor-এ supabase/manual/apply_wallet_system.sql ফাইলটি Run করুন।";
+  }
+  return message;
 }

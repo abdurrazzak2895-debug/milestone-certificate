@@ -18,7 +18,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-import { requestWalletDeposit } from "@/lib/wallet";
+import { describeWalletError, requestWalletDeposit } from "@/lib/wallet";
 
 beforeEach(() => {
   mocks.rpc.mockReset();
@@ -57,5 +57,11 @@ describe("wallet deposit request", () => {
       ok: false,
       message: "permission denied",
     });
+  });
+
+  it("explains an unapplied wallet migration in plain language", () => {
+    expect(
+      describeWalletError("Could not find the table 'public.wallet_deposits' in the schema cache"),
+    ).toContain("apply_wallet_system.sql");
   });
 });

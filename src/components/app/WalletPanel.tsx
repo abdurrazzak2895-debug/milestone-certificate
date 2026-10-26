@@ -176,6 +176,11 @@ export function WalletPanel() {
   const deposits = useMemo(() => depositsQuery.data ?? [], [depositsQuery.data]);
   const profiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
+  const setupIssue = [balanceQuery.error, transactionsQuery.error, depositsQuery.error].some(
+    (error) =>
+      error instanceof Error &&
+      /schema cache|could not find the table|does not exist/i.test(error.message),
+  );
   const profileName = useMemo(() => {
     const map = new Map<string, string>();
     for (const profile of profiles) {
@@ -350,6 +355,14 @@ export function WalletPanel() {
           <p className="mt-1 text-2xl font-bold text-sky-400">{pendingDeposits.length}</p>
         </div>
       </div>
+
+      {setupIssue && (
+        <p className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
+          Wallet টেবিল এখনো database-এ তৈরি হয়নি — Supabase Dashboard → SQL Editor-এ{" "}
+          <code className="font-mono text-[11px]">supabase/manual/apply_wallet_system.sql</code>{" "}
+          ফাইলটি Run করুন।
+        </p>
+      )}
 
       {message && (
         <p
