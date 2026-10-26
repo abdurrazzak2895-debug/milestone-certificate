@@ -71,9 +71,10 @@ function SubAgents() {
     if (!/^01[3-9]\d{8}$/.test(f.mobile)) return toast.error("১১ সংখ্যার সঠিক মোবাইল নম্বর দিন");
     if (f.password.length < 6) return toast.error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে");
     setBusy(true);
-    const r = await createSubAgent({ data: f }).catch(() => ({
+    const r = await createSubAgent({ data: f }).catch((error) => ({
       ok: false as const,
-      message: "অ্যাকাউন্ট তৈরি করা যায়নি",
+      message:
+        error instanceof Error && error.message ? error.message : "অ্যাকাউন্ট তৈরি করা যায়নি",
     }));
     setBusy(false);
     if (!r.ok) return toast.error(r.message);
@@ -197,9 +198,8 @@ function SubAgents() {
                     const r = await setSubAgentActive({
                       data: { id: s.user_id, active: !s.active },
                     }).catch(() => ({ ok: false }));
-                    r.ok
-                      ? qc.invalidateQueries({ queryKey: ["sub-agents"] })
-                      : toast.error("পরিবর্তন করা যায়নি");
+                    if (r.ok) void qc.invalidateQueries({ queryKey: ["sub-agents"] });
+                    else toast.error("পরিবর্তন করা যায়নি");
                   }}
                 >
                   {s.active ? "Inactive করুন" : "Active করুন"}

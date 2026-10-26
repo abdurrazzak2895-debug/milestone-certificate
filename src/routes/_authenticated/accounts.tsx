@@ -93,8 +93,10 @@ function Accounts() {
       toast.success("অ্যাকাউন্ট তৈরি হয়েছে");
       setF({ name: "", mobile: "", password: "", agent_code: "", role: f.role });
       qc.invalidateQueries({ queryKey: ["accounts"] });
-    } catch {
-      toast.error("অ্যাকাউন্ট তৈরি করা যায়নি");
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message ? error.message : "অ্যাকাউন্ট তৈরি করা যায়নি",
+      );
     } finally {
       setBusy(false);
     }
@@ -107,9 +109,8 @@ function Accounts() {
     const r = await resetAccountPassword({ data: { id, password: pw } }).catch(() => ({
       ok: false,
     }));
-    r.ok
-      ? toast.success("পাসওয়ার্ড পরিবর্তন হয়েছে")
-      : toast.error("পাসওয়ার্ড পরিবর্তন করা যায়নি");
+    if (r.ok) toast.success("পাসওয়ার্ড পরিবর্তন হয়েছে");
+    else toast.error("পাসওয়ার্ড পরিবর্তন করা যায়নি");
   };
 
   return (
@@ -242,9 +243,8 @@ function Accounts() {
                         const r = await setAccountActive({
                           data: { id: a.id, active: !a.active },
                         }).catch(() => ({ ok: false }));
-                        r.ok
-                          ? qc.invalidateQueries({ queryKey: ["accounts"] })
-                          : toast.error("পরিবর্তন করা যায়নি");
+                        if (r.ok) void qc.invalidateQueries({ queryKey: ["accounts"] });
+                        else toast.error("পরিবর্তন করা যায়নি");
                       }}
                     >
                       {a.active ? "Inactive করুন" : "Active করুন"}

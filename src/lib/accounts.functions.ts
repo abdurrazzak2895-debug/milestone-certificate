@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 const emailFor = (mobile: string) => `88${mobile}@phone.login.local`;
 
-async function assertAdmin(supabase: any, userId: string) {
+async function assertAdmin(supabase: SupabaseClient<Database>, userId: string) {
   const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (!data) throw new Error("শুধু অ্যাডমিন এই কাজ করতে পারবেন");
 }
@@ -91,15 +93,15 @@ export const createAccount = createServerFn({ method: "POST" })
       user_metadata: { full_name: data.name },
     });
     if (error || !created.user) {
+      const reason = error?.message ?? "auth user was not returned";
       return {
         ok: false as const,
-        message: /already/i.test(error?.message ?? "")
+        message: /already|registered|exists/i.test(reason)
           ? "এই মোবাইল নম্বরে আগেই অ্যাকাউন্ট আছে"
-          : "অ্যাকাউন্ট তৈরি করা যায়নি",
+          : `অ্যাকাউন্ট তৈরি করা যায়নি: ${reason}`,
       };
     }
     const uid = created.user.id;
-    await supabaseAdmin.from("profiles").upsert({ id: uid, full_name: data.name, email });
     const roleRows =
       data.role === "reception_agent"
         ? [
@@ -107,19 +109,33 @@ export const createAccount = createServerFn({ method: "POST" })
             { user_id: uid, role: "agent" as const },
           ]
         : [{ user_id: uid, role: data.role }];
-    const { error: rErr } = await supabaseAdmin.from("user_roles").insert(roleRows);
-    const { error: aErr } = await supabaseAdmin.from("agent_accounts").insert({
-      user_id: uid,
-      full_name: data.name,
-      mobile: data.mobile,
-      role: data.role === "reception_agent" ? "management" : data.role,
-      agent_code: code,
-    });
-    if (rErr || aErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
+    const profileRes = await supabaseAdmin
+      .from("profiles")
+      .upsert({ id: uid, full_name: data.name, email }, { onConflict: "id" });
+    const roleRes = await supabaseAdmin
+      .from("user_roles")
+      .upsert(roleRows, { onConflict: "user_id,role", ignoreDuplicates: true });
+    const accountRes = await supabaseAdmin.from("agent_accounts").upsert(
+      {
+        user_id: uid,
+        full_name: data.name,
+        mobile: data.mobile,
+        role: data.role === "reception_agent" ? "management" : data.role,
+        agent_code: code,
+        active: true,
+      },
+      { onConflict: "user_id" },
+    );
+    const failure = profileRes.error ?? roleRes.error ?? accountRes.error;
+    if (failure) {
+      // Never leave a half-created login behind.
+      await supabaseAdmin.auth.admin.deleteUser(uid).catch(() => undefined);
+      return { ok: false as const, message: `অ্যাকাউন্ট সেটআপ ব্যর্থ: ${failure.message}` };
+    }
     return { ok: true as const };
   });
 
-async function assertManagedAccount(supabaseAdmin: any, id: string) {
+async function assertManagedAccount(supabaseAdmin: SupabaseClient<Database>, id: string) {
   const { data } = await supabaseAdmin
     .from("agent_accounts")
     .select("user_id")
@@ -335,26 +351,41 @@ export const createSubAgent = createServerFn({ method: "POST" })
       email_confirm: true,
       user_metadata: { full_name: data.name },
     });
-    if (error || !created.user)
+    if (error || !created.user) {
+      const reason = error?.message ?? "auth user was not returned";
       return {
         ok: false as const,
-        message: /already/i.test(error?.message ?? "")
+        message: /already|registered|exists/i.test(reason)
           ? "এই মোবাইল নম্বরে আগেই অ্যাকাউন্ট আছে"
-          : "অ্যাকাউন্ট তৈরি করা যায়নি",
+          : `অ্যাকাউন্ট তৈরি করা যায়নি: ${reason}`,
       };
+    }
     const uid = created.user.id;
-    await supabaseAdmin.from("profiles").upsert({ id: uid, full_name: data.name, email });
-    const { error: rErr } = await supabaseAdmin
+    const profileRes = await supabaseAdmin
+      .from("profiles")
+      .upsert({ id: uid, full_name: data.name, email }, { onConflict: "id" });
+    const roleRes = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: uid, role: "agent" });
-    const { error: aErr } = await supabaseAdmin.from("agent_accounts").insert({
-      user_id: uid,
-      full_name: data.name,
-      mobile: data.mobile,
-      role: "agent",
-      parent_agent_id: context.userId,
-    });
-    if (rErr || aErr) return { ok: false as const, message: "রোল সেট করা যায়নি" };
+      .upsert(
+        { user_id: uid, role: "agent" },
+        { onConflict: "user_id,role", ignoreDuplicates: true },
+      );
+    const accountRes = await supabaseAdmin.from("agent_accounts").upsert(
+      {
+        user_id: uid,
+        full_name: data.name,
+        mobile: data.mobile,
+        role: "agent",
+        parent_agent_id: context.userId,
+        active: true,
+      },
+      { onConflict: "user_id" },
+    );
+    const failure = profileRes.error ?? roleRes.error ?? accountRes.error;
+    if (failure) {
+      await supabaseAdmin.auth.admin.deleteUser(uid).catch(() => undefined);
+      return { ok: false as const, message: `সাব-এজেন্ট সেটআপ ব্যর্থ: ${failure.message}` };
+    }
     return { ok: true as const };
   });
 
