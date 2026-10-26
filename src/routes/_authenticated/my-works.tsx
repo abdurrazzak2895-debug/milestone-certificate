@@ -18,8 +18,10 @@ import { StatusPill, SvpPill } from "@/components/app/WorkBits";
 import { Button } from "@/components/ui/button";
 import { WorkNotes } from "@/components/app/WorkNotes";
 import { UnpaidNotice, useMyUnpaid } from "@/components/app/AgentNotice";
+import { SvpBookingHistory } from "@/components/app/SvpBookingHistory";
 
-type Tab = "active" | "today" | "tomorrow" | "day_after" | "done" | "rejected" | "archive" | "all";
+type Tab =
+  "active" | "today" | "tomorrow" | "day_after" | "done" | "rejected" | "archive" | "all" | "svp";
 
 export const Route = createFileRoute("/_authenticated/my-works")({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({
@@ -45,6 +47,7 @@ export const Route = createFileRoute("/_authenticated/my-works")({
 });
 
 const TABS: [Tab, string][] = [
+  ["svp", "SVP বুকিং"],
   ["all", "সব কাজ"],
   ["active", "চলমান কাজ"],
   ["today", "আজকে"],
@@ -94,6 +97,8 @@ function MyWorks() {
         return works.filter(isArchived);
       case "rejected":
         return works.filter((w) => w.status === "rejected");
+      case "svp":
+        return [];
       default:
         return works;
     }
@@ -145,31 +150,35 @@ function MyWorks() {
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="font-display text-2xl font-bold">আমার জমা দেওয়া কাজ</h1>
       {unpaid && <UnpaidNotice />}
-      <div className="flex gap-2">
-        <input
-          className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
-          placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}>
-          <Copy className="mr-1 h-4 w-4" /> টেক্সট কপি
-        </Button>
-      </div>
-      <div className="flex items-center gap-2 text-sm">
-        <span className="shrink-0 text-muted-foreground">নির্দিষ্ট তারিখ:</span>
-        <DateSelect
-          autoToday={false}
-          value={pick}
-          onChange={(e) => setPick(e.target.value)}
-          className="h-9 rounded-lg border bg-card px-2"
-        />
-        {pick && (
-          <Button variant="ghost" size="sm" onClick={() => setPick("")}>
-            মুছুন
-          </Button>
-        )}
-      </div>
+      {tab !== "svp" && (
+        <>
+          <div className="flex gap-2">
+            <input
+              className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
+              placeholder="নাম / পাসপোর্ট / মোবাইল / পেশা / রেফারেন্স দিয়ে খুঁজুন"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button variant="secondary" size="sm" className="h-10 shrink-0" onClick={copyText}>
+              <Copy className="mr-1 h-4 w-4" /> টেক্সট কপি
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="shrink-0 text-muted-foreground">নির্দিষ্ট তারিখ:</span>
+            <DateSelect
+              autoToday={false}
+              value={pick}
+              onChange={(e) => setPick(e.target.value)}
+              className="h-9 rounded-lg border bg-card px-2"
+            />
+            {pick && (
+              <Button variant="ghost" size="sm" onClick={() => setPick("")}>
+                মুছুন
+              </Button>
+            )}
+          </div>
+        </>
+      )}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([k, l]) => (
           <button
@@ -177,11 +186,13 @@ function MyWorks() {
             onClick={() => setTab(k)}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${tab === k ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}
           >
-            {l} ({bn(filterFor(k).length)})
+            {k === "svp" ? l : `${l} (${bn(filterFor(k).length)})`}
           </button>
         ))}
       </div>
-      {list.length === 0 ? (
+      {tab === "svp" ? (
+        <SvpBookingHistory />
+      ) : list.length === 0 ? (
         <p className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">
           কোনো কাজ নেই।
         </p>

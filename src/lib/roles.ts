@@ -8,7 +8,6 @@ export const AGENT_PATHS = [
   "/office",
   "/about",
   "/agent-results",
-  "/takamol",
   "/svp-booking",
 ] as const;
 export const PROVIDER_PATHS = ["/provider"] as const;
