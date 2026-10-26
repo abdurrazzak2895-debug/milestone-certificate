@@ -1674,3 +1674,36 @@ describe("Takamol occupation language system", () => {
     );
   });
 });
+
+describe("manual language fallback", () => {
+  it("allows a manual language code when neither Takamol nor SVP returns one", async () => {
+    mocks.occupations.mockResolvedValue({
+      ok: true,
+      data: [{ ...occupation, languages: [] }],
+    });
+    mocks.occupationById.mockResolvedValue({
+      ok: true,
+      data: { ...occupation, languages: [] },
+    });
+    mocks.takamol.mockImplementation((request: { data: { endpoint: string } }) =>
+      Promise.resolve(
+        request.data.endpoint === "occupations"
+          ? {
+              success: true,
+              data: { occupations: [{ id: 159, occupation_id: 11, language_code: "" }] },
+            }
+          : { success: false, status: 200, message: "not loaded" },
+      ),
+    );
+
+    renderWizard();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+
+    const input = await screen.findByPlaceholderText("Enter the SVP language code");
+    fireEvent.change(input, { target: { value: "WLDBB" } });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
+  });
+});

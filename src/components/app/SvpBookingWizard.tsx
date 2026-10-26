@@ -518,16 +518,22 @@ export function SvpBookingWizard() {
               nonTargeted: false,
             },
           ]
-        : [],
-    [takamolLanguageCode],
+        : languageOptions,
+    [languageOptions, takamolLanguageCode],
   );
   useEffect(() => {
-    if (!takamolLanguageCode) return;
-    setLanguageCode((current) => (current === takamolLanguageCode ? current : takamolLanguageCode));
-  }, [takamolLanguageCode]);
-  // The exam language is always chosen manually; never auto-selected.
+    if (takamolLanguageCode) {
+      setLanguageCode((current) =>
+        current === takamolLanguageCode ? current : takamolLanguageCode,
+      );
+      return;
+    }
+    const only = languageOptions.length === 1 ? languageOptions[0]?.code : null;
+    if (only) setLanguageCode((current) => (current === only ? current : only));
+  }, [languageOptions, takamolLanguageCode]);
   const activeLanguageCode =
-    languageCode && languageChoices.some((entry) => entry.code === languageCode)
+    languageCode &&
+    (languageChoices.length === 0 || languageChoices.some((entry) => entry.code === languageCode))
       ? languageCode
       : "";
 
@@ -1915,55 +1921,59 @@ export function SvpBookingWizard() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="order-2 space-y-2">
                 <Field label="Exam language *">
-                  <NativeSelect
-                    value={activeLanguageCode}
-                    onChange={(event) => {
-                      setLanguageCode(event.target.value);
-                      setSelectedDate(null);
-                      setSelectedSession(null);
-                      setSelectedSlot(null);
-                      setHoldId(null);
-                      setPrometricHoldExpiresAt(null);
-                      setTargetedHoldExpiresAt(null);
-                      setChecked(false);
-                      setEligibility(null);
-                      setStage("select");
-                    }}
-                    disabled={languageChoices.length === 0 || Boolean(takamolLanguageCode)}
-                    required
-                  >
-                    <option value="">
-                      {languageChoices.length === 0
-                        ? "Select an occupation first"
-                        : "Select exam language"}
-                    </option>
-                    {languageChoices.map((entry) => (
-                      <option key={entry.code} value={entry.code}>
-                        {entry.label}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </Field>
-                {occupation && !takamolLanguageCode && (
-                  <div
-                    role={takamolOccupationsQuery.isFetching ? "status" : "alert"}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
-                  >
-                    <span>
-                      {takamolOccupationsQuery.isFetching
-                        ? "Loading the Takamol language…"
-                        : "Takamol has no language code for this occupation. Booking is disabled until the API returns one."}
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void takamolOccupationsQuery.refetch()}
-                      disabled={takamolOccupationsQuery.isFetching}
+                  {languageChoices.length > 0 || !occupation ? (
+                    <NativeSelect
+                      value={activeLanguageCode}
+                      onChange={(event) => {
+                        setLanguageCode(event.target.value);
+                        setSelectedDate(null);
+                        setSelectedSession(null);
+                        setSelectedSlot(null);
+                        setHoldId(null);
+                        setPrometricHoldExpiresAt(null);
+                        setTargetedHoldExpiresAt(null);
+                        setChecked(false);
+                        setEligibility(null);
+                        setStage("select");
+                      }}
+                      disabled={languageChoices.length === 0 || Boolean(takamolLanguageCode)}
+                      required
                     >
-                      <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry language
-                    </Button>
-                  </div>
+                      <option value="">
+                        {languageChoices.length === 0
+                          ? "Select an occupation first"
+                          : "Select exam language"}
+                      </option>
+                      {languageChoices.map((entry) => (
+                        <option key={entry.code} value={entry.code}>
+                          {entry.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  ) : (
+                    <Input
+                      value={languageCode}
+                      onChange={(event) =>
+                        setLanguageCode(
+                          event.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase(),
+                        )
+                      }
+                      placeholder="Enter the SVP language code"
+                      maxLength={40}
+                      required
+                    />
+                  )}
+                </Field>
+                {occupation && !takamolLanguageCode && languageChoices.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Takamol has no code for this occupation; the SVP language codes are used.
+                  </p>
+                )}
+                {occupation && languageChoices.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Enter the SVP prometric language code for this occupation so the booking can be
+                    submitted.
+                  </p>
                 )}
               </div>
               <div className="order-1 space-y-2">
