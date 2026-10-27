@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import { requestWalletDeposit } from "@/lib/wallet";
+import { checkWalletSetup } from "@/lib/wallet.functions";
 
 type Transaction = {
   id: string;
@@ -171,6 +172,13 @@ export function WalletPanel() {
     refetchOnWindowFocus: false,
   });
 
+  const setupQuery = useQuery({
+    queryKey: ["wallet-setup"],
+    queryFn: () => checkWalletSetup({ data: {} }),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   const balance = balanceQuery.data ?? 0;
   const transactions = useMemo(() => transactionsQuery.data ?? [], [transactionsQuery.data]);
   const deposits = useMemo(() => depositsQuery.data ?? [], [depositsQuery.data]);
@@ -181,6 +189,8 @@ export function WalletPanel() {
       error instanceof Error &&
       /schema cache|could not find the table|does not exist/i.test(error.message),
   );
+  const missingTables = setupQuery.data?.missing ?? [];
+  const setupBlocked = missingTables.length > 0 || setupIssue;
   const profileName = useMemo(() => {
     const map = new Map<string, string>();
     for (const profile of profiles) {
@@ -213,6 +223,7 @@ export function WalletPanel() {
       void profilesQuery.refetch();
       void accountsQuery.refetch();
     }
+    void setupQuery.refetch();
   };
 
   const requestDeposit = async () => {
@@ -356,11 +367,13 @@ export function WalletPanel() {
         </div>
       </div>
 
-      {setupIssue && (
+      {setupBlocked && (
         <p className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
-          Wallet টেবিল এখনো database-এ তৈরি হয়নি — Supabase Dashboard → SQL Editor-এ{" "}
+          Wallet টেবিল এখনো database-এ তৈরি হয়নি
+          {missingTables.length > 0 ? ` (missing: ${missingTables.join(", ")})` : ""} — Supabase
+          Dashboard → SQL Editor-এ{" "}
           <code className="font-mono text-[11px]">supabase/manual/apply_wallet_system.sql</code>{" "}
-          ফাইলটি Run করুন।
+          ফাইলটি Run করুন, তারপর Refresh চাপুন।
         </p>
       )}
 
@@ -464,7 +477,11 @@ export function WalletPanel() {
             />
           </Field>
         </div>
-        <Button type="button" onClick={() => void requestDeposit()} disabled={busy || !userId}>
+        <Button
+          type="button"
+          onClick={() => void requestDeposit()}
+          disabled={busy || !userId || setupBlocked}
+        >
           {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
           ডিপোজিট রিকোয়েস্ট পাঠান
         </Button>
