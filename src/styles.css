@@ -276,7 +276,7 @@
 
 /* Light, readable SVP card payment page (provider widget stays white). */
 .svp-payment-page {
-  --background: oklch(1 0 0);
+  --background: transparent;
   --foreground: oklch(0.21 0.02 260);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.02 260);
@@ -290,7 +290,8 @@
   --primary-foreground: oklch(0.99 0 0);
   --ring: oklch(0.6 0.14 155);
   min-height: 100vh;
-  background: #ffffff;
+  /* Let the app's own TechBackground/brand colour show through; the card stays white. */
+  background: transparent;
   color: oklch(0.21 0.02 260);
 }
 
