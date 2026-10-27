@@ -1178,6 +1178,10 @@ export type Database = {
         Args: { _amount?: number; _reservation_id: string };
         Returns: Json;
       };
+      wallet_charge_cbt_result: {
+        Args: { _reference: string };
+        Returns: Json;
+      };
       wallet_my_balance: {
         Args: Record<PropertyKey, never>;
         Returns: number;

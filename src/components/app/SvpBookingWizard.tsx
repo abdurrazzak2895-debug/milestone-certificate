@@ -74,6 +74,7 @@ import {
 } from "@/lib/svp-session.functions";
 import { svpCertificateFileName, svpTicketFileName } from "@/lib/svp-api.shared";
 import { buildSvpResultPdf, svpCbtResultFileName } from "@/lib/svp-result-pdf";
+import { settingsQ } from "@/lib/data";
 import type {
   SvpAvailableDate,
   SvpEligibility,
@@ -260,6 +261,8 @@ export function SvpBookingWizard() {
   });
   const walletBalance = walletBalanceQuery.data ?? 0;
   const canAffordBooking = walletBalanceQuery.isPending || walletBalance >= SVP_BOOKING_COST_BDT;
+  const settingsQuery = useQuery(settingsQ);
+  const cbtResultFee = Math.max(0, Number(settingsQuery.data?.["cbt_result_fee"] ?? "50") || 0);
 
   // The card widget redirects back here with ?paymentId=…; verify it once.
   // A dedicated payment tab uses ?payReservation=… and stays on the payment page.
@@ -1180,8 +1183,30 @@ export function SvpBookingWizard() {
     }
   };
 
-  const downloadCbtResult = (entry: SvpReservation, fileName: string) => {
+  const downloadCbtResult = async (entry: SvpReservation, fileName: string) => {
     try {
+      const { data: chargeData, error: chargeError } = await supabase.rpc(
+        "wallet_charge_cbt_result",
+        { _reference: entry.id },
+      );
+      if (chargeError) {
+        toast.error(`CBT result PDF ফি চার্জ করা যায়নি: ${chargeError.message}`);
+        return;
+      }
+      const charge = chargeData as {
+        ok?: boolean;
+        reason?: string;
+        fee?: number;
+        balance?: number;
+      } | null;
+      if (charge && charge.ok === false) {
+        toast.error(
+          charge.reason === "insufficient"
+            ? `ব্যালেন্স কম — CBT result PDF ফি ৳${charge.fee ?? cbtResultFee}। /wallet থেকে ডিপোজিট করুন।`
+            : "CBT result PDF ফি চার্জ করা যায়নি।",
+        );
+        return;
+      }
       const base64 = buildSvpResultPdf({
         title: "SVP CBT Result",
         subtitle: "Saudi Skill Verification Program · official SVP data",
@@ -1211,7 +1236,12 @@ export function SvpBookingWizard() {
         ],
       });
       savePdfBase64(base64, "application/pdf", fileName);
-      toast.success(`CBT result saved as ${fileName}`);
+      const fee = Number(charge?.fee ?? 0);
+      toast.success(
+        `CBT result saved as ${fileName}${fee > 0 ? ` · ৳${fee} wallet থেকে চার্জ হয়েছে` : ""}`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
+      void queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
     } catch {
       toast.error("The CBT result PDF could not be created.");
     }
@@ -3006,7 +3036,7 @@ export function SvpBookingWizard() {
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            downloadCbtResult(
+                            void downloadCbtResult(
                               entry,
                               svpCbtResultFileName(
                                 entry.laborName ?? status?.userName ?? candidateName,
@@ -3017,6 +3047,7 @@ export function SvpBookingWizard() {
                           }
                         >
                           <FileText className="mr-1 h-3.5 w-3.5" /> CBT result PDF
+                          {cbtResultFee > 0 ? ` · ৳${cbtResultFee}` : ""}
                         </Button>
                       )}
                       {entry.certificate &&
@@ -3057,7 +3088,9 @@ export function SvpBookingWizard() {
                               entry.centerName ?? entry.city,
                             );
                           }}
-                          onDownloadCbtResult={(fileName) => downloadCbtResult(entry, fileName)}
+                          onDownloadCbtResult={(fileName) =>
+                            void downloadCbtResult(entry, fileName)
+                          }
                         />
                       </div>
                     )}

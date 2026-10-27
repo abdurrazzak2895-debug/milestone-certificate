@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
@@ -12,7 +13,10 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const ADMIN_LINKS = [
   { to: "/submissions", label: "Submitted Works", icon: ClipboardCheck },
@@ -64,6 +68,46 @@ export function AdminSystemOverview() {
     refetchOnWindowFocus: false,
   });
 
+  const [cbtFee, setCbtFee] = useState("50");
+  const [savingFee, setSavingFee] = useState(false);
+
+  const settingsQuery = useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("settings").select("key, value");
+      if (error) throw error;
+      return data ?? [];
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    const row = settingsQuery.data?.find((entry) => entry.key === "cbt_result_fee");
+    if (row?.value != null) setCbtFee(String(row.value));
+  }, [settingsQuery.data]);
+
+  const saveCbtFee = async () => {
+    const value = Number(cbtFee);
+    if (!Number.isFinite(value) || value < 0) {
+      toast.error("সঠিক ফি লিখুন (০ মানে ফ্রি)।");
+      return;
+    }
+    setSavingFee(true);
+    try {
+      const { error } = await supabase
+        .from("settings")
+        .upsert({ key: "cbt_result_fee", value: String(value) }, { onConflict: "key" });
+      if (error) throw error;
+      toast.success(`CBT result PDF ফি ৳${value} সেট হয়েছে।`);
+      void settingsQuery.refetch();
+    } catch {
+      toast.error("ফি সেভ করা যায়নি।");
+    } finally {
+      setSavingFee(false);
+    }
+  };
+
   const wallets = walletsQuery.data ?? [];
   const deposits = depositsQuery.data ?? [];
   const totalBalance = wallets.reduce((sum, entry) => sum + Number(entry.balance ?? 0), 0);
@@ -104,6 +148,32 @@ export function AdminSystemOverview() {
             ৳{pendingAmount.toLocaleString("en-BD", { maximumFractionDigits: 2 })}
           </p>
         </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4">
+        <p className="text-xs text-muted-foreground">CBT result PDF ফি (৳)</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Input
+            value={cbtFee}
+            onChange={(event) => setCbtFee(event.target.value)}
+            inputMode="decimal"
+            className="h-9 w-28"
+            aria-label="CBT result PDF fee"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void saveCbtFee()}
+            disabled={savingFee}
+          >
+            {savingFee ? <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            Save fee
+          </Button>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          প্রতিটি CBT result PDF ডাউনলোডে এই ফি wallet থেকে কাটা হবে (০ = ফ্রি)।
+        </p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
