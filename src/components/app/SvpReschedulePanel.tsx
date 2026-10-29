@@ -57,6 +57,7 @@ export function SvpReschedulePanel({
   reservationId,
   rescheduleTimes,
   countryId,
+  categoryId,
   isTargeted = true,
   onCancel,
   onDone,
@@ -64,6 +65,7 @@ export function SvpReschedulePanel({
   reservationId: string;
   rescheduleTimes: number | null;
   countryId?: number | null;
+  categoryId?: number | null;
   isTargeted?: boolean;
   onCancel: () => void;
   onDone: (
@@ -107,18 +109,19 @@ export function SvpReschedulePanel({
         ? detail.languageCode
         : (languageOptions[0]?.code ?? "en");
   const effectiveCountryId = detail?.countryId ?? countryId ?? null;
+  const effectiveCategoryId = detail?.categoryId ?? categoryId ?? null;
 
   const datesQuery = useQuery({
-    queryKey: ["svp-reschedule-dates", reservationId, detail?.categoryId, effectiveCountryId],
+    queryKey: ["svp-reschedule-dates", reservationId, effectiveCategoryId, effectiveCountryId],
     queryFn: () =>
       listSvpRescheduleDates({
         data: {
           reservationId,
-          categoryId: detail?.categoryId as number,
+          categoryId: effectiveCategoryId as number,
           countryId: effectiveCountryId,
         },
       }),
-    enabled: isTargeted && Boolean(detail?.categoryId),
+    enabled: isTargeted && effectiveCategoryId != null,
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -196,17 +199,17 @@ export function SvpReschedulePanel({
   const sessionDate = selectedDate ? splitDateTime(selectedDate.startAt).date : "";
   const sessionCity = selectedDate?.city ?? city;
   const sessionsQuery = useQuery({
-    queryKey: ["svp-reschedule-sessions", detail?.categoryId, sessionCity, sessionDate],
+    queryKey: ["svp-reschedule-sessions", effectiveCategoryId, sessionCity, sessionDate],
     queryFn: () =>
       listSvpExamSessions({
         data: {
-          categoryId: detail?.categoryId as number,
+          categoryId: effectiveCategoryId as number,
           city: sessionCity,
           examDate: sessionDate,
         },
       }),
     enabled:
-      isTargeted && Boolean(detail?.categoryId) && Boolean(sessionCity) && Boolean(sessionDate),
+      isTargeted && effectiveCategoryId != null && Boolean(sessionCity) && Boolean(sessionDate),
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -240,7 +243,7 @@ export function SvpReschedulePanel({
           languageCode: activeLanguage,
           duration: selectedSlot.duration,
           startAt: selectedSlot.startAt,
-          categoryId: detail?.categoryId as number,
+          categoryId: effectiveCategoryId as number,
           countryId: effectiveCountryId,
         },
       });
@@ -390,14 +393,18 @@ export function SvpReschedulePanel({
       ? splitDateTime(selectedDate.startAt).date
       : ""
     : (prometricDate ?? "");
-  const datesLoading = isTargeted ? datesQuery.isPending : sitesQuery.isPending;
+  const datesLoading = isTargeted ? datesQuery.isFetching : sitesQuery.isFetching;
   const datesError = isTargeted
     ? datesQuery.data && !datesQuery.data.ok
       ? datesQuery.data.message
-      : null
+      : datesQuery.isError
+        ? "Reschedule dates could not be loaded. Try again."
+        : null
     : sitesQuery.data && !sitesQuery.data.ok
       ? sitesQuery.data.message
-      : null;
+      : sitesQuery.isError
+        ? "Test center dates could not be loaded. Try again."
+        : null;
   const datesLoaded = isTargeted ? Boolean(datesQuery.data?.ok) : Boolean(sitesQuery.data?.ok);
   const sessionViews = isTargeted
     ? sessions.map((entry) => ({
@@ -424,14 +431,18 @@ export function SvpReschedulePanel({
           onSelect: () => chooseSlot(slot),
         };
       });
-  const sessionsLoading = isTargeted ? sessionsQuery.isPending : slotsQuery.isPending;
+  const sessionsLoading = isTargeted ? sessionsQuery.isFetching : slotsQuery.isFetching;
   const sessionsError = isTargeted
     ? sessionsQuery.data && !sessionsQuery.data.ok
       ? sessionsQuery.data.message
-      : null
+      : sessionsQuery.isError
+        ? "Sessions could not be loaded. Try again."
+        : null
     : slotsQuery.data && !slotsQuery.data.ok
       ? slotsQuery.data.message
-      : null;
+      : slotsQuery.isError
+        ? "Slots could not be loaded. Try again."
+        : null;
   const sessionsLoaded = isTargeted
     ? Boolean(sessionsQuery.data?.ok)
     : Boolean(slotsQuery.data?.ok);
@@ -465,7 +476,7 @@ export function SvpReschedulePanel({
               setCity(event.target.value);
               resetSelection();
             }}
-            disabled={isTargeted ? datesQuery.isPending : citiesQuery.isPending}
+            disabled={isTargeted ? datesQuery.isFetching : citiesQuery.isFetching}
             required
           >
             <option value="">Select a city</option>
@@ -496,11 +507,23 @@ export function SvpReschedulePanel({
         </Field>
       </div>
 
-      {datesLoading && (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-          <LoaderCircle className="h-4 w-4 animate-spin" /> Loading reschedule dates…
+      {isTargeted && effectiveCategoryId == null && (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+        >
+          This reservation has no SVP category, so reschedule dates cannot be loaded. Use the
+          official SVP portal for this booking.
         </p>
       )}
+
+      {datesLoading &&
+        !datesError &&
+        (isTargeted ? effectiveCategoryId != null : Boolean(city)) && (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+            <LoaderCircle className="h-4 w-4 animate-spin" /> Loading reschedule dates…
+          </p>
+        )}
       {datesError && (
         <p role="alert" className="text-sm text-destructive">
           {datesError}

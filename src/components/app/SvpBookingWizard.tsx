@@ -1955,6 +1955,7 @@ export function SvpBookingWizard() {
           reservationId={rescheduleId}
           rescheduleTimes={overview?.constraints.rescheduleTimes ?? null}
           countryId={overview?.permissions.countryId ?? null}
+          categoryId={reservations.find((entry) => entry.id === rescheduleId)?.categoryId ?? null}
           isTargeted={isTargeted}
           onCancel={() => setRescheduleId(null)}
           onDone={(updated) => {
