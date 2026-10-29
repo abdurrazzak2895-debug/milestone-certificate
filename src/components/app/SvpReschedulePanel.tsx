@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -266,6 +266,19 @@ export function SvpReschedulePanel({
     setSelectedSlot(null);
   };
 
+  // Site-based reservations already know their city: preselect it so the dates load immediately.
+  useEffect(() => {
+    if (isTargeted || city) return;
+    const fallback =
+      detail?.city ?? (prometricCities.length === 1 ? prometricCities[0]?.city : "") ?? "";
+    if (!fallback) return;
+    setCity(fallback);
+    setSelectedDate(null);
+    setSelectedSession(null);
+    setPrometricDate(null);
+    setSelectedSlot(null);
+  }, [city, detail?.city, isTargeted, prometricCities]);
+
   const selectDateOption = (entry: { date: string; city: string | null }) => {
     setSelectedSession(null);
     setSelectedSlot(null);
@@ -381,7 +394,13 @@ export function SvpReschedulePanel({
           dates.map((entry) => entry.city).filter((entry): entry is string => Boolean(entry)),
         ),
       ]
-    : prometricCities.map((entry) => entry.city);
+    : [
+        ...new Set([
+          ...prometricCities.map((entry) => entry.city),
+          ...(detail?.city ? [detail.city] : []),
+          ...(city ? [city] : []),
+        ]),
+      ].sort((a, b) => a.localeCompare(b));
   const shownDateOptions: Array<{ date: string; city: string | null }> = isTargeted
     ? dateOptions.map((entry) => ({
         date: splitDateTime(entry.startAt).date,
@@ -515,6 +534,10 @@ export function SvpReschedulePanel({
           This reservation has no SVP category, so reschedule dates cannot be loaded. Use the
           official SVP portal for this booking.
         </p>
+      )}
+
+      {!isTargeted && !city && (
+        <p className="text-sm text-muted-foreground">Select a city to load the reschedule dates.</p>
       )}
 
       {datesLoading &&
