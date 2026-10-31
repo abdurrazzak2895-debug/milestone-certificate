@@ -39,6 +39,16 @@ import {
 
 const MANUAL_CITY_OPTION = "__manual_city__";
 
+function centerFilterKey(centerId: string | null, centerName: string | null): string {
+  if (centerId?.trim()) return `id:${centerId.trim()}`;
+  const normalizedName = centerName
+    ?.normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/\s+/g, " ");
+  return normalizedName ? `name:${normalizedName}` : "";
+}
+
 function splitDateTime(value: string): { date: string; time: string } {
   const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(value);
   if (match) return { date: match[1] ?? "", time: match[2] ?? "" };
@@ -119,6 +129,7 @@ export function SvpReschedulePanel({
   const [selectedSession, setSelectedSession] = useState<SvpExamSession | null>(null);
   const [prometricDate, setPrometricDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<SvpPrometricSlot | null>(null);
+  const [selectedCenterKey, setSelectedCenterKey] = useState("");
   const [done, setDone] = useState(false);
 
   const detailQuery = useQuery({
@@ -329,6 +340,48 @@ export function SvpReschedulePanel({
         : [],
     [city, prometricDate, prometricSites, prometricSlots, takamolSessionRows],
   );
+  // Takamol centers that actually have availability rows for the chosen date.
+  const availableTakamolCenters = useMemo(() => {
+    const choices = new Map<
+      string,
+      { key: string; label: string; location: string | null; availableRows: number }
+    >();
+    for (const row of takamolSessionRows) {
+      if (!row.available) continue;
+      const center = takamolCenters.find((entry) => entry.id === row.centerId);
+      const label = row.centerName ?? center?.label ?? "";
+      const key = centerFilterKey(row.centerId, label || null);
+      if (!key) continue;
+      const current = choices.get(key);
+      if (current) {
+        current.availableRows += 1;
+      } else {
+        choices.set(key, {
+          key,
+          label: label || `Test center ${row.centerId}`,
+          location: center?.location ?? null,
+          availableRows: 1,
+        });
+      }
+    }
+    return [...choices.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [takamolCenters, takamolSessionRows]);
+  // A chosen center narrows the slot list to that center's availability rows.
+  const visiblePrometricSlots = useMemo(
+    () =>
+      selectedCenterKey
+        ? prometricSlots.filter((slot) => {
+            const match = takamolSlotMappings.find((entry) => entry.slot?.id === slot.id);
+            if (!match) return false;
+            const center = takamolCenters.find((entry) => entry.id === match.row.centerId);
+            return (
+              centerFilterKey(match.row.centerId, match.row.centerName ?? center?.label ?? null) ===
+              selectedCenterKey
+            );
+          })
+        : prometricSlots,
+    [prometricSlots, selectedCenterKey, takamolCenters, takamolSlotMappings],
+  );
   const sessionDate = selectedDate ? splitDateTime(selectedDate.startAt).date : "";
   const sessionCity = selectedDate?.city ?? city;
   const sessionsQuery = useQuery({
@@ -405,6 +458,7 @@ export function SvpReschedulePanel({
     setSelectedSession(null);
     setPrometricDate(null);
     setSelectedSlot(null);
+    setSelectedCenterKey("");
   };
 
   const selectCity = (value: string) => {
@@ -431,6 +485,7 @@ export function SvpReschedulePanel({
   const selectDateOption = (entry: { date: string; city: string | null }) => {
     setSelectedSession(null);
     setSelectedSlot(null);
+    setSelectedCenterKey("");
     if (isTargeted) {
       setSelectedDate(
         dates.find(
@@ -465,9 +520,9 @@ export function SvpReschedulePanel({
   );
 
   useEffect(() => {
-    if (isTargeted || !prometricDate || selectedSlot || prometricSlots.length === 0) return;
-    chooseSlot(prometricSlots[0]!);
-  }, [chooseSlot, isTargeted, prometricDate, prometricSlots, selectedSlot]);
+    if (isTargeted || !prometricDate || selectedSlot || visiblePrometricSlots.length === 0) return;
+    chooseSlot(visiblePrometricSlots[0]!);
+  }, [chooseSlot, isTargeted, prometricDate, selectedSlot, visiblePrometricSlots]);
 
   if (detailQuery.isPending) {
     return (
@@ -595,13 +650,13 @@ export function SvpReschedulePanel({
           setSelectedSlot(null);
         },
       }))
-    : prometricSlots.map((slot) => {
+    : visiblePrometricSlots.map((slot) => {
         const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
         const takamolMatch = takamolSlotMappings.find((entry) => entry.slot?.id === slot.id);
         return {
           key: `p-${slot.id}`,
           startAt: slot.startAt,
-          center: site?.name ?? site?.city ?? city,
+          center: site?.name ?? site?.city ?? takamolMatch?.row.centerName ?? city,
           seats: takamolMatch?.row.seats ?? null,
           duration: slot.duration,
           selected: selectedSlot?.id === slot.id,
@@ -697,6 +752,7 @@ export function SvpReschedulePanel({
                 setPrometricDate(null);
                 setSelectedSlot(null);
                 setSelectedSession(null);
+                setSelectedCenterKey("");
               }}
             >
               {monthOptions.map((entry) => (
@@ -859,6 +915,66 @@ export function SvpReschedulePanel({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {!isTargeted && prometricDate && (
+        <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
+          <p className="text-sm font-medium">
+            Available test centers · {formatDate(prometricDate)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Takamol centers appear here after you choose a date. Select a center to filter its
+            availability; the real SVP slot is still the one submitted.
+          </p>
+          {takamolSessionsQuery.isFetching && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+              <LoaderCircle className="h-4 w-4 animate-spin" /> Loading available centers…
+            </p>
+          )}
+          {!takamolSessionsQuery.isFetching &&
+            takamolSessionsQuery.data?.success &&
+            availableTakamolCenters.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Takamol returned no available test centers for this date.
+              </p>
+            )}
+          {availableTakamolCenters.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={selectedCenterKey ? "outline" : "default"}
+                aria-pressed={!selectedCenterKey}
+                aria-label="Show all available test centers"
+                onClick={() => {
+                  setSelectedCenterKey("");
+                  setSelectedSlot(null);
+                  setSelectedSession(null);
+                }}
+              >
+                All centers
+              </Button>
+              {availableTakamolCenters.map((entry) => (
+                <Button
+                  key={entry.key}
+                  type="button"
+                  size="sm"
+                  variant={selectedCenterKey === entry.key ? "default" : "outline"}
+                  aria-pressed={selectedCenterKey === entry.key}
+                  aria-label={`Show only ${entry.label}`}
+                  onClick={() => {
+                    setSelectedCenterKey(entry.key);
+                    setSelectedSlot(null);
+                    setSelectedSession(null);
+                  }}
+                >
+                  {entry.label}
+                  {entry.location ? ` · ${entry.location}` : ""} · {entry.availableRows} available
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

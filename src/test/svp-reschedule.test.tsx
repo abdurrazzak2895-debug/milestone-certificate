@@ -394,6 +394,48 @@ describe("SVP site-based reschedule", () => {
     );
   });
 
+  it("shows available Takamol test centers after date selection and filters slots by center", async () => {
+    mocks.slots.mockResolvedValue({
+      ok: true,
+      data: [
+        { id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 },
+        { id: "slot-2", siteId: 9, startAt: "2026-12-01T14:00:00", duration: 30 },
+      ],
+    });
+    renderPanel({ isTargeted: false });
+
+    const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
+    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
+    fireEvent.change(await screen.findByLabelText("Month to check"), {
+      target: { value: "2026-12" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+
+    // The center catalogue shows up only after a date is chosen.
+    expect(await screen.findByText("Available test centers · Tue, 1 Dec 2026")).toBeInTheDocument();
+    const centerChip = await screen.findByRole("button", { name: "Show only Site A" });
+    expect(
+      screen.getByRole("button", { name: "Show all available test centers" }),
+    ).toBeInTheDocument();
+    expect(centerChip).toHaveTextContent("Site A · Dhaka · 1 available");
+    await screen.findByRole("button", { name: /10:00/ });
+    expect(screen.getByRole("button", { name: /14:00/ })).toBeInTheDocument();
+
+    // Choosing a center narrows the slot list to that center's availability.
+    fireEvent.click(centerChip);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /10:00/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /14:00/ })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Confirm reschedule" })).toBeEnabled();
+
+    // All centers restores the full slot list.
+    fireEvent.click(screen.getByRole("button", { name: "Show all available test centers" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /14:00/ })).toBeInTheDocument();
+    });
+  });
+
   it("holds a slot and reschedules with the prometric exam id and site", async () => {
     renderPanel({ isTargeted: false });
 
