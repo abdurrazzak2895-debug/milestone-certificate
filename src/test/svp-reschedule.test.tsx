@@ -196,7 +196,7 @@ describe("SVP reschedule panel", () => {
 });
 
 describe("SVP site-based reschedule", () => {
-  it("shows cities and test centers returned by Takamol alongside the current booking city", async () => {
+  it("shows Takamol available test centers automatically after the user clicks a date", async () => {
     mocks.takamol.mockImplementation(({ data }: { data: { endpoint: string; city?: string } }) =>
       Promise.resolve(
         data.endpoint === "cities"
@@ -206,7 +206,24 @@ describe("SVP site-based reschedule", () => {
                 success: true,
                 data: { centers: [{ id: "c1", name: "Rajshahi TTC", city: data.city }] },
               }
-            : takamolResponse(data),
+            : data.endpoint === "sessions"
+              ? {
+                  success: true,
+                  data: {
+                    sessions: [
+                      {
+                        id: "rajshahi-row",
+                        test_center_id: "c1",
+                        city: "Rajshahi",
+                        exam_date: "2026-12-01",
+                        exam_time: "10:00 AM",
+                        status: "Available",
+                        available_seats: 3,
+                      },
+                    ],
+                  },
+                }
+              : takamolResponse(data),
       ),
     );
     renderPanel({ isTargeted: false });
@@ -223,10 +240,19 @@ describe("SVP site-based reschedule", () => {
     expect(citySelect).toHaveValue("");
     expect(mocks.takamol).toHaveBeenCalledWith({ data: { endpoint: "cities", categoryId: "159" } });
     fireEvent.change(citySelect, { target: { value: "Rajshahi" } });
-    expect(await screen.findByRole("option", { name: /Rajshahi TTC/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Available test centers/)).not.toBeInTheDocument();
     expect(mocks.takamol).toHaveBeenCalledWith({
       data: { endpoint: "centers", city: "Rajshahi" },
     });
+    fireEvent.change(await screen.findByLabelText("Month to check"), {
+      target: { value: "2026-12" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+
+    const rajshahiCenter = await screen.findByRole("button", { name: "Show only Rajshahi TTC" });
+    expect(rajshahiCenter).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(rajshahiCenter);
+    expect(rajshahiCenter).toHaveAttribute("aria-pressed", "true");
   });
 
   it("surfaces a failed city-list request instead of silently showing only the current city", async () => {
@@ -348,7 +374,8 @@ describe("SVP site-based reschedule", () => {
       }),
     );
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show only Site A" }));
+    fireEvent.click(await screen.findByRole("button", { name: /10:00/ }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
 
     await waitFor(() =>
@@ -441,7 +468,8 @@ describe("SVP site-based reschedule", () => {
       target: { value: "2026-12" },
     });
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Site B/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show only Site B" }));
+    fireEvent.click(await screen.findByRole("button", { name: /11:00/ }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
 
     await waitFor(() =>
