@@ -173,6 +173,7 @@ describe("SVP site-based reschedule", () => {
         "",
         "Dhaka",
         "Rajshahi",
+        "__manual_city__",
       ]),
     );
     expect(citySelect).toHaveValue("");
@@ -227,6 +228,34 @@ describe("SVP site-based reschedule", () => {
       await screen.findByRole("option", { name: "Dhaka (current booking fallback)" }),
     ).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Retry city list" })).toBeInTheDocument();
+  });
+
+  it("checks a manually entered city directly when the SVP city-list endpoint fails", async () => {
+    mocks.cities.mockResolvedValue({
+      ok: false,
+      message: "Resource not found (HTTP 404)",
+      needsSignIn: false,
+    });
+    renderPanel({ isTargeted: false });
+
+    const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
+    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 404");
+    fireEvent.change(citySelect, { target: { value: "__manual_city__" } });
+    fireEvent.change(await screen.findByLabelText("Manual city name"), {
+      target: { value: "  Chattogram  " },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Check this city" }));
+
+    await waitFor(() => expect(citySelect).toHaveValue("Chattogram"));
+    await waitFor(() =>
+      expect(mocks.sites).toHaveBeenLastCalledWith({
+        data: expect.objectContaining({
+          prometricCode: "en",
+          city: "Chattogram",
+          countryId: 4,
+        }),
+      }),
+    );
   });
 
   it("holds a slot and reschedules with the prometric exam id and site", async () => {

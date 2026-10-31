@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Field, NativeSelect } from "@/components/app/ui-bits";
 import {
   getSvpReservationDetail,
@@ -24,6 +25,8 @@ import {
   rescheduleSvpSiteBooking,
 } from "@/lib/svp-booking.functions";
 import type { SvpAvailableDate, SvpExamSession, SvpPrometricSlot } from "@/lib/svp-api.shared";
+
+const MANUAL_CITY_OPTION = "__manual_city__";
 
 function splitDateTime(value: string): { date: string; time: string } {
   const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(value);
@@ -94,6 +97,8 @@ export function SvpReschedulePanel({
 }) {
   const queryClient = useQueryClient();
   const [city, setCity] = useState("");
+  const [manualCityMode, setManualCityMode] = useState(false);
+  const [manualCityName, setManualCityName] = useState("");
   const [languageCode, setLanguageCode] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()));
   const [selectedDate, setSelectedDate] = useState<SvpAvailableDate | null>(null);
@@ -311,6 +316,27 @@ export function SvpReschedulePanel({
     setSelectedSlot(null);
   };
 
+  const selectCity = (value: string) => {
+    resetSelection();
+    if (value === MANUAL_CITY_OPTION) {
+      setCity("");
+      setManualCityName("");
+      setManualCityMode(true);
+      return;
+    }
+    setManualCityMode(false);
+    setManualCityName("");
+    setCity(value);
+  };
+
+  const applyManualCity = () => {
+    const nextCity = manualCityName.trim().replace(/\s+/g, " ");
+    if (!nextCity) return;
+    resetSelection();
+    setCity(nextCity);
+    setManualCityMode(false);
+  };
+
   const selectDateOption = (entry: { date: string; city: string | null }) => {
     setSelectedSession(null);
     setSelectedSlot(null);
@@ -522,11 +548,8 @@ export function SvpReschedulePanel({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="New city *">
           <NativeSelect
-            value={city}
-            onChange={(event) => {
-              setCity(event.target.value);
-              resetSelection();
-            }}
+            value={manualCityMode ? MANUAL_CITY_OPTION : city}
+            onChange={(event) => selectCity(event.target.value)}
             disabled={isTargeted ? datesQuery.isFetching : citiesQuery.isFetching}
             required
           >
@@ -538,6 +561,9 @@ export function SvpReschedulePanel({
                   : entry}
               </option>
             ))}
+            {!isTargeted && (
+              <option value={MANUAL_CITY_OPTION}>Enter another city manually…</option>
+            )}
           </NativeSelect>
         </Field>
         <Field label="Exam language">
@@ -579,6 +605,32 @@ export function SvpReschedulePanel({
         )}
       </div>
 
+      {!isTargeted && manualCityMode && (
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <Field label="Manual city name">
+            <Input
+              value={manualCityName}
+              onChange={(event) => setManualCityName(event.target.value)}
+              placeholder="Enter a city name recognized by SVP"
+              autoComplete="address-level2"
+              maxLength={100}
+            />
+          </Field>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={applyManualCity}
+            disabled={!manualCityName.trim()}
+          >
+            Check this city
+          </Button>
+          <p className="text-xs text-muted-foreground sm:col-span-2">
+            The city name will be sent directly to SVP site availability. Dates and test centers
+            only appear if SVP recognizes that city and has available slots.
+          </p>
+        </div>
+      )}
+
       {!isTargeted && detail && citiesQuery.isFetching && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Loading cities from SVP…
@@ -594,8 +646,9 @@ export function SvpReschedulePanel({
           {cityFallbackOnly && (
             <p className="text-sm text-muted-foreground">
               The current booking city, {detail.city}, is available as a fallback option. Select it
-              manually if you want to check it; it will not be selected automatically. Other cities
-              remain unavailable until SVP responds.
+              manually if you want to check it; it will not be selected automatically. To try
+              another city, choose “Enter another city manually”; SVP must recognize that city and
+              return available sites.
             </p>
           )}
           {cityListNeedsSignIn && onReconnect && (
@@ -620,7 +673,8 @@ export function SvpReschedulePanel({
         >
           SVP returned no test-center cities for this country. The current booking city
           {detail.city ? ` (${detail.city})` : ""} is available as a fallback option. Select it
-          manually if you want to check it; other cities will appear when SVP returns them.
+          manually if you want to check it. To try another city, choose “Enter another city
+          manually”; SVP must recognize the city and return available sites.
           <div className="mt-2">
             <Button
               type="button"
