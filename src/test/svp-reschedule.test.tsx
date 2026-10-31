@@ -175,6 +175,7 @@ describe("SVP site-based reschedule", () => {
         "Rajshahi",
       ]),
     );
+    expect(citySelect).toHaveValue("");
     expect(mocks.cities).toHaveBeenCalledWith({ data: { countryId: 4 } });
   });
 
@@ -187,6 +188,7 @@ describe("SVP site-based reschedule", () => {
     renderPanel({ isTargeted: false });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("SVP city endpoint unavailable");
+    expect((await screen.findByLabelText("New city *")) as HTMLSelectElement).toHaveValue("");
     expect(await screen.findByRole("button", { name: "Retry city list" })).toBeInTheDocument();
     expect(
       await screen.findByRole("option", { name: "Dhaka (current booking fallback)" }),
@@ -203,7 +205,7 @@ describe("SVP site-based reschedule", () => {
     renderPanel({ isTargeted: false, onReconnect });
 
     const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
-    await waitFor(() => expect(citySelect).toHaveValue("Dhaka"));
+    await waitFor(() => expect(citySelect).toHaveValue(""));
     expect(await screen.findByRole("alert")).toHaveTextContent("SVP authorization is required");
     expect(
       await screen.findByRole("option", { name: "Dhaka (current booking fallback)" }),
@@ -217,7 +219,7 @@ describe("SVP site-based reschedule", () => {
     renderPanel({ isTargeted: false });
 
     const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
-    await waitFor(() => expect(citySelect).toHaveValue("Dhaka"));
+    await waitFor(() => expect(citySelect).toHaveValue(""));
     expect(
       screen.getByText(/SVP returned no test-center cities for this country/),
     ).toBeInTheDocument();

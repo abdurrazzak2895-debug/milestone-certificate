@@ -311,19 +311,6 @@ export function SvpReschedulePanel({
     setSelectedSlot(null);
   };
 
-  // Site-based reservations already know their city: preselect it so the dates load immediately.
-  useEffect(() => {
-    if (isTargeted || city) return;
-    const fallback =
-      detail?.city ?? (prometricCities.length === 1 ? prometricCities[0]?.city : "") ?? "";
-    if (!fallback) return;
-    setCity(fallback);
-    setSelectedDate(null);
-    setSelectedSession(null);
-    setPrometricDate(null);
-    setSelectedSlot(null);
-  }, [city, detail?.city, isTargeted, prometricCities]);
-
   const selectDateOption = (entry: { date: string; city: string | null }) => {
     setSelectedSession(null);
     setSelectedSlot(null);
@@ -606,7 +593,8 @@ export function SvpReschedulePanel({
           </p>
           {cityFallbackOnly && (
             <p className="text-sm text-muted-foreground">
-              Only the current booking city, {detail.city}, is shown as a fallback. Other cities
+              The current booking city, {detail.city}, is available as a fallback option. Select it
+              manually if you want to check it; it will not be selected automatically. Other cities
               remain unavailable until SVP responds.
             </p>
           )}
@@ -631,8 +619,8 @@ export function SvpReschedulePanel({
           className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
         >
           SVP returned no test-center cities for this country. The current booking city
-          {detail.city ? ` (${detail.city})` : ""} is shown as a fallback; other cities will appear
-          when SVP returns them.
+          {detail.city ? ` (${detail.city})` : ""} is available as a fallback option. Select it
+          manually if you want to check it; other cities will appear when SVP returns them.
           <div className="mt-2">
             <Button
               type="button"
