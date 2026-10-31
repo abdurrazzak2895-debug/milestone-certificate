@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildTakamolUrl,
   fetchTakamolWithRetry,
+  readTakamolJson,
   takamolErrorMessage,
   takamolLookupSchema,
   unwrapTakamolResponse,
@@ -77,7 +78,9 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
         };
       }
 
-      const payload: unknown = await response.json().catch(() => null);
+      // Bounded read: an oversized or malformed gateway payload becomes a 502
+      // instead of exhausting server memory, exactly like the SVP client.
+      const payload = await readTakamolJson(response);
       const result = unwrapTakamolResponse(payload);
       if (!result) {
         return {

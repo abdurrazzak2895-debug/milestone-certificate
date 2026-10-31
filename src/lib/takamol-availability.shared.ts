@@ -172,10 +172,31 @@ export async function fetchTakamolWithRetry(
       if (!TAKAMOL_RETRYABLE_STATUSES.has(response.status) || attempt >= maxRetries) {
         return response;
       }
+      // Release the failed response body so the connection is not held open
+      // while backing off; an unconsumed body pins a pooled connection.
+      await response.body?.cancel().catch(() => undefined);
       attempt += 1;
       await new Promise((resolve) => setTimeout(resolve, attempt * backoffMs));
     } finally {
       clearTimeout(timeout);
     }
+  }
+}
+
+/** Bound on a Takamol JSON body, mirroring the SVP client's bounded reads. */
+export const TAKAMOL_MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Read a Takamol JSON response with a size bound. Oversized or malformed
+ * payloads collapse to null so the caller maps them to a gateway error.
+ */
+export async function readTakamolJson(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (text.length > TAKAMOL_MAX_BODY_BYTES) return null;
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
   }
 }
