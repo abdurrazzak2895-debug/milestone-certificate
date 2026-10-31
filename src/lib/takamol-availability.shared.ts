@@ -87,6 +87,8 @@ export function takamolErrorMessage(status: number): string {
       return "Takamol API rate limit reached. Wait briefly before trying again.";
     case 502:
       return "Takamol availability is temporarily unavailable. Try again later.";
+    case 529:
+      return "The Takamol availability service is overloaded. Try again shortly.";
     default:
       return "Takamol availability request failed. Check the server configuration and try again.";
   }
@@ -126,4 +128,54 @@ export function unwrapTakamolResponse(
   if (!isTakamolJsonValue(response.data)) return null;
 
   return { success: true, data: response.data };
+}
+
+/**
+ * Transient gateway statuses that are retried with backoff, mirroring the SVP
+ * client's retry budget for GET failures (429/5xx, including 529).
+ */
+const TAKAMOL_RETRYABLE_STATUSES = new Set([429, 502, 503, 504, 529]);
+
+export type TakamolFetchOptions = {
+  /** Per-attempt timeout in milliseconds (default 15s). */
+  timeoutMs?: number;
+  /** Retry budget for transient statuses (default 2). */
+  maxRetries?: number;
+  /** Backoff base in milliseconds; attempt n waits n × base (default 1500). */
+  backoffMs?: number;
+};
+
+/** GET with per-attempt timeout and bounded retries on transient Takamol statuses. */
+export async function fetchTakamolWithRetry(
+  url: URL,
+  apiKey: string,
+  options: TakamolFetchOptions = {},
+): Promise<Response> {
+  const timeoutMs = options.timeoutMs ?? 15_000;
+  const maxRetries = options.maxRetries ?? 2;
+  const backoffMs = options.backoffMs ?? 1500;
+
+  let attempt = 0;
+  for (;;) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-Takamol-API-Key": apiKey,
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (!TAKAMOL_RETRYABLE_STATUSES.has(response.status) || attempt >= maxRetries) {
+        return response;
+      }
+      attempt += 1;
+      await new Promise((resolve) => setTimeout(resolve, attempt * backoffMs));
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 }

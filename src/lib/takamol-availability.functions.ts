@@ -2,13 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildTakamolUrl,
+  fetchTakamolWithRetry,
   takamolErrorMessage,
   takamolLookupSchema,
   unwrapTakamolResponse,
   type TakamolLookupResult,
 } from "@/lib/takamol-availability.shared";
-
-const REQUEST_TIMEOUT_MS = 15_000;
 
 /** Resolve the key from the platform env or the Vite-injected env (dev). */
 function takamolApiKey(): string | null {
@@ -65,19 +64,10 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
       };
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
     try {
-      const response = await fetch(buildTakamolUrl(data), {
-        method: "GET",
-        headers: {
-          "X-Takamol-API-Key": apiKey,
-          Accept: "application/json",
-        },
-        signal: controller.signal,
-        cache: "no-store",
-      });
+      // Transient gateway failures (429/5xx, including 529) are retried with
+      // backoff before giving up, mirroring the SVP client's retry budget.
+      const response = await fetchTakamolWithRetry(buildTakamolUrl(data), apiKey);
 
       if (!response.ok) {
         return {
@@ -104,7 +94,5 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
         status: 502,
         message: takamolErrorMessage(502),
       };
-    } finally {
-      clearTimeout(timeout);
     }
   });
