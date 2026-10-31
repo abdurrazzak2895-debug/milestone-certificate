@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   parseAvailableDates,
   parseCities,
+  mapTakamolRowsToSvpSlots,
   parseOccupationLanguages,
   parseOccupations,
+  parseTakamolRescheduleRows,
   parseSessionTableRows,
   parseSessions,
   parseTestCenters,
@@ -85,6 +87,20 @@ describe("Takamol selection data", () => {
     ).toEqual([{ id: "403", label: "Arkan Training Center", location: "Dhaka Arkan" }]);
   });
 
+  it("accepts common center_id and test_center_name aliases", () => {
+    expect(
+      parseTestCenters({
+        test_centers: [
+          { center_id: 17, test_center_name: "Bogura TTC", location: "Bogura" },
+          { site_id: "18", site_name: "Rajshahi TTC", city: "Rajshahi" },
+        ],
+      }),
+    ).toEqual([
+      { id: "17", label: "Bogura TTC", location: "Bogura" },
+      { id: "18", label: "Rajshahi TTC", location: "Rajshahi" },
+    ]);
+  });
+
   it("maps provider sessions to the Center Name, Exam Slot, Exam Time, and Seats columns", () => {
     expect(
       parseSessionTableRows({
@@ -154,6 +170,94 @@ describe("Takamol selection data", () => {
       parseSessionTableRows({ sessions: [{ id: "fallback", status: "Available" }] }, "Rajshahi")[0]
         ?.centerName,
     ).toBe("Rajshahi");
+  });
+
+  it("maps Takamol rows to SVP slots by exact center, date, and normalized time rather than order", () => {
+    const centers = [
+      { id: "center-a", label: "Site A", location: "Dhaka" },
+      { id: "center-b", label: "Site B", location: "Dhaka" },
+    ];
+    const rows = parseTakamolRescheduleRows(
+      {
+        sessions: [
+          {
+            id: "tak-a",
+            test_center_id: "center-a",
+            exam_date: "2026-12-01",
+            exam_time: "10:00 AM",
+            status: "Available",
+            available_seats: 3,
+          },
+          {
+            id: "tak-b",
+            test_center_id: "center-b",
+            exam_date: "2026-12-01",
+            exam_time: "11:00",
+            status: "Available",
+            available_seats: 2,
+          },
+        ],
+      },
+      centers,
+      "Dhaka",
+      "2026-12-01",
+    );
+    const mappings = mapTakamolRowsToSvpSlots(
+      rows,
+      [
+        { siteId: 9, name: "Site A", city: "Dhaka" },
+        { siteId: 10, name: "Site B", city: "Dhaka" },
+      ],
+      [
+        { id: "slot-b", siteId: 10, startAt: "2026-12-01T11:00:00", duration: 30 },
+        { id: "slot-a", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 },
+      ],
+      "Dhaka",
+      "2026-12-01",
+    );
+
+    expect(mappings.map((entry) => entry.slot?.id)).toEqual(["slot-a", "slot-b"]);
+  });
+
+  it("rejects ambiguous and unmatched Takamol rows instead of choosing an arbitrary SVP slot", () => {
+    const rows = parseTakamolRescheduleRows(
+      {
+        sessions: [
+          {
+            id: "tak-ambiguous",
+            center_name: "Site A",
+            city: "Dhaka",
+            exam_date: "2026-12-01",
+            exam_time: "10:00 AM",
+            status: "Available",
+          },
+          {
+            id: "tak-missing",
+            center_name: "Unknown Center",
+            city: "Dhaka",
+            exam_date: "2026-12-01",
+            exam_time: "12:00 PM",
+            status: "Available",
+          },
+        ],
+      },
+      [],
+      "Dhaka",
+      "2026-12-01",
+    );
+    const mappings = mapTakamolRowsToSvpSlots(
+      rows,
+      [{ siteId: 9, name: "Site A", city: "Dhaka" }],
+      [
+        { id: "slot-a1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 },
+        { id: "slot-a2", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 },
+      ],
+      "Dhaka",
+      "2026-12-01",
+    );
+
+    expect(mappings.map((entry) => entry.reason)).toEqual(["ambiguous", "no-match"]);
+    expect(mappings.every((entry) => entry.slot === null)).toBe(true);
   });
 
   it("reads session records and recursively removes private provider fields", () => {

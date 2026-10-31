@@ -142,7 +142,9 @@ export function parseCities(payload: unknown): string[] {
   const unique = new Map<string, string>();
   for (const item of source) {
     const value =
-      typeof item === "string" ? item.trim() : firstText(asRecord(item) ?? {}, ["city", "name"]);
+      typeof item === "string"
+        ? item.trim()
+        : firstText(asRecord(item) ?? {}, ["city", "city_name", "name"]);
     if (value && !unique.has(value.toLocaleLowerCase())) {
       unique.set(value.toLocaleLowerCase(), value);
     }
@@ -176,11 +178,13 @@ export function parseAvailableDates(payload: unknown): string[] {
 export function parseTestCenters(payload: unknown): TestCenterChoice[] {
   const seen = new Set<string>();
   return rowsAt(payload, ["sites", "centers", "test_centers"]).flatMap((row) => {
-    const id = firstText(row, ["test_center_id", "id", "center"]);
+    const id = firstText(row, ["test_center_id", "center_id", "site_id", "id", "center"]);
     if (!id || seen.has(id)) return [];
     seen.add(id);
-    const label = firstText(row, ["name", "center_name", "title"]) ?? `Test center ${id}`;
-    const location = firstText(row, ["city", "division", "raw_city"]);
+    const label =
+      firstText(row, ["name", "center_name", "test_center_name", "site_name", "title"]) ??
+      `Test center ${id}`;
+    const location = firstText(row, ["city", "division", "raw_city", "location"]);
     return [{ id, label, location }];
   });
 }
@@ -207,6 +211,240 @@ export function parseSessions(payload: unknown): RecordValue[] {
         firstText(session, ["center_name", "test_center_name", "site_name"]) ?? centerName,
     }));
   });
+}
+
+export type TakamolRescheduleRow = {
+  id: string;
+  centerId: string | null;
+  svpSiteId: string | null;
+  svpSlotId: string | null;
+  centerName: string | null;
+  city: string | null;
+  date: string | null;
+  time: string | null;
+  status: string | null;
+  seats: number | null;
+  language: string | null;
+  available: boolean;
+};
+
+export type TakamolSlotMapping = {
+  row: TakamolRescheduleRow;
+  slot: { id: string; siteId: number | null; startAt: string; duration: number } | null;
+  reason: "unavailable" | "date-mismatch" | "identity-missing" | "no-match" | "ambiguous" | null;
+};
+
+function numberValue(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function dateKey(value: string | null): string | null {
+  if (!value) return null;
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim());
+  return match?.[1] ?? null;
+}
+
+function timeKey(value: string | null): string | null {
+  if (!value) return null;
+  const input = value.trim();
+  const match = /(?:^|[T ])(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i.exec(input);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3]?.toUpperCase();
+  if (minutes > 59 || hours > (meridiem ? 12 : 23) || hours < 0) return null;
+  if (meridiem) {
+    if (hours < 1) return null;
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+  }
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function identityKey(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\bcentre\b/g, "center")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  return normalized || null;
+}
+
+function firstTextIn(records: Array<RecordValue | null>, keys: string[]): string | null {
+  for (const record of records) {
+    if (!record) continue;
+    const value = firstText(record, keys);
+    if (value) return value;
+  }
+  return null;
+}
+
+function firstValueIn(records: Array<RecordValue | null>, keys: string[]): unknown {
+  for (const record of records) {
+    if (!record) continue;
+    for (const key of keys) {
+      if (record[key] !== undefined && record[key] !== null) return record[key];
+    }
+  }
+  return undefined;
+}
+
+/** Parse Takamol session rows while retaining only fields needed for safe SVP-slot matching. */
+export function parseTakamolRescheduleRows(
+  payload: unknown,
+  centers: TestCenterChoice[] = [],
+  fallbackCity: string | null = null,
+  fallbackDate: string | null = null,
+): TakamolRescheduleRow[] {
+  return parseSessions(payload).map((row, index) => {
+    const nestedSession = asRecord(row["session"]) ?? asRecord(row["slot_details"]);
+    const nestedCenter =
+      asRecord(row["test_center"]) ?? asRecord(row["site"]) ?? asRecord(row["center"]);
+    const records = [row, nestedSession ?? null, nestedCenter ?? null];
+    const centerId = firstTextIn(records, ["test_center_id", "center_id", "centerId"]);
+    const center = centers.find((entry) => entry.id === centerId);
+    const dateTime = firstTextIn(records, [
+      "start_at",
+      "startAt",
+      "startDateTime",
+      "start_at_in_tc_time_zone",
+      "start_date_in_tc_time_zone",
+      "start_date_in_browser_time_zone",
+    ]);
+    const date =
+      dateKey(
+        firstTextIn(records, ["exam_date", "test_date", "session_date", "date"]) ?? dateTime,
+      ) ?? fallbackDate;
+    const time =
+      firstTextIn(records, [
+        "exam_time",
+        "examTime",
+        "session_time",
+        "sessionTime",
+        "start_time",
+        "startTime",
+        "start_time_in_tc_time_zone",
+        "test_center_time",
+        "time",
+        "slot_time",
+        "slotTime",
+      ]) ?? (dateTime && /[T ]\d{1,2}:\d{2}/.test(dateTime) ? dateTime : null);
+    const rawStatus = firstTextIn(records, [
+      "availability_status",
+      "exam_slot_status",
+      "exam_slot",
+      "slot_status",
+      "availability",
+      "status",
+    ]);
+    const rawAvailable = firstValueIn(records, ["is_available", "isAvailable", "available"]);
+    const rawSeats = firstValueIn(records, [
+      "available_seats",
+      "availableSeats",
+      "seats_available",
+      "seatsAvailable",
+      "remaining_seats",
+      "remainingSeats",
+      "free_seats",
+      "seats",
+    ]);
+    const seats = numberValue(rawSeats);
+    const status = rawStatus?.trim() ?? null;
+    const explicitAvailable = typeof rawAvailable === "boolean" ? rawAvailable : null;
+    const unavailableStatus = Boolean(
+      status &&
+      /\b(full|closed|unavailable|not available|booked|cancelled|sold out)\b/i.test(status),
+    );
+    const available =
+      explicitAvailable ?? (unavailableStatus ? false : seats !== null ? seats > 0 : true);
+    const tableRow = parseSessionTableRows([row])[0];
+
+    return {
+      id:
+        firstTextIn(records, ["availability_id", "session_id", "exam_session_id", "id"]) ??
+        `${index}-${centerId ?? center?.id ?? "center"}`,
+      centerId,
+      svpSiteId: firstTextIn(records, ["svp_site_id", "prometric_site_id", "site_id"]),
+      svpSlotId: firstTextIn(records, ["svp_slot_id", "prometric_slot_id"]),
+      centerName:
+        firstTextIn(
+          [row],
+          ["center_name", "test_center_name", "site_name", "centerName", "testCenterName"],
+        ) ??
+        firstTextIn(
+          [nestedCenter ?? null],
+          ["center_name", "test_center_name", "site_name", "centerName", "testCenterName", "name"],
+        ) ??
+        firstTextIn([nestedSession ?? null], ["center_name", "test_center_name", "site_name"]) ??
+        center?.label ??
+        tableRow?.centerName ??
+        null,
+      city:
+        firstTextIn(records, ["city", "division", "raw_city"]) ?? center?.location ?? fallbackCity,
+      date,
+      time,
+      status,
+      seats,
+      language: tableRow?.language ?? null,
+      available,
+    };
+  });
+}
+
+/** Match Takamol availability to SVP slots by exact identity/date/time, never by row order. */
+export function mapTakamolRowsToSvpSlots(
+  rows: TakamolRescheduleRow[],
+  sites: Array<{ siteId: number; name: string | null; city: string | null }>,
+  slots: Array<{ id: string; siteId: number | null; startAt: string; duration: number }>,
+  selectedCity: string,
+  selectedDate: string,
+): TakamolSlotMapping[] {
+  const tentative = rows.map((row): TakamolSlotMapping => {
+    if (!row.available) return { row, slot: null, reason: "unavailable" };
+    if (row.date && row.date !== selectedDate) return { row, slot: null, reason: "date-mismatch" };
+
+    const city = identityKey(row.city ?? selectedCity);
+    const centerName = identityKey(row.centerName);
+    const normalizedTime = timeKey(row.time);
+    const explicitSiteId = numberValue(row.svpSiteId);
+    if (!row.svpSlotId && explicitSiteId === null && (!centerName || !normalizedTime)) {
+      return { row, slot: null, reason: "identity-missing" };
+    }
+
+    const matches = slots.filter((slot) => {
+      if (row.svpSlotId && slot.id !== row.svpSlotId) return false;
+      if (explicitSiteId !== null && slot.siteId !== explicitSiteId) return false;
+      if (dateKey(slot.startAt) !== selectedDate) return false;
+      if (normalizedTime && timeKey(slot.startAt) !== normalizedTime) return false;
+      const site = sites.find((candidate) => candidate.siteId === slot.siteId);
+      if (!site) return false;
+      const siteCity = identityKey(site.city ?? selectedCity);
+      if (city && siteCity && city !== siteCity) return false;
+      if (centerName && identityKey(site.name) !== centerName) return false;
+      if (!row.svpSlotId && explicitSiteId === null && !centerName) return false;
+      return true;
+    });
+
+    if (matches.length === 1) return { row, slot: matches[0] ?? null, reason: null };
+    return { row, slot: null, reason: matches.length > 1 ? "ambiguous" : "no-match" };
+  });
+
+  const selectedSlotCounts = new Map<string, number>();
+  for (const entry of tentative) {
+    if (entry.slot)
+      selectedSlotCounts.set(entry.slot.id, (selectedSlotCounts.get(entry.slot.id) ?? 0) + 1);
+  }
+  return tentative.map((entry) =>
+    entry.slot && (selectedSlotCounts.get(entry.slot.id) ?? 0) > 1
+      ? { row: entry.row, slot: null, reason: "ambiguous" }
+      : entry,
+  );
 }
 
 export function parseSessionTableRows(payload: unknown, fallbackCenterName?: string) {

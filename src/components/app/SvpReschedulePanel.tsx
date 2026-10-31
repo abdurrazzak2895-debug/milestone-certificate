@@ -20,11 +20,18 @@ import {
   listSvpPrometricSites,
   listSvpPrometricSlots,
   listSvpRescheduleDates,
-  listSvpTestCenterCities,
   rescheduleSvpBooking,
   rescheduleSvpSiteBooking,
 } from "@/lib/svp-booking.functions";
 import type { SvpAvailableDate, SvpExamSession, SvpPrometricSlot } from "@/lib/svp-api.shared";
+import { lookupTakamolAvailability } from "@/lib/takamol-availability.functions";
+import {
+  mapTakamolRowsToSvpSlots,
+  parseAvailableDates,
+  parseCities,
+  parseTakamolRescheduleRows,
+  parseTestCenters,
+} from "@/lib/takamol-availability.ui";
 
 const MANUAL_CITY_OPTION = "__manual_city__";
 
@@ -99,6 +106,7 @@ export function SvpReschedulePanel({
   const [city, setCity] = useState("");
   const [manualCityMode, setManualCityMode] = useState(false);
   const [manualCityName, setManualCityName] = useState("");
+  const [selectedCenterId, setSelectedCenterId] = useState("");
   const [languageCode, setLanguageCode] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()));
   const [selectedDate, setSelectedDate] = useState<SvpAvailableDate | null>(null);
@@ -166,30 +174,100 @@ export function SvpReschedulePanel({
   }, [city, dates]);
 
   const citiesQuery = useQuery({
-    queryKey: ["svp-cities", effectiveCountryId],
-    queryFn: () => listSvpTestCenterCities({ data: { countryId: effectiveCountryId } }),
-    enabled: !isTargeted && Boolean(detail),
-    retry: 1,
+    queryKey: ["takamol-reschedule-cities", effectiveCategoryId],
+    queryFn: () =>
+      lookupTakamolAvailability({
+        data: { endpoint: "cities", categoryId: String(effectiveCategoryId) },
+      }),
+    enabled: !isTargeted && effectiveCategoryId != null,
+    retry: false,
     refetchOnWindowFocus: false,
   });
-  const prometricCities = useMemo(
-    () => (citiesQuery.data?.ok ? citiesQuery.data.data : []),
+  const takamolCities = useMemo(
+    () => (citiesQuery.data?.success ? parseCities(citiesQuery.data.data) : []),
     [citiesQuery.data],
   );
   const cityListError =
-    citiesQuery.data && !citiesQuery.data.ok
+    citiesQuery.data && !citiesQuery.data.success
       ? citiesQuery.data.message
       : citiesQuery.isError
-        ? "The SVP city-list request failed."
-        : null;
-  const cityListNeedsSignIn = Boolean(
-    citiesQuery.data && !citiesQuery.data.ok && citiesQuery.data.needsSignIn,
-  );
-  const cityListEmpty = Boolean(citiesQuery.data?.ok && prometricCities.length === 0);
+        ? "The Takamol city lookup failed."
+        : effectiveCategoryId == null
+          ? "A category is required to load Takamol cities."
+          : null;
+  const cityListEmpty = Boolean(citiesQuery.data?.success && takamolCities.length === 0);
   const cityFallbackOnly = Boolean(
     detail?.city && !citiesQuery.isFetching && (cityListError || cityListEmpty),
   );
 
+  const centersQuery = useQuery({
+    queryKey: ["takamol-reschedule-centers", city],
+    queryFn: () => lookupTakamolAvailability({ data: { endpoint: "centers", city } }),
+    enabled: !isTargeted && Boolean(city),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const takamolCenters = useMemo(
+    () => (centersQuery.data?.success ? parseTestCenters(centersQuery.data.data) : []),
+    [centersQuery.data],
+  );
+
+  const takamolDatesQuery = useQuery({
+    queryKey: ["takamol-reschedule-dates", effectiveCategoryId, city],
+    queryFn: () =>
+      lookupTakamolAvailability({
+        data: {
+          endpoint: "dates",
+          categoryId: String(effectiveCategoryId),
+          city,
+        },
+      }),
+    enabled: !isTargeted && effectiveCategoryId != null && Boolean(city),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const takamolDates = useMemo(
+    () => (takamolDatesQuery.data?.success ? parseAvailableDates(takamolDatesQuery.data.data) : []),
+    [takamolDatesQuery.data],
+  );
+
+  const takamolSessionsQuery = useQuery({
+    queryKey: [
+      "takamol-reschedule-sessions",
+      effectiveCategoryId,
+      city,
+      prometricDate,
+      selectedCenterId,
+    ],
+    queryFn: () =>
+      lookupTakamolAvailability({
+        data: {
+          endpoint: "sessions",
+          categoryId: String(effectiveCategoryId),
+          city,
+          examDate: prometricDate as string,
+          ...(selectedCenterId ? { testCenterId: selectedCenterId } : {}),
+        },
+      }),
+    enabled: !isTargeted && effectiveCategoryId != null && Boolean(city) && Boolean(prometricDate),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const takamolSessionRows = useMemo(
+    () =>
+      takamolSessionsQuery.data?.success
+        ? parseTakamolRescheduleRows(
+            takamolSessionsQuery.data.data,
+            takamolCenters,
+            city,
+            prometricDate,
+          )
+        : [],
+    [city, prometricDate, takamolCenters, takamolSessionsQuery.data],
+  );
+
+  // Takamol supplies city/center/date/session availability. SVP site and slot calls below are
+  // used only to resolve the identifiers required by the actual reschedule mutation.
   const sitesQuery = useQuery({
     queryKey: ["svp-reschedule-sites", activeLanguage, city, effectiveCountryId, selectedMonth],
     queryFn: () =>
@@ -213,15 +291,13 @@ export function SvpReschedulePanel({
   const siteDateOptions = useMemo(() => {
     const map = new Map<string, { date: string; city: string | null }>();
     const today = new Date().toISOString().slice(0, 10);
-    for (const site of prometricSites) {
-      for (const date of site.dates) {
-        if (date.slice(0, 7) !== selectedMonth) continue;
-        if (selectedMonth === today.slice(0, 7) && date < today) continue;
-        if (!map.has(date)) map.set(date, { date, city: site.city });
-      }
+    for (const date of takamolDates) {
+      if (date.slice(0, 7) !== selectedMonth) continue;
+      if (selectedMonth === today.slice(0, 7) && date < today) continue;
+      if (!map.has(date)) map.set(date, { date, city });
     }
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
-  }, [prometricSites, selectedMonth]);
+  }, [city, selectedMonth, takamolDates]);
   const siteIdsForDate = prometricSites
     .filter((site) => prometricDate && site.dates.includes(prometricDate))
     .map((site) => site.siteId);
@@ -244,7 +320,23 @@ export function SvpReschedulePanel({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const prometricSlots = slotsQuery.data?.ok ? slotsQuery.data.data : [];
+  const prometricSlots = useMemo(
+    () => (slotsQuery.data?.ok ? slotsQuery.data.data : []),
+    [slotsQuery.data],
+  );
+  const takamolSlotMappings = useMemo(
+    () =>
+      prometricDate
+        ? mapTakamolRowsToSvpSlots(
+            takamolSessionRows,
+            prometricSites,
+            prometricSlots,
+            city,
+            prometricDate,
+          )
+        : [],
+    [city, prometricDate, prometricSites, prometricSlots, takamolSessionRows],
+  );
 
   const sessionDate = selectedDate ? splitDateTime(selectedDate.startAt).date : "";
   const sessionCity = selectedDate?.city ?? city;
@@ -318,6 +410,7 @@ export function SvpReschedulePanel({
 
   const selectCity = (value: string) => {
     resetSelection();
+    setSelectedCenterId("");
     if (value === MANUAL_CITY_OPTION) {
       setCity("");
       setManualCityName("");
@@ -333,6 +426,7 @@ export function SvpReschedulePanel({
     const nextCity = manualCityName.trim().replace(/\s+/g, " ");
     if (!nextCity) return;
     resetSelection();
+    setSelectedCenterId("");
     setCity(nextCity);
     setManualCityMode(false);
   };
@@ -454,7 +548,7 @@ export function SvpReschedulePanel({
       ]
     : [
         ...new Set([
-          ...prometricCities.map((entry) => entry.city),
+          ...takamolCities,
           ...(detail?.city ? [detail.city] : []),
           ...(city ? [city] : []),
         ]),
@@ -470,19 +564,34 @@ export function SvpReschedulePanel({
       ? splitDateTime(selectedDate.startAt).date
       : ""
     : (prometricDate ?? "");
-  const datesLoading = isTargeted ? datesQuery.isFetching : sitesQuery.isFetching;
+  const datesLoading = isTargeted ? datesQuery.isFetching : takamolDatesQuery.isFetching;
   const datesError = isTargeted
     ? datesQuery.data && !datesQuery.data.ok
       ? datesQuery.data.message
       : datesQuery.isError
         ? "Reschedule dates could not be loaded. Try again."
         : null
-    : sitesQuery.data && !sitesQuery.data.ok
+    : takamolDatesQuery.data && !takamolDatesQuery.data.success
+      ? takamolDatesQuery.data.message
+      : takamolDatesQuery.isError
+        ? "Takamol reschedule dates could not be loaded. Try again."
+        : null;
+  const datesLoaded = isTargeted
+    ? Boolean(datesQuery.data?.ok)
+    : Boolean(takamolDatesQuery.data?.success);
+  const siteMappingError = !isTargeted
+    ? sitesQuery.data && !sitesQuery.data.ok
       ? sitesQuery.data.message
       : sitesQuery.isError
-        ? "Test center dates could not be loaded. Try again."
-        : null;
-  const datesLoaded = isTargeted ? Boolean(datesQuery.data?.ok) : Boolean(sitesQuery.data?.ok);
+        ? "SVP site identifiers could not be loaded. Try again."
+        : sitesQuery.data?.ok && (!prometricExamId || siteIdsForDate.length === 0) && prometricDate
+          ? "Takamol reported this date, but SVP returned no matching site IDs. No slot can be safely selected."
+          : slotsQuery.data && !slotsQuery.data.ok
+            ? slotsQuery.data.message
+            : slotsQuery.isError
+              ? "SVP slot identifiers could not be loaded. Try again."
+              : null
+    : null;
   const sessionViews = isTargeted
     ? sessions.map((entry) => ({
         key: `s-${entry.id}`,
@@ -496,33 +605,42 @@ export function SvpReschedulePanel({
           setSelectedSlot(null);
         },
       }))
-    : prometricSlots.map((slot) => {
-        const site = prometricSites.find((entry) => entry.siteId === slot.siteId) ?? null;
-        return {
-          key: `p-${slot.id}`,
-          startAt: slot.startAt,
-          center: site?.name ?? site?.city ?? city,
-          seats: null as number | null,
-          duration: slot.duration,
-          selected: selectedSlot?.id === slot.id,
-          onSelect: () => chooseSlot(slot),
-        };
+    : takamolSlotMappings.flatMap(({ row, slot }) => {
+        if (!slot) return [];
+        return [
+          {
+            key: `tak-${row.id}-${slot.id}`,
+            startAt: slot.startAt,
+            center: row.centerName ?? city,
+            seats: row.seats,
+            duration: slot.duration,
+            selected: selectedSlot?.id === slot.id,
+            onSelect: () => chooseSlot(slot),
+          },
+        ];
       });
-  const sessionsLoading = isTargeted ? sessionsQuery.isFetching : slotsQuery.isFetching;
+  const sessionsLoading = isTargeted
+    ? sessionsQuery.isFetching
+    : takamolSessionsQuery.isFetching || sitesQuery.isFetching || slotsQuery.isFetching;
   const sessionsError = isTargeted
     ? sessionsQuery.data && !sessionsQuery.data.ok
       ? sessionsQuery.data.message
       : sessionsQuery.isError
         ? "Sessions could not be loaded. Try again."
         : null
-    : slotsQuery.data && !slotsQuery.data.ok
-      ? slotsQuery.data.message
-      : slotsQuery.isError
-        ? "Slots could not be loaded. Try again."
-        : null;
+    : takamolSessionsQuery.data && !takamolSessionsQuery.data.success
+      ? takamolSessionsQuery.data.message
+      : takamolSessionsQuery.isError
+        ? "Takamol availability could not be loaded. Try again."
+        : siteMappingError;
   const sessionsLoaded = isTargeted
     ? Boolean(sessionsQuery.data?.ok)
-    : Boolean(slotsQuery.data?.ok);
+    : Boolean(takamolSessionsQuery.data?.success && sitesQuery.data?.ok && slotsQuery.data?.ok);
+  const siteMappingNeedsSignIn = Boolean(
+    (sitesQuery.data && !sitesQuery.data.ok && sitesQuery.data.needsSignIn) ||
+    (slotsQuery.data && !slotsQuery.data.ok && slotsQuery.data.needsSignIn),
+  );
+  const unmatchedTakamolRows = takamolSlotMappings.filter((entry) => !entry.slot).length;
 
   return (
     <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
@@ -585,6 +703,27 @@ export function SvpReschedulePanel({
           </NativeSelect>
         </Field>
         {!isTargeted && (
+          <Field label="Test center (Takamol)">
+            <NativeSelect
+              value={selectedCenterId}
+              onChange={(event) => {
+                setSelectedCenterId(event.target.value);
+                setSelectedSlot(null);
+                setSelectedSession(null);
+              }}
+              disabled={!city || centersQuery.isFetching}
+            >
+              <option value="">All available centers</option>
+              {takamolCenters.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label}
+                  {entry.location ? ` · ${entry.location}` : ""}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        )}
+        {!isTargeted && (
           <Field label="Month to check">
             <NativeSelect
               value={selectedMonth}
@@ -611,7 +750,7 @@ export function SvpReschedulePanel({
             <Input
               value={manualCityName}
               onChange={(event) => setManualCityName(event.target.value)}
-              placeholder="Enter a city name recognized by SVP"
+              placeholder="Enter a city name recognized by Takamol"
               autoComplete="address-level2"
               maxLength={100}
             />
@@ -625,36 +764,29 @@ export function SvpReschedulePanel({
             Check this city
           </Button>
           <p className="text-xs text-muted-foreground sm:col-span-2">
-            The city name will be sent directly to SVP site availability. Dates and test centers
-            only appear if SVP recognizes that city and has available slots.
+            The city name will be checked with Takamol for cities, centers, dates, and sessions. A
+            slot can be selected only when its availability row matches one unique SVP slot ID.
           </p>
         </div>
       )}
 
       {!isTargeted && detail && citiesQuery.isFetching && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-          <LoaderCircle className="h-4 w-4 animate-spin" /> Loading cities from SVP…
+          <LoaderCircle className="h-4 w-4 animate-spin" /> Loading cities from Takamol…
         </p>
       )}
       {!isTargeted && detail && !citiesQuery.isFetching && cityListError && (
         <div role="alert" className="space-y-2 rounded-lg border border-destructive/30 p-3">
           <p className="text-sm text-destructive">
-            {cityListNeedsSignIn
-              ? `SVP authorization is required to load other cities: ${cityListError}`
-              : `Could not load cities from SVP: ${cityListError}`}
+            Could not load cities from Takamol: {cityListError}
           </p>
           {cityFallbackOnly && (
             <p className="text-sm text-muted-foreground">
               The current booking city, {detail.city}, is available as a fallback option. Select it
               manually if you want to check it; it will not be selected automatically. To try
-              another city, choose “Enter another city manually”; SVP must recognize that city and
-              return available sites.
+              another city, choose “Enter another city manually”; Takamol must recognize that city
+              and return availability.
             </p>
-          )}
-          {cityListNeedsSignIn && onReconnect && (
-            <Button type="button" variant="outline" size="sm" onClick={onReconnect}>
-              Reconnect to SVP
-            </Button>
           )}
           <Button
             type="button"
@@ -671,10 +803,10 @@ export function SvpReschedulePanel({
           role="status"
           className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
         >
-          SVP returned no test-center cities for this country. The current booking city
+          Takamol returned no cities for this category. The current booking city
           {detail.city ? ` (${detail.city})` : ""} is available as a fallback option. Select it
           manually if you want to check it. To try another city, choose “Enter another city
-          manually”; SVP must recognize the city and return available sites.
+          manually”; Takamol must recognize the city and return availability.
           <div className="mt-2">
             <Button
               type="button"
@@ -686,6 +818,27 @@ export function SvpReschedulePanel({
             </Button>
           </div>
         </div>
+      )}
+
+      {!isTargeted && city && centersQuery.isFetching && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <LoaderCircle className="h-4 w-4 animate-spin" /> Loading test centers from Takamol…
+        </p>
+      )}
+      {!isTargeted &&
+        city &&
+        ((centersQuery.data && !centersQuery.data.success) || centersQuery.isError) && (
+          <p role="status" className="text-xs text-amber-800">
+            Takamol centers could not be loaded: {centersQuery.data?.message ?? "request failed"}.
+            Availability rows will only be selectable when their center can be matched exactly to an
+            SVP site.
+          </p>
+        )}
+      {!isTargeted && city && centersQuery.data?.success && takamolCenters.length === 0 && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Takamol returned no center catalogue entries for this city; only availability rows with a
+          center identity that matches an SVP site can be selected.
+        </p>
       )}
 
       {isTargeted && effectiveCategoryId == null && (
@@ -718,7 +871,7 @@ export function SvpReschedulePanel({
         <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
           {isTargeted
             ? "No reschedule dates are available. Choose another city or use the official portal."
-            : `No test center sites have free dates in ${selectedMonthLabel} for this city.`}
+            : `Takamol returned no reschedule dates in ${selectedMonthLabel} for this city.`}
         </p>
       )}
 
@@ -753,10 +906,28 @@ export function SvpReschedulePanel({
             </p>
           )}
           {sessionsError && (
-            <p role="alert" className="text-sm text-destructive">
-              {sessionsError}
-            </p>
+            <div role="alert" className="space-y-2">
+              <p className="text-sm text-destructive">{sessionsError}</p>
+              {siteMappingNeedsSignIn && onReconnect && (
+                <Button type="button" variant="outline" size="sm" onClick={onReconnect}>
+                  Reconnect to SVP
+                </Button>
+              )}
+            </div>
           )}
+          {!isTargeted &&
+            !sessionsLoading &&
+            takamolSessionRows.length > 0 &&
+            unmatchedTakamolRows > 0 && (
+              <p
+                role="status"
+                className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+              >
+                {takamolSlotMappings.some((entry) => entry.slot)
+                  ? `${unmatchedTakamolRows} Takamol availability row(s) could not be matched uniquely to an SVP slot. They are not selectable.`
+                  : "Takamol returned availability, but no row could be matched uniquely to an SVP slot. Nothing is selectable to prevent rescheduling the wrong appointment."}
+              </p>
+            )}
           {!sessionsLoading && sessionsLoaded && sessionViews.length === 0 && (
             <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
               {isTargeted
