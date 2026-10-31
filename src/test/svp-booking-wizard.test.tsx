@@ -92,6 +92,17 @@ vi.mock("@/components/app/SvpLoginPanel", () => ({
   SvpLoginPanel: () => <div>SVPLOGINPANEL</div>,
 }));
 
+vi.mock("@/components/app/SvpReschedulePanel", () => ({
+  SvpReschedulePanel: ({ onCancel }: { onCancel: () => void }) => (
+    <div>
+      RESCHEDULEPANEL
+      <button type="button" onClick={onCancel}>
+        Close reschedule
+      </button>
+    </div>
+  ),
+}));
+
 const occupation = {
   id: 11,
   name: "Welder",
@@ -1248,6 +1259,53 @@ describe("Takamol availability selection", () => {
     expect(screen.getByText("Bengali")).toBeInTheDocument();
     expect(screen.getByText(/Takamol lists Bengali for this date/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Selected" })).toBeInTheDocument();
+  });
+});
+
+describe("booking and reschedule mode separation", () => {
+  it("hides the booking stepper while rescheduling and returns to a clean Step 1 afterwards", async () => {
+    mocks.reservations.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: "987",
+          status: "reserved",
+          laborName: "Noor Rahman",
+          occupationName: "Welder",
+          occupationEnglishName: "Welder",
+          city: "Dhaka",
+          centerName: "Dhaka Center",
+          startAt: "2026-11-05 09:30:00",
+          methodology: null,
+          canBeRescheduled: true,
+        },
+      ],
+    });
+
+    renderWizard();
+    await screen.findByText(/Signed in to SVP as Noor Rahman/);
+    fireEvent.focus(await screen.findByLabelText("Occupation *"));
+    fireEvent.click(await screen.findByRole("button", { name: /Welder/ }));
+    pickLanguage();
+    fireEvent.change(await screen.findByLabelText("Test center city"), {
+      target: { value: "Dhaka" },
+    });
+    await clickContinue();
+    await screen.findByText(/Step 2/);
+    expect(screen.getByText("Occupation & center")).toBeInTheDocument();
+
+    // Open a reschedule from the account bookings list mid-booking.
+    fireEvent.click(await screen.findByRole("button", { name: /Reschedule/ }));
+    expect(await screen.findByText("RESCHEDULEPANEL")).toBeInTheDocument();
+    // The new-booking stepper and Step 2 stay hidden while rescheduling.
+    expect(screen.queryByText("Occupation & center")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Step 2/)).not.toBeInTheDocument();
+
+    // Closing the reschedule returns to a clean Step 1, not the stale Step 2.
+    fireEvent.click(screen.getByRole("button", { name: "Close reschedule" }));
+    expect(await screen.findByText(/Step 1/)).toBeInTheDocument();
+    expect(screen.queryByText(/Step 2/)).not.toBeInTheDocument();
+    expect(screen.queryByText("RESCHEDULEPANEL")).not.toBeInTheDocument();
   });
 });
 

@@ -1104,6 +1104,15 @@ export function SvpBookingWizard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const openReschedule = (id: string) => {
+    // Leave any half-finished new-booking flow behind: rescheduling and a new
+    // booking must never share stale selections, so cancelling the reschedule
+    // returns to a clean Step 1 instead of a mid-booking state.
+    resetFlow();
+    setRescheduleId(id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const resetFlow = () => {
     paymentWindowRef.current?.close();
     paymentWindowRef.current = null;
@@ -1949,7 +1958,7 @@ export function SvpBookingWizard() {
         </div>
       </section>
 
-      <BookingStepper stage={stage} />
+      {!rescheduleId && <BookingStepper stage={stage} />}
 
       {rescheduleId && (
         <SvpReschedulePanel
@@ -2980,7 +2989,7 @@ export function SvpBookingWizard() {
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() => setRescheduleId(entry.id)}
+                          onClick={() => openReschedule(entry.id)}
                         >
                           <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reschedule
                         </Button>
