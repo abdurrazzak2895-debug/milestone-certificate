@@ -556,8 +556,9 @@ export function SvpBookingWizard() {
       : "";
 
   const citiesQuery = useQuery({
-    queryKey: ["svp-cities"],
-    queryFn: () => listSvpTestCenterCities(),
+    queryKey: ["svp-cities", setup?.permissions.countryId ?? null],
+    queryFn: () =>
+      listSvpTestCenterCities({ data: { countryId: setup?.permissions.countryId ?? null } }),
     enabled: signedIn && overview !== null && !isTargeted && occupationId !== null,
     retry: false,
     refetchOnWindowFocus: false,

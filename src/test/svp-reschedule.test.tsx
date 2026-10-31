@@ -170,7 +170,7 @@ describe("SVP site-based reschedule", () => {
         "Rajshahi",
       ]),
     );
-    expect(mocks.cities).toHaveBeenCalled();
+    expect(mocks.cities).toHaveBeenCalledWith({ data: { countryId: 4 } });
   });
 
   it("surfaces a failed city-list request instead of silently showing only the current city", async () => {

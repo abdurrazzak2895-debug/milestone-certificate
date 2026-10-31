@@ -368,13 +368,22 @@ export const searchSvpOccupations = createServerFn({ method: "POST" })
 /** Test-center cities for the signed-in labor's country. */
 export const listSvpTestCenterCities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<SvpResult<SvpCity[]>> => {
+  .inputValidator((input: unknown) =>
+    z.object({ countryId: z.number().int().positive().nullable().optional() }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<SvpResult<SvpCity[]>> => {
     await requireSvpAllowedRole(context.supabase, context.userId);
     try {
       const response = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/test_centers/cities",
-        { query: { ...LOCALE_QUERY, per_page: 1000 } },
+        {
+          query: {
+            ...LOCALE_QUERY,
+            per_page: 10000,
+            ...(data.countryId ? { country_id: data.countryId } : {}),
+          },
+        },
       );
       if (!response.ok) {
         return failure(

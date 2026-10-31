@@ -160,7 +160,7 @@ export function SvpReschedulePanel({
 
   const citiesQuery = useQuery({
     queryKey: ["svp-cities", effectiveCountryId],
-    queryFn: () => listSvpTestCenterCities(),
+    queryFn: () => listSvpTestCenterCities({ data: { countryId: effectiveCountryId } }),
     enabled: !isTargeted && Boolean(detail),
     retry: 1,
     refetchOnWindowFocus: false,
