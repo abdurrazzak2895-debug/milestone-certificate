@@ -202,6 +202,23 @@ function number(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * SVP mixes date formats across endpoints: most are ISO (2026-12-01…), but some
+ * prometric payloads use dd/mm/yyyy, exactly like the temporary-seat `expired_at`
+ * documented as `dd/mm/yyyy HH:MM`. Normalize both to ISO so month filters, slot
+ * matching, and displays never silently break on the slash format.
+ */
+export function normalizeSvpDate(value: string): string {
+  const trimmed = value.trim();
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)$/.exec(trimmed);
+  if (slash) {
+    const day = (slash[1] ?? "").padStart(2, "0");
+    const month = (slash[2] ?? "").padStart(2, "0");
+    return `${slash[3]}-${month}-${day}${slash[4] ?? ""}`;
+  }
+  return trimmed;
+}
+
 /** Find a list under the root or a `data` envelope. */
 function pickList(payload: unknown, keys: string[]): unknown[] {
   if (Array.isArray(payload)) return payload;
@@ -420,12 +437,13 @@ export function parseSvpAvailableDates(payload: unknown): SvpAvailableDate[] {
       text(record["start_date_in_browser_time_zone"]) ??
       text(record["start_at"]);
     if (!startAt) continue;
+    const normalizedStartAt = normalizeSvpDate(startAt);
     const center = asRecord(record["test_center"]);
-    const key = `${startAt}|${text(center?.["city"]) ?? ""}`;
+    const key = `${normalizedStartAt}|${text(center?.["city"]) ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
     dates.push({
-      startAt,
+      startAt: normalizedStartAt,
       city: text(center?.["city"]) ?? text(record["city"]),
       centerName: text(center?.["name"]) ?? text(record?.["test_center_name"]),
       seats: number(record["available_seats"]) ?? number(record["seats"]),
@@ -442,16 +460,20 @@ export function parseSvpExamSessions(payload: unknown): SvpExamSession[] {
       if (!record || idValue === undefined || idValue === null) return null;
       const id = typeof idValue === "number" ? idValue : String(idValue);
       const center = asRecord(record["test_center"]);
+      const rawStartAt =
+        text(record["startDateTime"]) ??
+        text(record["start_at_in_tc_time_zone"]) ??
+        text(record["start_at"]) ??
+        text(record["start_date_in_tc_time_zone"]) ??
+        text(record["start_date_in_browser_time_zone"]) ??
+        "";
       return {
         id,
-        startAt:
-          text(record["startDateTime"]) ??
-          text(record["start_at_in_tc_time_zone"]) ??
-          text(record["start_at"]) ??
-          text(record["start_date_in_tc_time_zone"]) ??
-          text(record["start_date_in_browser_time_zone"]) ??
-          "",
-        endAt: text(record["end_at_in_tc_time_zone"]) ?? text(record["end_at"]),
+        startAt: rawStartAt ? normalizeSvpDate(rawStartAt) : "",
+        endAt: (() => {
+          const rawEndAt = text(record["end_at_in_tc_time_zone"]) ?? text(record["end_at"]);
+          return rawEndAt ? normalizeSvpDate(rawEndAt) : null;
+        })(),
         duration: number(record["duration"]) ?? 0,
         availableSeats: number(record["available_seats"]),
         city: text(center?.["city"]) ?? text(record["city"]),
@@ -834,9 +856,10 @@ export function parseSvpPrometricSites(payload: unknown): SvpPrometricSiteList {
     const address = asRecord(center?.["address"]);
     const dates = asArray(record["available_dates"])
       .map((value) => {
-        if (typeof value === "string") return value.slice(0, 10);
+        if (typeof value === "string") return normalizeSvpDate(value).slice(0, 10);
         const item = asRecord(value);
-        return (text(item?.["date"]) ?? text(item?.["start_at"]) ?? "").slice(0, 10);
+        const raw = text(item?.["date"]) ?? text(item?.["start_at"]) ?? "";
+        return raw ? normalizeSvpDate(raw).slice(0, 10) : "";
       })
       .filter((value) => Boolean(value));
     sites.push({
@@ -882,15 +905,15 @@ export function parseSvpPrometricSlots(payload: unknown): SvpPrometricSlot[] {
     for (const value of asArray(group["slots"])) {
       const slot = asRecord(value);
       const id = slot?.["id"];
-      const startAt =
+      const rawStartAt =
         text(slot?.["startDateTime"]) ??
         text(slot?.["start_at"]) ??
         text(slot?.["start_at_in_tc_time_zone"]);
-      if (!slot || id === undefined || id === null || !startAt) continue;
+      if (!slot || id === undefined || id === null || !rawStartAt) continue;
       slots.push({
         id: String(id),
         siteId: number(slot["site_id"]) ?? siteId,
-        startAt,
+        startAt: normalizeSvpDate(rawStartAt),
         duration: number(slot["duration"]) ?? 0,
       });
     }

@@ -933,6 +933,23 @@ export function SvpReschedulePanel({
             </p>
           )}
           {!takamolSessionsQuery.isFetching &&
+            takamolSessionsQuery.data &&
+            !takamolSessionsQuery.data.success && (
+              <div role="status" className="space-y-2">
+                <p className="text-xs text-amber-800">
+                  Takamol availability could not be loaded: {takamolSessionsQuery.data.message}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void takamolSessionsQuery.refetch()}
+                >
+                  Retry availability
+                </Button>
+              </div>
+            )}
+          {!takamolSessionsQuery.isFetching &&
             takamolSessionsQuery.data?.success &&
             availableTakamolCenters.length === 0 && (
               <p className="text-sm text-muted-foreground">

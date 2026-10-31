@@ -523,6 +523,55 @@ describe("SVP site-based booking parsers", () => {
       ]),
     ).toEqual([{ id: "slot-1", siteId: 9, startAt: "2026-12-01T10:00:00", duration: 30 }]);
   });
+
+  it("normalizes dd/mm/yyyy prometric dates so month filters and slot matching still work", () => {
+    expect(
+      parseSvpPrometricSites({
+        data: {
+          exam_id: "555",
+          sites: [
+            {
+              site_id: 9,
+              test_center: { name: "Site A", address: { locality: "Dhaka" } },
+              available_dates: ["01/12/2026", { date: "05/12/2026" }, "2026-12-09"],
+            },
+          ],
+        },
+      }).sites[0]?.dates,
+    ).toEqual(["2026-12-01", "2026-12-05", "2026-12-09"]);
+    expect(
+      parseSvpPrometricSlots([
+        {
+          site_id: 9,
+          slots: [
+            { id: "slot-1", startDateTime: "01/12/2026 10:00", duration: 30 },
+            { id: "slot-2", start_at: "2026-12-01T14:00:00", duration: 30 },
+          ],
+        },
+      ]),
+    ).toEqual([
+      { id: "slot-1", siteId: 9, startAt: "2026-12-01 10:00", duration: 30 },
+      { id: "slot-2", siteId: 9, startAt: "2026-12-01T14:00:00", duration: 30 },
+    ]);
+    expect(
+      parseSvpAvailableDates({
+        available_dates: [
+          { start_at_in_tc_time_zone: "01/12/2026 09:30:00", test_center: { city: "Dhaka" } },
+        ],
+      })[0]?.startAt,
+    ).toBe("2026-12-01 09:30:00");
+    expect(
+      parseSvpExamSessions({
+        exam_sessions: [
+          {
+            id: 777,
+            start_at_in_tc_time_zone: "01/12/2026 11:00:00",
+            test_center: { city: "Dhaka", name: "Dhaka Center" },
+          },
+        ],
+      })[0]?.startAt,
+    ).toBe("2026-12-01 11:00:00");
+  });
 });
 
 describe("SVP targeted load-balancer sessions", () => {
