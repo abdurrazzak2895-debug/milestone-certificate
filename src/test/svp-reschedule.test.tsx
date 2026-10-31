@@ -196,63 +196,52 @@ describe("SVP reschedule panel", () => {
 });
 
 describe("SVP site-based reschedule", () => {
-  it("shows Takamol available test centers automatically after the user clicks a date", async () => {
-    mocks.takamol.mockImplementation(({ data }: { data: { endpoint: string; city?: string } }) =>
-      Promise.resolve(
-        data.endpoint === "cities"
-          ? { success: true, data: { cities: ["Dhaka", "Rajshahi"] } }
-          : data.endpoint === "centers"
-            ? {
-                success: true,
-                data: { centers: [{ id: "c1", name: "Rajshahi TTC", city: data.city }] },
-              }
-            : data.endpoint === "sessions"
-              ? {
-                  success: true,
-                  data: {
-                    sessions: [
-                      {
-                        id: "rajshahi-row",
-                        test_center_id: "c1",
-                        city: "Rajshahi",
-                        exam_date: "2026-12-01",
-                        exam_time: "10:00 AM",
-                        status: "Available",
-                        available_seats: 3,
-                      },
-                    ],
-                  },
-                }
-              : takamolResponse(data),
-      ),
-    );
+  it("uses SVP site dates and auto-selects a real slot even when Takamol rows do not match", async () => {
+    mocks.sites.mockResolvedValue({
+      ok: true,
+      data: {
+        examId: "555",
+        sites: [
+          {
+            siteId: 9,
+            name: "Site A",
+            city: "Dhaka",
+            address: "1 Test Road",
+            dates: ["2026-12-01"],
+          },
+        ],
+      },
+    });
+    mocks.slots.mockResolvedValue({
+      ok: true,
+      data: [{ id: "real-svp-slot", siteId: 9, startAt: "2026-12-01T11:30:00", duration: 30 }],
+    });
     renderPanel({ isTargeted: false });
 
     const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
-    await waitFor(() =>
-      expect(Array.from(citySelect.options).map((option) => option.value)).toEqual([
-        "",
-        "Dhaka",
-        "Rajshahi",
-        "__manual_city__",
-      ]),
-    );
     expect(citySelect).toHaveValue("");
     expect(mocks.takamol).toHaveBeenCalledWith({ data: { endpoint: "cities", categoryId: "159" } });
-    fireEvent.change(citySelect, { target: { value: "Rajshahi" } });
-    expect(screen.queryByText(/Available test centers/)).not.toBeInTheDocument();
-    expect(mocks.takamol).toHaveBeenCalledWith({
-      data: { endpoint: "centers", city: "Rajshahi" },
-    });
+    fireEvent.change(citySelect, { target: { value: "Dhaka" } });
     fireEvent.change(await screen.findByLabelText("Month to check"), {
       target: { value: "2026-12" },
     });
+    await waitFor(() =>
+      expect(mocks.sites).toHaveBeenLastCalledWith({
+        data: {
+          prometricCode: "en",
+          city: "Dhaka",
+          countryId: 4,
+          month: "2026-12",
+        },
+      }),
+    );
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
 
-    const rajshahiCenter = await screen.findByRole("button", { name: "Show only Rajshahi TTC" });
-    expect(rajshahiCenter).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(rajshahiCenter);
-    expect(rajshahiCenter).toHaveAttribute("aria-pressed", "true");
+    const realSlot = await screen.findByRole("button", { name: /11:30/ });
+    expect(realSlot).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Confirm reschedule" })).toBeEnabled();
+    expect(screen.queryByText(/no matching site IDs/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no row could be matched uniquely/i)).not.toBeInTheDocument();
   });
 
   it("surfaces a failed city-list request instead of silently showing only the current city", async () => {
@@ -332,11 +321,6 @@ describe("SVP site-based reschedule", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Check this city" }));
 
     await waitFor(() => expect(citySelect).toHaveValue("Chattogram"));
-    await waitFor(() =>
-      expect(mocks.takamol).toHaveBeenCalledWith({
-        data: { endpoint: "dates", categoryId: "159", city: "Chattogram" },
-      }),
-    );
     expect(mocks.takamol).toHaveBeenCalledWith({
       data: { endpoint: "centers", city: "Chattogram" },
     });
@@ -374,9 +358,10 @@ describe("SVP site-based reschedule", () => {
       }),
     );
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Show only Site A" }));
-    fireEvent.click(await screen.findByRole("button", { name: /10:00/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
+    expect(await screen.findByRole("button", { name: /10:00/ })).toBeEnabled();
+    const confirmButton = screen.getByRole("button", { name: "Confirm reschedule" });
+    await waitFor(() => expect(confirmButton).toBeEnabled());
+    fireEvent.click(confirmButton);
 
     await waitFor(() =>
       expect(mocks.siteReschedule).toHaveBeenCalledWith({
@@ -397,7 +382,7 @@ describe("SVP site-based reschedule", () => {
     expect(await screen.findByText("Appointment rescheduled")).toBeInTheDocument();
   });
 
-  it("selects the matching SVP slot when Takamol rows and SVP slots arrive in different orders", async () => {
+  it("submits the selected SVP slot ID even when Takamol rows arrive in a different order", async () => {
     mocks.takamol.mockImplementation(({ data }: { data: { endpoint: string; city?: string } }) => {
       if (data.endpoint === "cities") {
         return Promise.resolve({ success: true, data: { cities: ["Dhaka"] } });
@@ -468,7 +453,6 @@ describe("SVP site-based reschedule", () => {
       target: { value: "2026-12" },
     });
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Show only Site B" }));
     fireEvent.click(await screen.findByRole("button", { name: /11:00/ }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
 
