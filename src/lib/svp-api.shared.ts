@@ -333,19 +333,55 @@ export function parseSvpOccupations(payload: unknown): SvpOccupation[] {
 export function parseSvpCities(payload: unknown): SvpCity[] {
   const seen = new Set<string>();
   const cities: SvpCity[] = [];
-  for (const entry of pickList(payload, ["cities", "test_center_cities"])) {
+  for (const entry of pickList(payload, [
+    "cities",
+    "test_center_cities",
+    "testCenterCities",
+    "available_cities",
+    "availableCities",
+    "results",
+    "items",
+  ])) {
     const record = asRecord(entry);
-    if (!record) continue;
-    const city = text(record["city"]) ?? text(record["name"]);
+    const city =
+      (typeof entry === "string" ? text(entry) : null) ??
+      text(record?.["city"]) ??
+      text(record?.["city_name"]) ??
+      text(record?.["cityName"]) ??
+      text(record?.["city_name_en"]) ??
+      text(record?.["city_en"]) ??
+      text(record?.["test_center_city"]) ??
+      text(record?.["name"]) ??
+      text(record?.["english_name"]);
     if (!city || seen.has(city.toLowerCase())) continue;
     seen.add(city.toLowerCase());
-    const country = asRecord(record["country"]);
+    const country = asRecord(record?.["country"]);
     cities.push({
       city,
-      countryId: number(record["country_id"]) ?? number(country?.["id"]),
+      countryId: number(record?.["country_id"]) ?? number(country?.["id"]),
     });
   }
   return cities.sort((a, b) => a.city.localeCompare(b.city));
+}
+
+/** Build the SVP site-availability date range for the current month or next 11 months. */
+export function getSvpMonthDateRange(
+  month: string,
+  now = new Date(),
+): { startDate: string; endDate: string } | null {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const currentMonthIndex = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  const selectedMonthIndex = year * 12 + monthIndex;
+  const offset = selectedMonthIndex - currentMonthIndex;
+  if (offset < 0 || offset > 11) return null;
+
+  const startDate = offset === 0 ? now.toISOString().slice(0, 10) : `${match[1]}-${match[2]}-01`;
+  const endDate = new Date(Date.UTC(year, monthIndex + 1, 0)).toISOString().slice(0, 10);
+  return { startDate, endDate };
 }
 
 export function parseSvpPermissions(payload: unknown): SvpBookingPermissions {

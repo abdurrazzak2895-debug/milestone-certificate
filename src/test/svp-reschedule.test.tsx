@@ -152,13 +152,61 @@ describe("SVP reschedule panel", () => {
 });
 
 describe("SVP site-based reschedule", () => {
+  it("shows the cities returned by SVP alongside the current booking city", async () => {
+    mocks.cities.mockResolvedValue({
+      ok: true,
+      data: [
+        { city: "Dhaka", countryId: 4 },
+        { city: "Rajshahi", countryId: 4 },
+      ],
+    });
+    renderPanel({ isTargeted: false });
+
+    const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
+    await waitFor(() =>
+      expect(Array.from(citySelect.options).map((option) => option.value)).toEqual([
+        "",
+        "Dhaka",
+        "Rajshahi",
+      ]),
+    );
+    expect(mocks.cities).toHaveBeenCalled();
+  });
+
+  it("surfaces a failed city-list request instead of silently showing only the current city", async () => {
+    mocks.cities.mockResolvedValue({
+      ok: false,
+      message: "SVP city endpoint unavailable",
+      needsSignIn: false,
+    });
+    renderPanel({ isTargeted: false });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("SVP city endpoint unavailable");
+    expect(await screen.findByRole("button", { name: "Retry city list" })).toBeInTheDocument();
+  });
+
   it("holds a slot and reschedules with the prometric exam id and site", async () => {
     renderPanel({ isTargeted: false });
 
     expect(await screen.findByText(/site-based flow/)).toBeInTheDocument();
-    fireEvent.change(await screen.findByLabelText("New city *"), {
+    const citySelect = await screen.findByLabelText("New city *");
+    await waitFor(() => expect((citySelect as HTMLSelectElement).disabled).toBe(false));
+    fireEvent.change(citySelect, {
       target: { value: "Dhaka" },
     });
+    fireEvent.change(await screen.findByLabelText("Month to check"), {
+      target: { value: "2026-12" },
+    });
+    await waitFor(() =>
+      expect(mocks.sites).toHaveBeenLastCalledWith({
+        data: {
+          prometricCode: "en",
+          city: "Dhaka",
+          countryId: 4,
+          month: "2026-12",
+        },
+      }),
+    );
     fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Site A/ }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));

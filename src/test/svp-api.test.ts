@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSvpReservationBody,
   buildSvpReservationPaymentBody,
+  getSvpMonthDateRange,
   parseSvpAvailableDates,
   parseSvpCities,
   parseSvpCredits,
@@ -170,6 +171,48 @@ describe("SVP response parsers", () => {
       { city: "Chattogram", countryId: 4 },
       { city: "Dhaka", countryId: 4 },
     ]);
+  });
+
+  it("accepts common city-name aliases from SVP city responses", () => {
+    expect(
+      parseSvpCities({
+        data: {
+          available_cities: [
+            { city_name: "Rajshahi", country_id: 4 },
+            { english_name: "Dhaka", country_id: 4 },
+          ],
+        },
+      }),
+    ).toEqual([
+      { city: "Dhaka", countryId: 4 },
+      { city: "Rajshahi", countryId: 4 },
+    ]);
+  });
+
+  it("accepts SVP city lists whose entries are plain strings", () => {
+    expect(parseSvpCities({ data: ["Rajshahi", "Dhaka"] })).toEqual([
+      { city: "Dhaka", countryId: null },
+      { city: "Rajshahi", countryId: null },
+    ]);
+  });
+
+  it("builds current and future month date ranges and rejects unsupported months", () => {
+    const now = new Date("2026-10-31T11:00:00.000Z");
+    expect(getSvpMonthDateRange("2026-10", now)).toEqual({
+      startDate: "2026-10-31",
+      endDate: "2026-10-31",
+    });
+    expect(getSvpMonthDateRange("2026-11", now)).toEqual({
+      startDate: "2026-11-01",
+      endDate: "2026-11-30",
+    });
+    expect(getSvpMonthDateRange("2026-12", now)).toEqual({
+      startDate: "2026-12-01",
+      endDate: "2026-12-31",
+    });
+    expect(getSvpMonthDateRange("2026-09", now)).toBeNull();
+    expect(getSvpMonthDateRange("2027-10", now)).toBeNull();
+    expect(getSvpMonthDateRange("2026-13", now)).toBeNull();
   });
 
   it("reads permissions, credits and available dates", () => {

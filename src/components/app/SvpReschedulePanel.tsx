@@ -53,6 +53,24 @@ function hashSlotId(value: string): number {
   return hash || 1;
 }
 
+function monthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildMonthOptions(now = new Date()): Array<{ value: string; label: string }> {
+  return Array.from({ length: 12 }, (_, offset) => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
+    return {
+      value: monthKey(date),
+      label: new Intl.DateTimeFormat("en", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(date),
+    };
+  });
+}
+
 export function SvpReschedulePanel({
   reservationId,
   rescheduleTimes,
@@ -75,6 +93,7 @@ export function SvpReschedulePanel({
   const queryClient = useQueryClient();
   const [city, setCity] = useState("");
   const [languageCode, setLanguageCode] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()));
   const [selectedDate, setSelectedDate] = useState<SvpAvailableDate | null>(null);
   const [selectedSession, setSelectedSession] = useState<SvpExamSession | null>(null);
   const [prometricDate, setPrometricDate] = useState<string | null>(null);
@@ -110,6 +129,9 @@ export function SvpReschedulePanel({
         : (languageOptions[0]?.code ?? "en");
   const effectiveCountryId = detail?.countryId ?? countryId ?? null;
   const effectiveCategoryId = detail?.categoryId ?? categoryId ?? null;
+  const monthOptions = useMemo(() => buildMonthOptions(), []);
+  const selectedMonthLabel =
+    monthOptions.find((entry) => entry.value === selectedMonth)?.label ?? selectedMonth;
 
   const datesQuery = useQuery({
     queryKey: ["svp-reschedule-dates", reservationId, effectiveCategoryId, effectiveCountryId],
@@ -137,22 +159,33 @@ export function SvpReschedulePanel({
   }, [city, dates]);
 
   const citiesQuery = useQuery({
-    queryKey: ["svp-cities"],
+    queryKey: ["svp-cities", effectiveCountryId],
     queryFn: () => listSvpTestCenterCities(),
-    enabled: !isTargeted,
-    retry: false,
+    enabled: !isTargeted && Boolean(detail),
+    retry: 1,
     refetchOnWindowFocus: false,
   });
   const prometricCities = useMemo(
     () => (citiesQuery.data?.ok ? citiesQuery.data.data : []),
     [citiesQuery.data],
   );
+  const cityListError =
+    citiesQuery.data && !citiesQuery.data.ok
+      ? citiesQuery.data.message
+      : citiesQuery.isError
+        ? "The SVP city-list request failed."
+        : null;
 
   const sitesQuery = useQuery({
-    queryKey: ["svp-reschedule-sites", activeLanguage, city, effectiveCountryId],
+    queryKey: ["svp-reschedule-sites", activeLanguage, city, effectiveCountryId, selectedMonth],
     queryFn: () =>
       listSvpPrometricSites({
-        data: { prometricCode: activeLanguage, city, countryId: effectiveCountryId },
+        data: {
+          prometricCode: activeLanguage,
+          city,
+          countryId: effectiveCountryId,
+          month: selectedMonth,
+        },
       }),
     enabled: !isTargeted && Boolean(city),
     retry: false,
@@ -165,13 +198,16 @@ export function SvpReschedulePanel({
   const prometricExamId = sitesQuery.data?.ok ? sitesQuery.data.data.examId : null;
   const siteDateOptions = useMemo(() => {
     const map = new Map<string, { date: string; city: string | null }>();
+    const today = new Date().toISOString().slice(0, 10);
     for (const site of prometricSites) {
       for (const date of site.dates) {
-        if (date && !map.has(date)) map.set(date, { date, city: site.city });
+        if (date.slice(0, 7) !== selectedMonth) continue;
+        if (selectedMonth === today.slice(0, 7) && date < today) continue;
+        if (!map.has(date)) map.set(date, { date, city: site.city });
       }
     }
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
-  }, [prometricSites]);
+  }, [prometricSites, selectedMonth]);
   const siteIdsForDate = prometricSites
     .filter((site) => prometricDate && site.dates.includes(prometricDate))
     .map((site) => site.siteId);
@@ -524,7 +560,58 @@ export function SvpReschedulePanel({
             ))}
           </NativeSelect>
         </Field>
+        {!isTargeted && (
+          <Field label="Month to check">
+            <NativeSelect
+              value={selectedMonth}
+              onChange={(event) => {
+                setSelectedMonth(event.target.value);
+                setPrometricDate(null);
+                setSelectedSlot(null);
+                setSelectedSession(null);
+              }}
+            >
+              {monthOptions.map((entry) => (
+                <option key={entry.value} value={entry.value}>
+                  {entry.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        )}
       </div>
+
+      {!isTargeted && detail && citiesQuery.isFetching && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <LoaderCircle className="h-4 w-4 animate-spin" /> Loading cities from SVP…
+        </p>
+      )}
+      {!isTargeted && detail && !citiesQuery.isFetching && cityListError && (
+        <div role="alert" className="space-y-2 rounded-lg border border-destructive/30 p-3">
+          <p className="text-sm text-destructive">
+            Could not load cities from SVP: {cityListError}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void citiesQuery.refetch()}
+          >
+            Retry city list
+          </Button>
+        </div>
+      )}
+      {!isTargeted &&
+        detail &&
+        !citiesQuery.isFetching &&
+        !cityListError &&
+        citiesQuery.data?.ok &&
+        prometricCities.length === 0 && (
+          <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+            SVP returned no city list. The current booking city is kept as a fallback; other cities
+            will appear when SVP returns them.
+          </p>
+        )}
 
       {isTargeted && effectiveCategoryId == null && (
         <p
@@ -556,7 +643,7 @@ export function SvpReschedulePanel({
         <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
           {isTargeted
             ? "No reschedule dates are available. Choose another city or use the official portal."
-            : "No test center sites have free dates this month for this city."}
+            : `No test center sites have free dates in ${selectedMonthLabel} for this city.`}
         </p>
       )}
 

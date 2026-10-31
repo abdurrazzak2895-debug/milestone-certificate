@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   buildSvpReservationBody,
   buildSvpReservationPaymentBody,
+  getSvpMonthDateRange,
   parseSvpAccountPermissions,
   parseSvpAvailableDates,
   parseSvpCategories,
@@ -1036,6 +1037,10 @@ export const listSvpPrometricSites = createServerFn({ method: "POST" })
         prometricCode: svpLanguageCodeSchema,
         city: z.string().trim().min(1).max(120),
         countryId: z.number().int().positive().nullable().optional(),
+        month: z
+          .string()
+          .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+          .optional(),
       })
       .parse(input),
   )
@@ -1043,10 +1048,11 @@ export const listSvpPrometricSites = createServerFn({ method: "POST" })
     await requireSvpAllowedRole(context.supabase, context.userId);
     try {
       const now = new Date();
-      const start = now.toISOString().slice(0, 10);
-      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0))
-        .toISOString()
-        .slice(0, 10);
+      const month = data.month ?? now.toISOString().slice(0, 7);
+      const dateRange = getSvpMonthDateRange(month, now);
+      if (!dateRange) {
+        return failure("Choose the current month or one of the next 11 months.");
+      }
       const response = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/prometric_scheduling/sites_availabilities",
@@ -1055,8 +1061,8 @@ export const listSvpPrometricSites = createServerFn({ method: "POST" })
             ...LOCALE_QUERY,
             prometric_code: data.prometricCode,
             city: data.city,
-            start_date: start,
-            end_date: end,
+            start_date: dateRange.startDate,
+            end_date: dateRange.endDate,
             ...(data.countryId ? { country_id: data.countryId } : {}),
           },
         },
