@@ -210,6 +210,8 @@ export function SvpReschedulePanel({
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const centersErrorMessage =
+    centersQuery.data && !centersQuery.data.success ? centersQuery.data.message : null;
   const takamolCenters = useMemo(
     () => (centersQuery.data?.success ? parseTestCenters(centersQuery.data.data) : []),
     [centersQuery.data],
@@ -772,7 +774,7 @@ export function SvpReschedulePanel({
         city &&
         ((centersQuery.data && !centersQuery.data.success) || centersQuery.isError) && (
           <p role="status" className="text-xs text-amber-800">
-            Takamol centers could not be loaded: {centersQuery.data?.message ?? "request failed"}.
+            Takamol centers could not be loaded: {centersErrorMessage ?? "request failed"}.
             Availability rows will only be selectable when their center can be matched exactly to an
             SVP site.
           </p>
