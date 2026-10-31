@@ -79,6 +79,7 @@ export function SvpReschedulePanel({
   isTargeted = true,
   onCancel,
   onDone,
+  onReconnect,
 }: {
   reservationId: string;
   rescheduleTimes: number | null;
@@ -86,6 +87,7 @@ export function SvpReschedulePanel({
   categoryId?: number | null;
   isTargeted?: boolean;
   onCancel: () => void;
+  onReconnect?: () => void;
   onDone: (
     result: { startAt: string; city: string | null; centerName: string | null } | null,
   ) => void;
@@ -175,6 +177,13 @@ export function SvpReschedulePanel({
       : citiesQuery.isError
         ? "The SVP city-list request failed."
         : null;
+  const cityListNeedsSignIn = Boolean(
+    citiesQuery.data && !citiesQuery.data.ok && citiesQuery.data.needsSignIn,
+  );
+  const cityListEmpty = Boolean(citiesQuery.data?.ok && prometricCities.length === 0);
+  const cityFallbackOnly = Boolean(
+    detail?.city && !citiesQuery.isFetching && (cityListError || cityListEmpty),
+  );
 
   const sitesQuery = useQuery({
     queryKey: ["svp-reschedule-sites", activeLanguage, city, effectiveCountryId, selectedMonth],
@@ -537,7 +546,9 @@ export function SvpReschedulePanel({
             <option value="">Select a city</option>
             {cityOptions.map((entry) => (
               <option key={entry} value={entry}>
-                {entry}
+                {cityFallbackOnly && entry === detail.city
+                  ? `${entry} (current booking fallback)`
+                  : entry}
               </option>
             ))}
           </NativeSelect>
@@ -589,8 +600,21 @@ export function SvpReschedulePanel({
       {!isTargeted && detail && !citiesQuery.isFetching && cityListError && (
         <div role="alert" className="space-y-2 rounded-lg border border-destructive/30 p-3">
           <p className="text-sm text-destructive">
-            Could not load cities from SVP: {cityListError}
+            {cityListNeedsSignIn
+              ? `SVP authorization is required to load other cities: ${cityListError}`
+              : `Could not load cities from SVP: ${cityListError}`}
           </p>
+          {cityFallbackOnly && (
+            <p className="text-sm text-muted-foreground">
+              Only the current booking city, {detail.city}, is shown as a fallback. Other cities
+              remain unavailable until SVP responds.
+            </p>
+          )}
+          {cityListNeedsSignIn && onReconnect && (
+            <Button type="button" variant="outline" size="sm" onClick={onReconnect}>
+              Reconnect to SVP
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -601,17 +625,26 @@ export function SvpReschedulePanel({
           </Button>
         </div>
       )}
-      {!isTargeted &&
-        detail &&
-        !citiesQuery.isFetching &&
-        !cityListError &&
-        citiesQuery.data?.ok &&
-        prometricCities.length === 0 && (
-          <p className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-            SVP returned no city list. The current booking city is kept as a fallback; other cities
-            will appear when SVP returns them.
-          </p>
-        )}
+      {!isTargeted && detail && !citiesQuery.isFetching && cityListEmpty && (
+        <div
+          role="status"
+          className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          SVP returned no test-center cities for this country. The current booking city
+          {detail.city ? ` (${detail.city})` : ""} is shown as a fallback; other cities will appear
+          when SVP returns them.
+          <div className="mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void citiesQuery.refetch()}
+            >
+              Retry city list
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isTargeted && effectiveCategoryId == null && (
         <p

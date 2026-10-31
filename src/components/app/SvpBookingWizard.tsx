@@ -1959,6 +1959,7 @@ export function SvpBookingWizard() {
           categoryId={reservations.find((entry) => entry.id === rescheduleId)?.categoryId ?? null}
           isTargeted={isTargeted}
           onCancel={() => setRescheduleId(null)}
+          onReconnect={requireSignIn}
           onDone={(updated) => {
             const reservationId = rescheduleId;
             setRescheduleId(null);

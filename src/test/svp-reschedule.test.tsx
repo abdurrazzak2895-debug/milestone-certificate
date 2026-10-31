@@ -101,7 +101,11 @@ beforeEach(() => {
   });
 });
 
-function renderPanel(props?: { canBeRescheduled?: boolean; isTargeted?: boolean }) {
+function renderPanel(props?: {
+  canBeRescheduled?: boolean;
+  isTargeted?: boolean;
+  onReconnect?: () => void;
+}) {
   if (props?.canBeRescheduled === false) {
     mocks.detail.mockResolvedValue({ ok: true, data: { ...detail, canBeRescheduled: false } });
   }
@@ -113,6 +117,7 @@ function renderPanel(props?: { canBeRescheduled?: boolean; isTargeted?: boolean 
         rescheduleTimes={1}
         isTargeted={props?.isTargeted ?? true}
         onCancel={vi.fn()}
+        onReconnect={props?.onReconnect}
         onDone={vi.fn()}
       />
     </QueryClientProvider>,
@@ -182,6 +187,43 @@ describe("SVP site-based reschedule", () => {
     renderPanel({ isTargeted: false });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("SVP city endpoint unavailable");
+    expect(await screen.findByRole("button", { name: "Retry city list" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Dhaka (current booking fallback)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers the current booking city and reconnect action when SVP authorization is rejected", async () => {
+    const onReconnect = vi.fn();
+    mocks.cities.mockResolvedValue({
+      ok: false,
+      message: "SVP session expired",
+      needsSignIn: true,
+    });
+    renderPanel({ isTargeted: false, onReconnect });
+
+    const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
+    await waitFor(() => expect(citySelect).toHaveValue("Dhaka"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("SVP authorization is required");
+    expect(
+      await screen.findByRole("option", { name: "Dhaka (current booking fallback)" }),
+    ).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Reconnect to SVP" }));
+    expect(onReconnect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the current booking city as a fallback when SVP returns an empty city list", async () => {
+    mocks.cities.mockResolvedValue({ ok: true, data: [] });
+    renderPanel({ isTargeted: false });
+
+    const citySelect = (await screen.findByLabelText("New city *")) as HTMLSelectElement;
+    await waitFor(() => expect(citySelect).toHaveValue("Dhaka"));
+    expect(
+      screen.getByText(/SVP returned no test-center cities for this country/),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Dhaka (current booking fallback)" }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Retry city list" })).toBeInTheDocument();
   });
 
