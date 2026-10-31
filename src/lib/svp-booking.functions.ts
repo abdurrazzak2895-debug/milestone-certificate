@@ -945,8 +945,10 @@ export const listSvpRescheduleDates = createServerFn({ method: "POST" })
   });
 
 /**
- * Real SVP reschedule: hold the new seat, then POST exam_reservations/{id}/reschedule
- * with { id, exam_session_id, language_code } exactly like the portal.
+ * Real SVP reschedule, implemented exactly like the new booking flow: hold the new
+ * seat (all date tokens in load-balancer mode, with country/category like the
+ * booking hold), book the session token SVP assigns on the hold, and retry rejected
+ * language codes with the SVP-owned fallback codes.
  */
 export const rescheduleSvpBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -959,6 +961,12 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
           .regex(/^[A-Za-z0-9-]{1,64}$/),
         examSessionId: svpExamSessionIdSchema,
         languageCode: svpLanguageCodeSchema,
+        /** Every session token for the date in load-balancer mode, like the booking hold. */
+        sessionIds: svpExamSessionIdListSchema.optional(),
+        countryId: z.number().int().positive().nullable().optional(),
+        categoryId: z.number().int().positive().nullable().optional(),
+        /** SVP-owned language/prometric codes to try if the first one is rejected. */
+        fallbackLanguageCodes: z.array(svpLanguageCodeSchema).max(6).optional(),
       })
       .parse(input),
   )
@@ -996,13 +1004,22 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
         }
       }
 
+      // Same hold as the booking flow: the whole day's tokens in load-balancer mode,
+      // a single session id otherwise, always in_person with country + category.
+      const holdIds =
+        data.sessionIds && data.sessionIds.length > 0 ? data.sessionIds : [data.examSessionId];
       const hold = await svpAuthedRequest(
         context.userId,
         "/individual_labor_space/temporary_seats",
         {
           method: "POST",
           query: LOCALE_QUERY,
-          body: { exam_session_id: data.examSessionId, methodology: "in_person" },
+          body: {
+            exam_session_id: holdIds.length > 1 ? holdIds : holdIds[0],
+            methodology: "in_person",
+            country_id: data.countryId ?? null,
+            category_id: data.categoryId ?? null,
+          },
         },
       );
       if (!hold.ok) {
@@ -1010,21 +1027,52 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
           apiFailure(hold.payload, "SVP could not hold the new seat. Choose another session."),
         );
       }
+      // The hold response carries the assigned session token; the reservation must use
+      // it even when it differs from the requested id. exam_session_id 0 is a broken hold.
+      const holdRoot = record(hold.payload);
+      const holdPayload = record(holdRoot?.["data"]) ?? holdRoot;
+      const assignedRaw = holdPayload?.["exam_session_id"] ?? holdRoot?.["exam_session_id"];
+      if (assignedRaw === 0 || assignedRaw === "0") {
+        return failure("SVP did not assign a session for this date. Choose another session.");
+      }
+      const assignedSessionId =
+        typeof assignedRaw === "string" || typeof assignedRaw === "number"
+          ? assignedRaw
+          : data.examSessionId;
 
-      const response = await svpAuthedRequest(
-        context.userId,
-        `/individual_labor_space/exam_reservations/${encodeURIComponent(data.reservationId)}/reschedule`,
-        {
+      // SVP rejects a language code that is not one of its prometric codes; retry with
+      // the SVP-owned codes exactly like the booking flow.
+      const languageCodes = [data.languageCode, ...(data.fallbackLanguageCodes ?? [])].filter(
+        (code, index, list) => code && list.indexOf(code) === index,
+      );
+      const path = `/individual_labor_space/exam_reservations/${encodeURIComponent(
+        data.reservationId,
+      )}/reschedule`;
+      let response = await svpAuthedRequest(context.userId, path, {
+        method: "POST",
+        query: LOCALE_QUERY,
+        body: {
+          id: data.reservationId,
+          exam_session_id: assignedSessionId,
+          language_code: languageCodes[0]!,
+          methodology: "in_person",
+        },
+      });
+      for (const code of languageCodes.slice(1)) {
+        if (response.ok) break;
+        const message = parseSvpError(response.payload);
+        if (!isSvpLanguageRejection(message) && response.status !== 422) break;
+        response = await svpAuthedRequest(context.userId, path, {
           method: "POST",
           query: LOCALE_QUERY,
           body: {
             id: data.reservationId,
-            exam_session_id: data.examSessionId,
-            language_code: data.languageCode,
+            exam_session_id: assignedSessionId,
+            language_code: code,
             methodology: "in_person",
           },
-        },
-      );
+        });
+      }
       if (!response.ok) {
         return failure(
           apiFailure(response.payload, "SVP did not accept the reschedule. Check the policy."),

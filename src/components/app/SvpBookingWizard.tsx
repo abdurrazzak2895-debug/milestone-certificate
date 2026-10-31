@@ -1958,6 +1958,7 @@ export function SvpBookingWizard() {
           countryId={overview?.permissions.countryId ?? null}
           categoryId={reservations.find((entry) => entry.id === rescheduleId)?.categoryId ?? null}
           isTargeted={isTargeted}
+          loadBalancer={isLoadBalancer}
           onCancel={() => setRescheduleId(null)}
           onReconnect={requireSignIn}
           onDone={(updated) => {

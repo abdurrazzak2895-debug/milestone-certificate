@@ -143,6 +143,7 @@ beforeEach(() => {
 function renderPanel(props?: {
   canBeRescheduled?: boolean;
   isTargeted?: boolean;
+  loadBalancer?: boolean;
   onReconnect?: () => void;
 }) {
   if (props?.canBeRescheduled === false) {
@@ -155,6 +156,7 @@ function renderPanel(props?: {
         reservationId="987"
         rescheduleTimes={1}
         isTargeted={props?.isTargeted ?? true}
+        loadBalancer={props?.loadBalancer ?? false}
         onCancel={vi.fn()}
         onReconnect={props?.onReconnect}
         onDone={vi.fn()}
@@ -179,7 +181,64 @@ describe("SVP reschedule panel", () => {
 
     await waitFor(() =>
       expect(mocks.reschedule).toHaveBeenCalledWith({
-        data: { reservationId: "987", examSessionId: 777, languageCode: "en" },
+        data: {
+          reservationId: "987",
+          examSessionId: 777,
+          languageCode: "en",
+          countryId: 4,
+          categoryId: 159,
+        },
+      }),
+    );
+    expect(await screen.findByText("Appointment rescheduled")).toBeInTheDocument();
+  });
+
+  it("holds every date token and passes the assigned-session inputs in load-balancer mode", async () => {
+    mocks.sessions.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: 777,
+          startAt: "2026-12-01 11:00:00",
+          endAt: null,
+          duration: 3600,
+          availableSeats: 4,
+          city: "Dhaka",
+          centerName: "Dhaka Center",
+          siteId: null,
+        },
+        {
+          id: 778,
+          startAt: "2026-12-01 11:00:00",
+          endAt: null,
+          duration: 3600,
+          availableSeats: 2,
+          city: "Dhaka",
+          centerName: "Dhaka Center",
+          siteId: null,
+        },
+      ],
+    });
+    renderPanel({ loadBalancer: true });
+
+    fireEvent.change(await screen.findByLabelText("New city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Dhaka Center/ }))[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
+
+    await waitFor(() =>
+      expect(mocks.reschedule).toHaveBeenCalledWith({
+        data: {
+          reservationId: "987",
+          examSessionId: 777,
+          languageCode: "en",
+          // The whole day's tokens are held so SVP can assign the real session.
+          sessionIds: [777, 778],
+          countryId: 4,
+          categoryId: 159,
+        },
       }),
     );
     expect(await screen.findByText("Appointment rescheduled")).toBeInTheDocument();

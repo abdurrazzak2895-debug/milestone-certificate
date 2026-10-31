@@ -91,6 +91,7 @@ export function SvpReschedulePanel({
   countryId,
   categoryId,
   isTargeted = true,
+  loadBalancer = false,
   onCancel,
   onDone,
   onReconnect,
@@ -100,6 +101,8 @@ export function SvpReschedulePanel({
   countryId?: number | null;
   categoryId?: number | null;
   isTargeted?: boolean;
+  /** Targeted dates are load-balancer tokens in some countries, exactly like booking. */
+  loadBalancer?: boolean;
   onCancel: () => void;
   onReconnect?: () => void;
   onDone: (
@@ -147,6 +150,15 @@ export function SvpReschedulePanel({
         : (languageOptions[0]?.code ?? "en");
   const effectiveCountryId = detail?.countryId ?? countryId ?? null;
   const effectiveCategoryId = detail?.categoryId ?? categoryId ?? null;
+  // SVP-owned codes to retry with when SVP rejects the selected language, like booking.
+  const fallbackLanguageCodes = useMemo(
+    () =>
+      languageOptions
+        .map((entry) => entry.code)
+        .filter((code) => code && code !== activeLanguage)
+        .slice(0, 6),
+    [activeLanguage, languageOptions],
+  );
   const monthOptions = useMemo(() => buildMonthOptions(), []);
   const selectedMonthLabel =
     monthOptions.find((entry) => entry.value === selectedMonth)?.label ?? selectedMonth;
@@ -345,6 +357,14 @@ export function SvpReschedulePanel({
             reservationId,
             examSessionId: selectedSession.id,
             languageCode: activeLanguage,
+            // Load-balancer dates are day tokens: hold every token SVP returned for
+            // the date so SVP can assign the real session, exactly like booking.
+            ...(loadBalancer && sessions.length > 0
+              ? { sessionIds: sessions.map((entry) => entry.id) }
+              : {}),
+            countryId: effectiveCountryId,
+            categoryId: effectiveCategoryId,
+            ...(fallbackLanguageCodes.length > 0 ? { fallbackLanguageCodes } : {}),
           },
         });
         if (!response.ok) throw new Error(response.message);
