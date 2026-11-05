@@ -1436,7 +1436,7 @@ export function SvpBookingWizard() {
       }
       void queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
       void queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
-      if (booking.paymentRequired) {
+      if (booking.paymentRequired && !booking.paymentStatusUnknown) {
         // Complete the SVP card payment in the provider widget tab that was opened on click.
         const paymentUrl = `/svp-booking?payReservation=${encodeURIComponent(booking.reservationId)}`;
         const tab = paymentWindowRef.current;
@@ -2879,7 +2879,7 @@ export function SvpBookingWizard() {
                 </p>
               </div>
             )}
-            {result.paymentRequired && (
+            {result.paymentRequired && !result.paymentStatusUnknown && (
               <div className="space-y-2">
                 <p className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />

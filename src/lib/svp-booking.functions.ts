@@ -533,6 +533,8 @@ export type SvpBookingResult = {
   reservationId: string;
   paid: boolean;
   paymentRequired: boolean;
+  /** Creation succeeded, but settlement must be reconciled before another payment. */
+  paymentStatusUnknown?: boolean;
   credits: number;
   message: string;
 };
@@ -585,6 +587,9 @@ export const createSvpBooking = createServerFn({ method: "POST" })
       // targeted booking takes the temporary-seat hold. Sending the prometric exam id to
       // /temporary_seats would hand back an unrelated session token.
       const siteBased = Boolean(data.holdId) || Boolean(data.siteId);
+      if (siteBased && (!data.siteId || !data.holdId?.trim() || data.holdId.trim() === "0")) {
+        return failure("A valid site and seat hold are required. Choose the slot again.");
+      }
 
       // Targeted flow: the portal creates a temporary seat for the chosen session.
       // Session tokens can be numeric ids or opaque strings (load-balancer day tokens),
@@ -603,25 +608,19 @@ export const createSvpBooking = createServerFn({ method: "POST" })
               category_id: data.categoryId,
             },
           },
-        ).catch(() => null);
+        );
+        if (!hold.ok) {
+          return failure(
+            apiFailure(hold.payload, "SVP could not hold this seat. Choose another session."),
+          );
+        }
         // SVP assigns the session token to book on the hold; in load-balancer mode it
         // differs from the requested id, so the reservation must use the assigned one.
-        const assigned = hold?.ok ? parseSvpHoldSessionId(hold.payload) : null;
-        if (assigned !== null) bookSessionId = assigned;
-      }
-
-      if (data.holdId) {
-        // The portal holds the temporary seat again for a held slot; best effort, like the portal.
-        await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
-          method: "POST",
-          query: LOCALE_QUERY,
-          body: {
-            exam_session_id: data.holdId,
-            methodology: "in_person",
-            country_id: data.countryId ?? null,
-            category_id: data.categoryId,
-          },
-        }).catch(() => undefined);
+        const assigned = parseSvpHoldSessionId(hold.payload);
+        if (assigned === null) {
+          return failure("SVP did not assign a session for this date. Choose another session.");
+        }
+        bookSessionId = assigned;
       }
 
       // SVP rejects a language code that is not one of its prometric codes. Try the
@@ -686,74 +685,91 @@ export const createSvpBooking = createServerFn({ method: "POST" })
 
       const reservation = parseSvpReservation(create.payload);
       if (!reservation.id) {
-        return failure("SVP did not return a reservation number. Book again from the portal.");
-      }
-
-      const permissionsResponse = await svpAuthedRequest(
-        context.userId,
-        "/individual_labor_space/permissions",
-        { query: LOCALE_QUERY },
-      );
-      const permissions = permissionsResponse.ok
-        ? parseSvpPermissions(permissionsResponse.payload)
-        : { freeReservations: false, targeted: false, countryId: null, countryName: null };
-
-      if (permissions.freeReservations) {
-        return {
-          ok: true,
-          data: {
-            reservationId: reservation.id,
-            paid: true,
-            paymentRequired: false,
-            credits: 0,
-            message: "Reservation confirmed by SVP. No payment is required.",
-          },
-        };
-      }
-
-      const session = readStoredSvpSession(context.userId);
-      let credits = 0;
-      if (session?.svpUserId) {
-        const creditsResponse = await svpAuthedRequest(
-          context.userId,
-          `/users/${encodeURIComponent(session.svpUserId)}/balance`,
-          {
-            query: {
-              ...LOCALE_QUERY,
-              methodology_type: "in_person",
-              occupation_id: data.occupationId,
-            },
-          },
+        return failure(
+          "SVP accepted the request but did not return a reservation number. Check your SVP reservations before trying again.",
         );
-        if (creditsResponse.ok) credits = parseSvpCredits(creditsResponse.payload);
       }
 
-      if (credits > 0) {
-        const payment = await svpAuthedRequest(
+      try {
+        const permissionsResponse = await svpAuthedRequest(
           context.userId,
-          "/individual_labor_space/reservation_credits/use",
-          {
-            method: "POST",
-            query: LOCALE_QUERY,
-            body: {
-              methodology_type: "in_person",
-              reservation_id: reservation.id,
-              occupation_id: data.occupationId,
-            },
-          },
+          "/individual_labor_space/permissions",
+          { query: LOCALE_QUERY },
         );
-        if (payment.ok) {
+        const permissions = permissionsResponse.ok
+          ? parseSvpPermissions(permissionsResponse.payload)
+          : { freeReservations: false, targeted: false, countryId: null, countryName: null };
+
+        if (permissions.freeReservations) {
           return {
             ok: true,
             data: {
               reservationId: reservation.id,
               paid: true,
               paymentRequired: false,
-              credits,
-              message: "Reservation confirmed and paid with SVP credits.",
+              credits: 0,
+              message: "Reservation confirmed by SVP. No payment is required.",
             },
           };
         }
+
+        const session = readStoredSvpSession(context.userId);
+        let credits = 0;
+        if (session?.svpUserId) {
+          const creditsResponse = await svpAuthedRequest(
+            context.userId,
+            `/users/${encodeURIComponent(session.svpUserId)}/balance`,
+            {
+              query: {
+                ...LOCALE_QUERY,
+                methodology_type: "in_person",
+                occupation_id: data.occupationId,
+              },
+            },
+          );
+          if (creditsResponse.ok) credits = parseSvpCredits(creditsResponse.payload);
+        }
+
+        if (credits > 0) {
+          const payment = await svpAuthedRequest(
+            context.userId,
+            "/individual_labor_space/reservation_credits/use",
+            {
+              method: "POST",
+              query: LOCALE_QUERY,
+              body: {
+                methodology_type: "in_person",
+                reservation_id: reservation.id,
+                occupation_id: data.occupationId,
+              },
+            },
+          );
+          if (payment.ok) {
+            return {
+              ok: true,
+              data: {
+                reservationId: reservation.id,
+                paid: true,
+                paymentRequired: false,
+                credits,
+                message: "Reservation confirmed and paid with SVP credits.",
+              },
+            };
+          }
+          return {
+            ok: true,
+            data: {
+              reservationId: reservation.id,
+              paid: false,
+              paymentRequired: true,
+              credits,
+              message:
+                parseSvpError(payment.payload) ??
+                "Reservation created, but the credit payment did not complete. Pay in the official SVP portal.",
+            },
+          };
+        }
+
         return {
           ok: true,
           data: {
@@ -762,23 +778,23 @@ export const createSvpBooking = createServerFn({ method: "POST" })
             paymentRequired: true,
             credits,
             message:
-              parseSvpError(payment.payload) ??
-              "Reservation created, but the credit payment did not complete. Pay in the official SVP portal.",
+              "Reservation created. Complete the payment in the official SVP portal to confirm it.",
+          },
+        };
+      } catch {
+        return {
+          ok: true,
+          data: {
+            reservationId: reservation.id,
+            paid: false,
+            paymentRequired: true,
+            paymentStatusUnknown: true,
+            credits: 0,
+            message:
+              "Reservation created, but payment status could not be verified. Check this reservation in SVP before making another booking or payment.",
           },
         };
       }
-
-      return {
-        ok: true,
-        data: {
-          reservationId: reservation.id,
-          paid: false,
-          paymentRequired: true,
-          credits,
-          message:
-            "Reservation created. Complete the payment in the official SVP portal to confirm it.",
-        },
-      };
     } catch (error) {
       if (error instanceof SvpSessionMissingError) return failure(error.message, true);
       return failure("The SVP reservation could not be created.");
@@ -1048,13 +1064,10 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
       }
       // The hold response carries the assigned session token; the reservation must use
       // it even when it differs from the requested id. exam_session_id 0 is a broken hold.
-      const holdRoot = record(hold.payload);
-      const holdPayload = record(holdRoot?.["data"]) ?? holdRoot;
-      const assignedRaw = holdPayload?.["exam_session_id"] ?? holdRoot?.["exam_session_id"];
-      if (assignedRaw === 0 || assignedRaw === "0") {
+      const assignedSessionId = parseSvpHoldSessionId(hold.payload);
+      if (assignedSessionId === null) {
         return failure("SVP did not assign a session for this date. Choose another session.");
       }
-      const assignedSessionId = parseSvpHoldSessionId(hold.payload) ?? data.examSessionId;
 
       // SVP rejects a language code that is not one of its prometric codes; retry with
       // the SVP-owned codes exactly like the booking flow.
@@ -1320,17 +1333,8 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
       const holdValue = holdPayload?.["id"] ?? holdRoot?.["id"];
       const holdId = holdValue === undefined || holdValue === null ? null : String(holdValue);
 
-      if (holdId) {
-        await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
-          method: "POST",
-          query: LOCALE_QUERY,
-          body: {
-            exam_session_id: holdId,
-            methodology: "in_person",
-            country_id: data.countryId ?? null,
-            category_id: data.categoryId,
-          },
-        }).catch(() => undefined);
+      if (!holdId || holdId.trim() === "" || holdId === "0") {
+        return failure("SVP did not return a seat hold. Choose another slot.");
       }
 
       const path = `/individual_labor_space/exam_reservations/${encodeURIComponent(
@@ -1354,7 +1358,7 @@ export const rescheduleSvpSiteBooking = createServerFn({ method: "POST" })
         },
       });
 
-      if (!response.ok) {
+      if (!response.ok && (response.status === 400 || response.status === 422)) {
         response = await svpAuthedRequest(context.userId, path, {
           method: "POST",
           query: LOCALE_QUERY,
@@ -1420,6 +1424,10 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
             apiFailure(response.payload, "SVP could not hold this seat.", response.status),
           );
         }
+        const examSessionId = parseSvpHoldSessionId(response.payload);
+        if (examSessionId === null) {
+          return failure("SVP did not assign a session for this date. Choose another session.");
+        }
         const root = record(response.payload);
         const payload = record(root?.["data"]) ?? root;
         const expires = payload?.["expired_at"] ?? root?.["expired_at"];
@@ -1428,7 +1436,7 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
           data: {
             expiresAt: typeof expires === "string" ? expires : null,
             // Same parser as booking/reschedule: 0 is a broken hold, not a session id.
-            examSessionId: parseSvpHoldSessionId(response.payload),
+            examSessionId,
           },
         };
       } catch (error) {

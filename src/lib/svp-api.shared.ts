@@ -225,8 +225,11 @@ export function parseSvpHoldSessionId(payload: unknown): string | number | null 
   const data = asRecord(root?.["data"]) ?? root;
   const raw = data?.["exam_session_id"] ?? root?.["exam_session_id"];
   if (raw === 0 || raw === "0" || raw === null || raw === undefined) return null;
-  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  if (typeof raw === "string") return raw.trim() ? raw.trim() : null;
+  if (typeof raw === "number") return Number.isSafeInteger(raw) && raw > 0 ? raw : null;
+  if (typeof raw === "string") {
+    const token = raw.trim();
+    return token && token !== "0" && token.length <= 200 ? token : null;
+  }
   return null;
 }
 
