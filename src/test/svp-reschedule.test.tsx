@@ -145,6 +145,7 @@ function renderPanel(props?: {
   isTargeted?: boolean;
   loadBalancer?: boolean;
   onReconnect?: () => void;
+  rescheduleTimes?: number | null;
   onDone?: (
     result: { startAt: string; city: string | null; centerName: string | null } | null,
   ) => void;
@@ -157,7 +158,7 @@ function renderPanel(props?: {
     <QueryClientProvider client={client}>
       <SvpReschedulePanel
         reservationId="987"
-        rescheduleTimes={1}
+        rescheduleTimes={props?.rescheduleTimes === undefined ? 1 : props.rescheduleTimes}
         isTargeted={props?.isTargeted ?? true}
         loadBalancer={props?.loadBalancer ?? false}
         onCancel={vi.fn()}
@@ -279,6 +280,26 @@ describe("SVP reschedule panel", () => {
       city: "Dhaka",
       centerName: "Mirpur Center",
     });
+  });
+
+  it("stops before the form when SVP reports no reschedules are left", async () => {
+    renderPanel({ rescheduleTimes: 0 });
+
+    expect(
+      await screen.findByText(/no reschedules are left for this account/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm reschedule" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New city *")).not.toBeInTheDocument();
+  });
+
+  it("does not invent a reschedule count when SVP did not answer the constraints call", async () => {
+    renderPanel({ rescheduleTimes: null });
+
+    // Unknown quota must not read as "0 reschedule(s) left", and the form stays usable
+    // because the server is the source of truth for the gate.
+    expect(await screen.findByText(/Current session:/)).toBeInTheDocument();
+    expect(screen.queryByText(/reschedule\(s\) left/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm reschedule" })).toBeInTheDocument();
   });
 
   it("asks the agent to reconnect when SVP reports an expired session", async () => {

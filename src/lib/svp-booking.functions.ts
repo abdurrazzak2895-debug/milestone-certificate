@@ -581,11 +581,15 @@ export const createSvpBooking = createServerFn({ method: "POST" })
 
       // Session token to book. SVP can reassign it on the temporary-seat hold below.
       let bookSessionId: string | number = data.examSessionId;
+      // A site-based (prometric) booking carries a site id and/or a slot hold id; only a
+      // targeted booking takes the temporary-seat hold. Sending the prometric exam id to
+      // /temporary_seats would hand back an unrelated session token.
+      const siteBased = Boolean(data.holdId) || Boolean(data.siteId);
 
       // Targeted flow: the portal creates a temporary seat for the chosen session.
       // Session tokens can be numeric ids or opaque strings (load-balancer day tokens),
       // so the hold must run for both — skipping it for string ids booked an unheld seat.
-      if (!data.holdId) {
+      if (!siteBased) {
         const hold = await svpAuthedRequest(
           context.userId,
           "/individual_labor_space/temporary_seats",
@@ -851,9 +855,10 @@ export const getSvpAccountOverview = createServerFn({ method: "POST" })
         );
       }
       const permissions = parseSvpAccountPermissions(permissionsResponse.payload);
-      const constraints = constraintsResponse.ok
+      const constraints: SvpConstraints = constraintsResponse.ok
         ? parseSvpConstraints(constraintsResponse.payload)
-        : { rescheduleTimes: 0, bookingHoldSeconds: 0, cancellationLimitHours: null };
+        : // Unknown, not zero: the reschedule UI must not claim "0 reschedules left" here.
+          { rescheduleTimes: null, bookingHoldSeconds: null, cancellationLimitHours: null };
       const flags = flagsResponse.ok
         ? parseSvpFeatureFlags(flagsResponse.payload)
         : { rescheduleEnabled: false, creditsEnabled: false };

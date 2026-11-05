@@ -117,8 +117,9 @@ export type SvpReservationDetail = SvpReservation & {
 };
 
 export type SvpConstraints = {
-  rescheduleTimes: number;
-  bookingHoldSeconds: number;
+  /** null when SVP did not answer `/exam_constraints`: unknown, which is not the same as 0. */
+  rescheduleTimes: number | null;
+  bookingHoldSeconds: number | null;
   cancellationLimitHours: number | null;
 };
 
@@ -720,8 +721,15 @@ export function parseSvpReservationDetail(payload: unknown): SvpReservationDetai
   };
 }
 
+/** `/exam_constraints` values as SVP answered them (always concrete numbers). */
+export type SvpParsedConstraints = {
+  rescheduleTimes: number;
+  bookingHoldSeconds: number;
+  cancellationLimitHours: number | null;
+};
+
 /** `/exam_constraints` values that gate booking and rescheduling. */
-export function parseSvpConstraints(payload: unknown): SvpConstraints {
+export function parseSvpConstraints(payload: unknown): SvpParsedConstraints {
   const root = asRecord(payload);
   const data = asRecord(root?.["data"]) ?? root;
   return {

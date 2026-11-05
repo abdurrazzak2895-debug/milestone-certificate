@@ -578,6 +578,27 @@ export function SvpReschedulePanel({
 
   if (!detail) return null;
 
+  // SVP reported the account has no reschedules left: the submit would be rejected, so do
+  // not walk the agent through picking a date, center and slot first.
+  if (rescheduleTimes !== null && rescheduleTimes <= 0) {
+    return (
+      <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-bold">Reschedule appointment</h2>
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          SVP reports no reschedules are left for this account. Contact SVP support if the
+          appointment has to change.
+        </p>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Close
+        </Button>
+      </section>
+    );
+  }
+
   if (done) {
     const appointment =
       confirmed ??
