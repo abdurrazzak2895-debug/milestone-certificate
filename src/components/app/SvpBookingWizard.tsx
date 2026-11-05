@@ -1262,15 +1262,28 @@ export function SvpBookingWizard() {
     updated: { startAt: string; city: string | null; centerName: string | null },
   ) => {
     const { date, time } = splitDateTime(updated.startAt);
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("svp_bookings")
       .update({
         exam_date: date || null,
         exam_time: time || null,
         center: updated.centerName ?? updated.city ?? null,
       })
-      .eq("reference_no", reservationId);
-    if (!error) toast.success("Local record updated with the new appointment");
+      .eq("reference_no", reservationId)
+      .select("id");
+    if (error) {
+      toast.error("SVP rescheduled the appointment, but the local record could not be updated.");
+      return;
+    }
+    // Report honestly: a reservation booked outside this app has no local row to sync.
+    if (!updatedRows || updatedRows.length === 0) {
+      toast.warning(
+        "Appointment rescheduled in SVP. No matching local record was found to update.",
+      );
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: ["svp-bookings"] });
+    toast.success("Local record updated with the new appointment");
   };
 
   const saveLocalRecord = async (payload: SvpLocalRecordPayload) => {

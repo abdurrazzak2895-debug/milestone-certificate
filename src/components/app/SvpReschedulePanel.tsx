@@ -131,6 +131,13 @@ export function SvpReschedulePanel({
   const [selectedSlot, setSelectedSlot] = useState<SvpPrometricSlot | null>(null);
   const [selectedCenterKey, setSelectedCenterKey] = useState("");
   const [done, setDone] = useState(false);
+  // The appointment SVP actually stored; load-balancer holds can assign a different
+  // session than the one the agent picked, so this is read back after the reschedule.
+  const [confirmed, setConfirmed] = useState<{
+    startAt: string;
+    city: string | null;
+    centerName: string | null;
+  } | null>(null);
 
   const detailQuery = useQuery({
     queryKey: ["svp-reservation-detail", reservationId],
@@ -420,7 +427,11 @@ export function SvpReschedulePanel({
             ...(fallbackLanguageCodes.length > 0 ? { fallbackLanguageCodes } : {}),
           },
         });
-        if (!response.ok) throw new Error(response.message);
+        if (!response.ok) {
+          // An expired SVP session must offer the reconnect flow, exactly like booking.
+          if (response.needsSignIn) onReconnect?.();
+          throw new Error(response.message);
+        }
         return response.data;
       }
 
@@ -441,10 +452,27 @@ export function SvpReschedulePanel({
           countryId: effectiveCountryId,
         },
       });
-      if (!response.ok) throw new Error(response.message);
+      if (!response.ok) {
+        if (response.needsSignIn) onReconnect?.();
+        throw new Error(response.message);
+      }
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // SVP may assign a different session than the one picked (load-balancer holds),
+      // so report the appointment it actually stored instead of the local guess.
+      try {
+        const refreshed = await getSvpReservationDetail({ data: { reservationId } });
+        if (refreshed.ok && refreshed.data.startAt) {
+          setConfirmed({
+            startAt: refreshed.data.startAt,
+            city: refreshed.data.city,
+            centerName: refreshed.data.centerName,
+          });
+        }
+      } catch {
+        // Fall back to the session the agent selected.
+      }
       setDone(true);
       void queryClient.invalidateQueries({ queryKey: ["svp-reservations"] });
       void queryClient.invalidateQueries({ queryKey: ["svp-reservation-detail", reservationId] });
@@ -551,6 +579,15 @@ export function SvpReschedulePanel({
   if (!detail) return null;
 
   if (done) {
+    const appointment =
+      confirmed ??
+      (selectedSession
+        ? {
+            startAt: selectedSession.startAt,
+            city: selectedSession.city,
+            centerName: selectedSession.centerName,
+          }
+        : null);
     return (
       <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
@@ -560,24 +597,14 @@ export function SvpReschedulePanel({
           <div>
             <h2 className="text-lg font-bold">Appointment rescheduled</h2>
             <p className="text-sm text-muted-foreground">
-              New session: {selectedSession ? formatSlot(selectedSession.startAt) : "—"}
+              New session: {appointment ? formatSlot(appointment.startAt) : "—"}
             </p>
+            {appointment?.centerName && (
+              <p className="text-xs text-muted-foreground">{appointment.centerName}</p>
+            )}
           </div>
         </div>
-        <Button
-          type="button"
-          onClick={() =>
-            onDone(
-              selectedSession
-                ? {
-                    startAt: selectedSession.startAt,
-                    city: selectedSession.city,
-                    centerName: selectedSession.centerName,
-                  }
-                : null,
-            )
-          }
-        >
+        <Button type="button" onClick={() => onDone(appointment)}>
           Done
         </Button>
       </section>

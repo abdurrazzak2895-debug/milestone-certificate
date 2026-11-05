@@ -145,6 +145,9 @@ function renderPanel(props?: {
   isTargeted?: boolean;
   loadBalancer?: boolean;
   onReconnect?: () => void;
+  onDone?: (
+    result: { startAt: string; city: string | null; centerName: string | null } | null,
+  ) => void;
 }) {
   if (props?.canBeRescheduled === false) {
     mocks.detail.mockResolvedValue({ ok: true, data: { ...detail, canBeRescheduled: false } });
@@ -159,7 +162,7 @@ function renderPanel(props?: {
         loadBalancer={props?.loadBalancer ?? false}
         onCancel={vi.fn()}
         onReconnect={props?.onReconnect}
-        onDone={vi.fn()}
+        onDone={props?.onDone ?? vi.fn()}
       />
     </QueryClientProvider>,
   );
@@ -251,6 +254,52 @@ describe("SVP reschedule panel", () => {
       await screen.findByText(/SVP does not allow rescheduling this reservation/i),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm reschedule" })).not.toBeInTheDocument();
+  });
+
+  it("reports the appointment SVP stored even when it differs from the picked session", async () => {
+    mocks.detail.mockResolvedValueOnce({ ok: true, data: detail }).mockResolvedValue({
+      ok: true,
+      data: { ...detail, startAt: "2026-12-01 15:00:00", centerName: "Mirpur Center" },
+    });
+    const onDone = vi.fn();
+    renderPanel({ onDone });
+
+    fireEvent.change(await screen.findByLabelText("New city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
+
+    // The hold assigned a 15:00 session, so the panel must not report the picked 11:00.
+    expect(await screen.findByText(/15:00/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(onDone).toHaveBeenCalledWith({
+      startAt: "2026-12-01 15:00:00",
+      city: "Dhaka",
+      centerName: "Mirpur Center",
+    });
+  });
+
+  it("asks the agent to reconnect when SVP reports an expired session", async () => {
+    mocks.reschedule.mockResolvedValue({
+      ok: false,
+      needsSignIn: true,
+      message: "The SVP session expired. Sign in again.",
+    });
+    const onReconnect = vi.fn();
+    renderPanel({ onReconnect });
+
+    fireEvent.change(await screen.findByLabelText("New city *"), {
+      target: { value: "Dhaka" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /1 Dec 2026/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Dhaka Center/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm reschedule" }));
+
+    // The booking flow opens the login panel for an expired session; reschedule must too.
+    await waitFor(() => expect(onReconnect).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Appointment rescheduled")).not.toBeInTheDocument();
   });
 });
 

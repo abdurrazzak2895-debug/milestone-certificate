@@ -22,6 +22,8 @@ import {
   parseSvpReservation,
   parseSvpReservationDetail,
   parseSvpReservations,
+  parseSvpHoldSessionId,
+  parseSvpFlag,
   parseSvpCategories,
   svpExamSessionIdListSchema,
   svpExamSessionIdSchema,
@@ -701,5 +703,55 @@ describe("SVP payments, notifications and certificate price", () => {
       amount: 50,
       currency: "SAR",
     });
+  });
+});
+
+describe("SVP flag and hold parsers", () => {
+  it("never treats SVP's string falsy flags as true", () => {
+    // Boolean("0") is true, which used to mark non-reschedulable rows as reschedulable.
+    expect(parseSvpFlag("0")).toBe(false);
+    expect(parseSvpFlag(0)).toBe(false);
+    expect(parseSvpFlag("false")).toBe(false);
+    expect(parseSvpFlag("")).toBe(false);
+    expect(parseSvpFlag(null)).toBe(false);
+    expect(parseSvpFlag(undefined)).toBe(false);
+    expect(parseSvpFlag("no")).toBe(false);
+    expect(parseSvpFlag({})).toBe(false);
+
+    expect(parseSvpFlag(true)).toBe(true);
+    expect(parseSvpFlag(1)).toBe(true);
+    expect(parseSvpFlag("1")).toBe(true);
+    expect(parseSvpFlag(" TRUE ")).toBe(true);
+    expect(parseSvpFlag("yes")).toBe(true);
+    expect(parseSvpFlag("on")).toBe(true);
+  });
+
+  it("parses can_be_rescheduled from lists and detail without truthiness coercion", () => {
+    const reservation = (value: unknown) =>
+      parseSvpReservations({
+        data: { exam_reservations: [{ id: 5, can_be_rescheduled: value }] },
+      })[0]?.canBeRescheduled;
+    expect(reservation("0")).toBe(false);
+    expect(reservation("1")).toBe(true);
+    expect(reservation(true)).toBe(true);
+    expect(reservation(undefined)).toBe(false);
+
+    const detail = (value: unknown) =>
+      parseSvpReservationDetail({ data: { id: 6, can_be_rescheduled: value } })?.canBeRescheduled;
+    expect(detail("0")).toBe(false);
+    expect(detail("1")).toBe(true);
+  });
+
+  it("reads the session token SVP assigns on a temporary-seat hold", () => {
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: 1466849 } })).toBe(1466849);
+    expect(parseSvpHoldSessionId({ exam_session_id: "1466849" })).toBe("1466849");
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: " 777 " } })).toBe("777");
+    // 0 is SVP's broken-hold marker, not a session id.
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: 0 } })).toBeNull();
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: "0" } })).toBeNull();
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: null } })).toBeNull();
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: "" } })).toBeNull();
+    expect(parseSvpHoldSessionId({ data: { exam_session_id: {} } })).toBeNull();
+    expect(parseSvpHoldSessionId(null)).toBeNull();
   });
 });

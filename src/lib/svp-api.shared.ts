@@ -203,6 +203,33 @@ function number(value: unknown): number | null {
 }
 
 /**
+ * SVP serialises booleans as `true`, `1`, `"1"` or occasionally `"0"`/`"false"`.
+ * `Boolean("0")` is true, which flips flags such as `can_be_rescheduled` and
+ * `load_balancer`, so every flag goes through this parser instead.
+ */
+export function parseSvpFlag(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+}
+
+/**
+ * Session token SVP assigns on `POST /temporary_seats`. The reservation (or
+ * reschedule) must use this id because it can differ from the requested one in
+ * load-balancer mode. `0`/`"0"` is SVP's broken-hold marker and maps to null.
+ */
+export function parseSvpHoldSessionId(payload: unknown): string | number | null {
+  const root = asRecord(payload);
+  const data = asRecord(root?.["data"]) ?? root;
+  const raw = data?.["exam_session_id"] ?? root?.["exam_session_id"];
+  if (raw === 0 || raw === "0" || raw === null || raw === undefined) return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  if (typeof raw === "string") return raw.trim() ? raw.trim() : null;
+  return null;
+}
+
+/**
  * SVP mixes date formats across endpoints: most are ISO (2026-12-01…), but some
  * prometric payloads use dd/mm/yyyy, exactly like the temporary-seat `expired_at`
  * documented as `dd/mm/yyyy HH:MM`. Normalize both to ISO so month filters, slot
@@ -285,7 +312,7 @@ function toSvpLanguage(value: unknown): SvpLanguage | null {
     code,
     label: name ?? code.toUpperCase(),
     questionCount: number(item["question_count"]),
-    nonTargeted: Boolean(item["non_targeted"] ?? item["nonTargeted"]),
+    nonTargeted: parseSvpFlag(item["non_targeted"] ?? item["nonTargeted"]),
   };
 }
 
@@ -340,7 +367,7 @@ export function parseSvpOccupations(payload: unknown): SvpOccupation[] {
           text(record["category_name_en"]) ??
           text(record["category_name_ar"]),
         languages,
-        driverLicenseRequired: Boolean(record["driver_license_required"]),
+        driverLicenseRequired: parseSvpFlag(record["driver_license_required"]),
       };
     })
     .filter((entry): entry is SvpOccupation => entry !== null)
@@ -405,9 +432,9 @@ export function parseSvpPermissions(payload: unknown): SvpBookingPermissions {
   const root = asRecord(payload);
   const country = asRecord(root?.["country"]) ?? asRecord(asRecord(root?.["data"])?.["country"]);
   return {
-    freeReservations: Boolean(country?.["free_reservations"]),
-    targeted: Boolean(country?.["targeted"]),
-    loadBalancer: Boolean(country?.["load_balancer"]),
+    freeReservations: parseSvpFlag(country?.["free_reservations"]),
+    targeted: parseSvpFlag(country?.["targeted"]),
+    loadBalancer: parseSvpFlag(country?.["load_balancer"]),
     testPrice: number(country?.["test_price"]),
     countryId: number(country?.["id"]),
     countryName: text(country?.["english_name"]) ?? text(country?.["name"]),
@@ -555,7 +582,7 @@ export function parseSvpReservations(payload: unknown): SvpReservation[] {
         centerName: text(center?.["name"]),
         startAt: text(session?.["start_at_in_tc_time_zone"]) ?? text(session?.["start_at"]),
         methodology: text(record["methodology"]),
-        canBeRescheduled: Boolean(record["can_be_rescheduled"]),
+        canBeRescheduled: parseSvpFlag(record["can_be_rescheduled"]),
         categoryId: number(record["category_id"]) ?? number(asRecord(record["category"])?.["id"]),
         examSessionId:
           typeof session?.["id"] === "string" ? session["id"] : (number(session?.["id"]) ?? null),
@@ -670,7 +697,7 @@ export function parseSvpReservationDetail(payload: unknown): SvpReservationDetai
     centerName: text(center?.["name"]),
     startAt: text(session?.["start_at_in_tc_time_zone"]) ?? text(session?.["start_at"]),
     methodology: text(reservation["methodology"]),
-    canBeRescheduled: Boolean(reservation["can_be_rescheduled"]),
+    canBeRescheduled: parseSvpFlag(reservation["can_be_rescheduled"]),
     categoryId: number(reservation["category_id"]) ?? number(category?.["id"]),
     examSessionId:
       typeof session?.["id"] === "string" ? session["id"] : (number(session?.["id"]) ?? null),
@@ -715,8 +742,7 @@ export function parseSvpFeatureFlags(payload: unknown): SvpFeatureFlags {
     root?.["data"] ??
     root;
 
-  const isOn = (value: unknown) =>
-    value === true || value === "true" || value === 1 || value === "1";
+  const isOn = (value: unknown) => parseSvpFlag(value);
 
   const lookup = (name: string): boolean => {
     if (Array.isArray(container)) {

@@ -24,6 +24,7 @@ import {
   parseSvpReservation,
   parseSvpReservationDetail,
   parseSvpReservations,
+  parseSvpHoldSessionId,
   parseSvpCertificatePrice,
   parseSvpNotifications,
   isSvpLanguageRejection,
@@ -578,18 +579,29 @@ export const createSvpBooking = createServerFn({ method: "POST" })
         );
       }
 
+      // Session token to book. SVP can reassign it on the temporary-seat hold below.
+      let bookSessionId: string | number = data.examSessionId;
+
       if (!data.holdId && typeof data.examSessionId === "number") {
         // Targeted flow: the portal creates a temporary seat for the chosen session.
-        await svpAuthedRequest(context.userId, "/individual_labor_space/temporary_seats", {
-          method: "POST",
-          query: LOCALE_QUERY,
-          body: {
-            exam_session_id: data.examSessionId,
-            methodology: "in_person",
-            country_id: data.countryId ?? null,
-            category_id: data.categoryId,
+        const hold = await svpAuthedRequest(
+          context.userId,
+          "/individual_labor_space/temporary_seats",
+          {
+            method: "POST",
+            query: LOCALE_QUERY,
+            body: {
+              exam_session_id: data.examSessionId,
+              methodology: "in_person",
+              country_id: data.countryId ?? null,
+              category_id: data.categoryId,
+            },
           },
-        }).catch(() => undefined);
+        ).catch(() => null);
+        // SVP assigns the session token to book on the hold; in load-balancer mode it
+        // differs from the requested id, so the reservation must use the assigned one.
+        const assigned = hold?.ok ? parseSvpHoldSessionId(hold.payload) : null;
+        if (assigned !== null) bookSessionId = assigned;
       }
 
       if (data.holdId) {
@@ -619,7 +631,7 @@ export const createSvpBooking = createServerFn({ method: "POST" })
           method: "POST",
           query: LOCALE_QUERY,
           body: buildSvpReservationBody({
-            examSessionId: data.examSessionId,
+            examSessionId: bookSessionId,
             occupationId: data.occupationId,
             languageCode: languageCodes[0]!,
             methodology: data.methodology ?? "in_person",
@@ -645,7 +657,7 @@ export const createSvpBooking = createServerFn({ method: "POST" })
             method: "POST",
             query: LOCALE_QUERY,
             body: buildSvpReservationBody({
-              examSessionId: data.examSessionId,
+              examSessionId: bookSessionId,
               occupationId: data.occupationId,
               languageCode: code,
               methodology: data.methodology ?? "in_person",
@@ -1035,10 +1047,7 @@ export const rescheduleSvpBooking = createServerFn({ method: "POST" })
       if (assignedRaw === 0 || assignedRaw === "0") {
         return failure("SVP did not assign a session for this date. Choose another session.");
       }
-      const assignedSessionId =
-        typeof assignedRaw === "string" || typeof assignedRaw === "number"
-          ? assignedRaw
-          : data.examSessionId;
+      const assignedSessionId = parseSvpHoldSessionId(hold.payload) ?? data.examSessionId;
 
       // SVP rejects a language code that is not one of its prometric codes; retry with
       // the SVP-owned codes exactly like the booking flow.
@@ -1407,13 +1416,12 @@ export const createSvpTargetedHold = createServerFn({ method: "POST" })
         const root = record(response.payload);
         const payload = record(root?.["data"]) ?? root;
         const expires = payload?.["expired_at"] ?? root?.["expired_at"];
-        const chosenRaw = payload?.["exam_session_id"] ?? root?.["exam_session_id"];
-        const chosen = chosenRaw === 0 || chosenRaw === "0" ? null : chosenRaw;
         return {
           ok: true,
           data: {
             expiresAt: typeof expires === "string" ? expires : null,
-            examSessionId: typeof chosen === "string" || typeof chosen === "number" ? chosen : null,
+            // Same parser as booking/reschedule: 0 is a broken hold, not a session id.
+            examSessionId: parseSvpHoldSessionId(response.payload),
           },
         };
       } catch (error) {
