@@ -169,12 +169,14 @@ export async function fetchTakamolWithRetry(
         signal: controller.signal,
         cache: "no-store",
       });
-      if (!TAKAMOL_RETRYABLE_STATUSES.has(response.status) || attempt >= maxRetries) {
+      if (!TAKAMOL_RETRYABLE_STATUSES.has(response.status)) {
         return response;
       }
-      // Release the failed response body so the connection is not held open
-      // while backing off; an unconsumed body pins a pooled connection.
-      await response.body?.cancel().catch(() => undefined);
+      // Release the failed response body in both cases: an unconsumed body pins
+      // a pooled connection while backing off, and the response handed back once
+      // the retry budget is exhausted is only inspected for its status code.
+      await releaseTakamolBody(response);
+      if (attempt >= maxRetries) return response;
       attempt += 1;
       await new Promise((resolve) => setTimeout(resolve, attempt * backoffMs));
     } finally {
@@ -183,16 +185,74 @@ export async function fetchTakamolWithRetry(
   }
 }
 
-/** Bound on a Takamol JSON body, mirroring the SVP client's bounded reads. */
+/** Hard bound on a Takamol JSON body, in bytes. */
 export const TAKAMOL_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 /**
- * Read a Takamol JSON response with a size bound. Oversized or malformed
- * payloads collapse to null so the caller maps them to a gateway error.
+ * Release a response body that will not be read. An unconsumed body pins a
+ * pooled connection until it is garbage collected, so every response whose body
+ * is never read (retried attempts, non-ok statuses) is cancelled here.
  */
-export async function readTakamolJson(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (text.length > TAKAMOL_MAX_BODY_BYTES) return null;
+export async function releaseTakamolBody(response: Response): Promise<void> {
+  if (!response.body || response.bodyUsed) return;
+  try {
+    await response.body.cancel();
+  } catch {
+    // Already consumed, locked, or closed: nothing left to release.
+  }
+}
+
+/**
+ * Read a Takamol JSON response with a hard size bound. The body is streamed, so
+ * an oversized payload is cancelled as soon as it crosses the limit instead of
+ * being buffered fully in memory first. Empty, oversized, or malformed payloads
+ * collapse to null so the caller maps them to a gateway error.
+ */
+export async function readTakamolJson(
+  response: Response,
+  maxBytes: number = TAKAMOL_MAX_BODY_BYTES,
+): Promise<unknown> {
+  if (!response.body) return null;
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let oversized = false;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        oversized = true;
+        break;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  } finally {
+    try {
+      // Stop the transfer as soon as the payload is known to be too large.
+      if (oversized) await reader.cancel();
+      reader.releaseLock();
+    } catch {
+      // The stream is already closed, cancelled, or released.
+    }
+  }
+
+  if (oversized) return null;
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const text = new TextDecoder().decode(bytes);
   if (!text.trim()) return null;
   try {
     return JSON.parse(text) as unknown;

@@ -4,6 +4,7 @@ import {
   buildTakamolUrl,
   fetchTakamolWithRetry,
   readTakamolJson,
+  releaseTakamolBody,
   takamolErrorMessage,
   takamolLookupSchema,
   unwrapTakamolResponse,
@@ -71,6 +72,8 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
       const response = await fetchTakamolWithRetry(buildTakamolUrl(data), apiKey);
 
       if (!response.ok) {
+        // The error body is never read, so release it to free the connection.
+        await releaseTakamolBody(response);
         return {
           success: false,
           status: response.status,
@@ -78,8 +81,9 @@ export const lookupTakamolAvailability = createServerFn({ method: "GET" })
         };
       }
 
-      // Bounded read: an oversized or malformed gateway payload becomes a 502
-      // instead of exhausting server memory, exactly like the SVP client.
+      // Streaming bounded read: an oversized or malformed gateway payload
+      // becomes a 502 instead of exhausting server memory, exactly like the
+      // SVP client.
       const payload = await readTakamolJson(response);
       const result = unwrapTakamolResponse(payload);
       if (!result) {
