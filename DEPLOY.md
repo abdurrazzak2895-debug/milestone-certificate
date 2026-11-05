@@ -63,12 +63,27 @@ per-route token stored in the database instead.
 
 ## Cron routes (all POST, Bearer token from `verify_cron_token`)
 
+`scripts/cron-ping.sh` drives them, so one Railway cron service can cover all
+four:
+
+```bash
+APP_URL=https://your-app.up.railway.app \
+CRON_TOKEN_SVP_RESULTS=... CRON_TOKEN_MESSAGING=... \
+CRON_TOKEN_EXAM_SMS=... CRON_TOKEN_SVP_PENDING_CANCEL=... \
+bash scripts/cron-ping.sh all
+```
+
 | Route                                 | Suggested schedule | Purpose                         |
 | ------------------------------------- | ------------------ | ------------------------------- |
 | `/api/public/cron/svp-results`        | hourly             | sync SVP results into exam rows |
 | `/api/public/cron/messaging`          | hourly             | drain the `sms_messages` queue  |
 | `/api/public/cron/exam-sms`           | every 15–30 min    | exam SMS notifications          |
 | `/api/public/cron/svp-pending-cancel` | every 15–30 min    | cancel stale unpaid SVP drafts  |
+
+Where the schedules differ, give each route its own service and run
+`bash scripts/cron-ping.sh svp-pending-cancel` with only
+`CRON_TOKEN_SVP_PENDING_CANCEL` set. The script exits non-zero on any failure
+(non-200 or missing token) so Railway marks the run as failed.
 
 ## Gotchas
 
