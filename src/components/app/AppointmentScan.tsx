@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { scanAppointment, verifyAppointment } from "@/lib/appointment-ocr.functions";
+import type { Extracted } from "@/lib/appointment-ocr.functions";
 
-type Ext = { id: string; extracted: any; confidence: number | null; warnings: any };
+type Ext = { id: string; extracted: Extracted; confidence: number | null; warnings: unknown };
 type Saved = { name: string; passport: string; occupation: string };
 
 const norm = (s?: string | null) => (s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -46,7 +47,7 @@ export function AppointmentScan({
     try {
       const r = await scan({ data: { submissionId } });
       if ("error" in r && r.error) return toast.error(r.error);
-      const e = (r as { extraction: Ext }).extraction;
+      const e = (r as unknown as { extraction: Ext }).extraction;
       setExt(e);
       setF({ date: e.extracted.exam_date ?? "", time: e.extracted.exam_time ?? "", reason: "" });
     } catch (err) {
@@ -78,7 +79,7 @@ export function AppointmentScan({
     }
   }
 
-  const x = ext?.extracted ?? {};
+  const x: Partial<Extracted> = ext?.extracted ?? {};
   const warnings: string[] = (
     Array.isArray(ext?.warnings) ? (ext!.warnings as string[]) : []
   ).filter((w) => !HIDE.test(w));

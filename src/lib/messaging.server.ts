@@ -131,7 +131,8 @@ export async function processPending(max = 150) {
           : { status: "sent", sent_at: new Date().toISOString(), error: null },
       )
       .eq("id", m.id);
-    err ? failed++ : sent++;
+    if (err) failed++;
+    else sent++;
   }
   return { sent, failed };
 }

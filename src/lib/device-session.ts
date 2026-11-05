@@ -16,7 +16,7 @@ export async function claimDeviceSession(isAdmin?: boolean) {
   localStorage.setItem(KEY, key);
   localStorage.setItem(AT, String(Date.now()));
   let admin = isAdmin;
-  const claim = (supabase.rpc as any)("claim_device_session", { _key: key });
+  const claim = supabase.rpc("claim_device_session" as never, { _key: key } as never);
   if (admin === undefined) {
     const { data: u } = await supabase.auth.getUser();
     if (u.user) {
@@ -43,7 +43,10 @@ export async function checkDeviceSession(force = false): Promise<string | null> 
   );
   if (!key || !at || Date.now() - at > max) return "সেশনের মেয়াদ শেষ। আবার লগইন করুন।";
   if (!force && Date.now() - lastOkAt < CACHE_MS) return null;
-  const { data, error } = await (supabase.rpc as any)("is_current_device_session", { _key: key });
+  const { data, error } = await supabase.rpc(
+    "is_current_device_session" as never,
+    { _key: key } as never,
+  );
   if (!error && data === false)
     return "অন্য একটি ডিভাইসে এই আইডিতে লগইন করা হয়েছে, তাই এখান থেকে লগআউট করা হয়েছে।";
   lastOkAt = Date.now();

@@ -37,4 +37,10 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    // shadcn/ui primitives intentionally export variants next to their components
+    // (`buttonVariants`, `badgeVariants`, …), so the fast-refresh hint is noise there.
+    files: ["src/components/ui/**/*.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
 );

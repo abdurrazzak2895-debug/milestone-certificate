@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const MIME: Record<string, string> = {
@@ -42,7 +44,7 @@ const SCHEMA = {
   },
 } as const;
 
-type Extracted = {
+export type Extracted = {
   candidate_name: string | null;
   passport_no: string | null;
   booking_no: string | null;
@@ -55,7 +57,7 @@ type Extracted = {
   ambiguities: string[];
 };
 
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
+async function assertAdmin(ctx: { supabase: SupabaseClient<Database>; userId: string }) {
   const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
   if (!data) throw new Error("শুধু অ্যাডমিন এটি করতে পারবেন");
 }

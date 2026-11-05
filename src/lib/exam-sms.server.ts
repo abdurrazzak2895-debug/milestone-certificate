@@ -88,7 +88,8 @@ export async function sendTodayExamSms() {
     const msg = `📢 পরীক্ষার নির্দেশনা\n\nপ্রিয় ${w.candidate_name},\nআপনার পরীক্ষার বিস্তারিত তথ্য:\n\n📍 কেন্দ্র: টিটিসি বগুড়া\n🏢 ঠিকানা: ঘোড়াপট্টি, সাতমাথা (১০০ ফিট দক্ষিণে), বগুড়া\n📅 তারিখ: ${fmtDate(at)}\n⏰ সময়: ${fmtTime(at)}\n🕘 উপস্থিতি: পরীক্ষার অন্তত ১ ঘণ্টা আগে\n🏫 ভবন: একাডেমিক ভবন\n🚪 ৩য় তলা, কক্ষ নং ৩০৮\n\nযানজট বিবেচনায় পর্যাপ্ত সময় হাতে নিয়ে রওনা দিন।\n\nধন্যবাদান্তে,\n${ORG}`;
     const ok = await sendSms(phone, msg);
     await log("candidate", ref, phone, ok);
-    ok ? candidates++ : failed++;
+    if (ok) candidates++;
+    else failed++;
   }
 
   const byAgent = new Map<string, NonNullable<typeof works>>();
@@ -106,7 +107,8 @@ export async function sendTodayExamSms() {
     const msg = `📋 আজকের পরীক্ষা (${fmtDate(start)}) — টিটিসি বগুড়া\nপ্রিয় ${a.full_name}, আপনার ${list.length} জন পরীক্ষার্থী:\n\n${lines.join("\n")}\n\nপরীক্ষার্থীদের অন্তত ১ ঘণ্টা আগে একাডেমিক ভবন, ৩য় তলা, কক্ষ ৩০৮-এ উপস্থিত রাখুন।\n— ${ORG}`;
     const ok = await sendSms(phone, msg);
     await log("agent", ref, phone, ok);
-    ok ? agentsSent++ : failed++;
+    if (ok) agentsSent++;
+    else failed++;
   }
   return { candidates, agents: agentsSent, failed };
 }

@@ -9,10 +9,13 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
         if (!token || token.length < 32) return new Response("Unauthorized", { status: 401 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: valid } = await supabaseAdmin.rpc("verify_cron_token" as any, {
-          _name: "svp_results",
-          _token: token,
-        });
+        const { data: valid } = await supabaseAdmin.rpc(
+          "verify_cron_token" as never,
+          {
+            _name: "svp_results",
+            _token: token,
+          } as never,
+        );
         if (valid !== true) return new Response("Unauthorized", { status: 401 });
         const cutoff = new Date(Date.now() - 150 * 60_000).toISOString();
         const retryBefore = new Date(Date.now() - 5 * 60_000).toISOString();
@@ -35,7 +38,7 @@ export const Route = createFileRoute("/api/public/cron/svp-results")({
           // FAIL/NOT_FOUND are only provisional within 10h of exam start.
           if (
             work.svp_result !== "PENDING" &&
-            Date.now() - new Date((work as any).exam_at ?? 0).getTime() > 10 * 3600_000
+            Date.now() - new Date(work.exam_at ?? 0).getTime() > 10 * 3600_000
           )
             continue;
           const { data: occupation } = await supabaseAdmin

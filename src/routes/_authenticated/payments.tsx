@@ -105,7 +105,8 @@ function PaymentsPage() {
     const { error } = await supabase
       .from("settings")
       .upsert({ key: "payment_instructions", value: instr.slice(0, 2000) });
-    error ? toast.error("সংরক্ষণ করা যায়নি") : toast.success("পেমেন্ট নির্দেশনা সংরক্ষণ হয়েছে");
+    if (error) toast.error("সংরক্ষণ করা যায়নি");
+    else toast.success("পেমেন্ট নির্দেশনা সংরক্ষণ হয়েছে");
   };
 
   const list = pays.filter(

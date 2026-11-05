@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
-async function assertAdmin(supabase: any, userId: string) {
+async function assertAdmin(supabase: SupabaseClient<Database>, userId: string) {
   const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (!data) throw new Error("শুধু অ্যাডমিন মেসেজ পাঠাতে পারবেন");
 }

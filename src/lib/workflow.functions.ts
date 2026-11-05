@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
-async function hasAnyRole(supabase: any, userId: string, roles: string[]) {
+async function hasAnyRole(supabase: SupabaseClient<Database>, userId: string, roles: string[]) {
   for (const role of roles) {
     const { data } = await supabase.rpc("has_role_text", { _user_id: userId, _role: role });
     if (data) return true;

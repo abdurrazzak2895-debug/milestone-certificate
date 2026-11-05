@@ -88,9 +88,13 @@ const logQ = {
 };
 
 function useCtx() {
-  const ttcs = useQuery(ttcQ).data ?? [];
-  const occs = useQuery(occQ).data ?? [];
-  const accounts = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() }).data ?? [];
+  // `?? []` creates a new array on every render and would defeat the memo below.
+  const ttcsData = useQuery(ttcQ).data;
+  const occsData = useQuery(occQ).data;
+  const accountsData = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() }).data;
+  const ttcs = useMemo(() => ttcsData ?? [], [ttcsData]);
+  const occs = useMemo(() => occsData ?? [], [occsData]);
+  const accounts = useMemo(() => accountsData ?? [], [accountsData]);
   const ctx: MsgCtx = useMemo(
     () => ({
       ttc: new Map(
@@ -420,9 +424,11 @@ function AutoTab() {
           variant="outline"
           onClick={async () => {
             const r = await runAutomationsNow().catch(() => null);
-            r
-              ? toast.success(`চালানো: ${r.ran}, পাঠানো: ${r.sent}, ব্যর্থ: ${r.failed}`)
-              : toast.error("চালানো যায়নি");
+            if (r) {
+              toast.success(`চালানো: ${r.ran}, পাঠানো: ${r.sent}, ব্যর্থ: ${r.failed}`);
+            } else {
+              toast.error("চালানো যায়নি");
+            }
           }}
         >
           <Play className="mr-1 h-4 w-4" /> এখনই যাচাই করুন
@@ -834,9 +840,12 @@ function CentersTab() {
                   .from("ttc_centers")
                   .update({ address: (vals[t.id] ?? cur).trim() || null })
                   .eq("id", t.id);
-                error
-                  ? toast.error("সংরক্ষণ করা যায়নি")
-                  : (toast.success("ঠিকানা সংরক্ষিত"), qc.invalidateQueries({ queryKey: ["ttc"] }));
+                if (error) {
+                  toast.error("সংরক্ষণ করা যায়নি");
+                } else {
+                  toast.success("ঠিকানা সংরক্ষিত");
+                  void qc.invalidateQueries({ queryKey: ["ttc"] });
+                }
               }}
             >
               সংরক্ষণ

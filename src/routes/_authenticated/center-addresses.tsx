@@ -215,8 +215,11 @@ function CenterAddresses() {
 }
 
 function MessagePreview({ ttcs }: { ttcs: Ttc[] }) {
-  const occs = useQuery(occQ).data ?? [];
-  const accounts = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() }).data ?? [];
+  // `?? []` creates a new array on every render and would defeat the memo below.
+  const occsData = useQuery(occQ).data;
+  const accountsData = useQuery({ queryKey: ["accounts"], queryFn: () => listAccounts() }).data;
+  const occs = useMemo(() => occsData ?? [], [occsData]);
+  const accounts = useMemo(() => accountsData ?? [], [accountsData]);
   const { data: works = [] } = useQuery(worksQ);
   const [body, setBody] = useState(DEFAULT_TEMPLATE);
   const [ttcId, setTtcId] = useState("");

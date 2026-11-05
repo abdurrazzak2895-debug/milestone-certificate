@@ -123,7 +123,7 @@ export function ResultCertificateButton({ d }: { d: CertInfo }) {
           tab.document.write(
             html.replace(
               "</body>",
-              "<script>window.onload=()=>setTimeout(()=>print(),600)<\/script></body>",
+              "<script>window.onload=()=>setTimeout(()=>print(),600)</script></body>",
             ),
           );
           tab.document.close();
