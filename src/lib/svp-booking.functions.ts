@@ -582,8 +582,10 @@ export const createSvpBooking = createServerFn({ method: "POST" })
       // Session token to book. SVP can reassign it on the temporary-seat hold below.
       let bookSessionId: string | number = data.examSessionId;
 
-      if (!data.holdId && typeof data.examSessionId === "number") {
-        // Targeted flow: the portal creates a temporary seat for the chosen session.
+      // Targeted flow: the portal creates a temporary seat for the chosen session.
+      // Session tokens can be numeric ids or opaque strings (load-balancer day tokens),
+      // so the hold must run for both — skipping it for string ids booked an unheld seat.
+      if (!data.holdId) {
         const hold = await svpAuthedRequest(
           context.userId,
           "/individual_labor_space/temporary_seats",

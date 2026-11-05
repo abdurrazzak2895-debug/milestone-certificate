@@ -821,7 +821,7 @@ export function parseSvpNotifications(payload: unknown): SvpNotification[] {
         title: text(record["title"]) ?? text(record["subject"]),
         message: text(record["message"]) ?? text(record["body"]) ?? text(record["description"]),
         createdAt: text(record["created_at"]) ?? text(record["createdAt"]),
-        read: Boolean(record["read_at"] ?? record["read"] ?? record["seen"]),
+        read: Boolean(record["read_at"]) || parseSvpFlag(record["read"] ?? record["seen"]),
       };
     })
     .filter((entry): entry is SvpNotification => entry !== null);

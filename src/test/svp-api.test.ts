@@ -704,6 +704,19 @@ describe("SVP payments, notifications and certificate price", () => {
       currency: "SAR",
     });
   });
+
+  it('reads the notification flag without turning SVP\'s string "0" into read', () => {
+    const readFlag = (entry: Record<string, unknown>) =>
+      parseSvpNotifications({ notifications: [{ id: "n1", ...entry }] })[0]?.read;
+
+    expect(readFlag({ read_at: "2026-10-21T09:00:00Z" })).toBe(true);
+    expect(readFlag({ read_at: null, read: "0" })).toBe(false);
+    expect(readFlag({ read_at: null, read: 0 })).toBe(false);
+    expect(readFlag({ read_at: null, read: "1" })).toBe(true);
+    expect(readFlag({ read_at: null, read: true })).toBe(true);
+    expect(readFlag({ seen: "false" })).toBe(false);
+    expect(readFlag({})).toBe(false);
+  });
 });
 
 describe("SVP flag and hold parsers", () => {
