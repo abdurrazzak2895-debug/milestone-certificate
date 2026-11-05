@@ -1,0 +1,46 @@
+# Render Blueprint: one always-on Node web service for the TanStack Start app.
+# The default Lovable build targets Cloudflare Workers, so the preset is pinned
+# to node-server here — without it `.output/server/index.mjs` is never emitted.
+services:
+  - type: web
+    name: svp-portal
+    runtime: node
+    # Free plan spins down on idle (~50s cold start) — use starter or higher.
+    plan: starter
+    # Closest region for Bangladesh users; keep it in sync with the Supabase region.
+    region: singapore
+    buildCommand: npm install && NITRO_PRESET=node-server npx vite build
+    startCommand: node .output/server/index.mjs
+    healthCheckPath: /auth
+    autoDeploy: true
+    envVars:
+      - key: NITRO_PRESET
+        value: node-server
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Public Supabase config — injected into the client bundle at build time.
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
+      # Server-only secrets.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: TAKAMOL_API_KEY
+        sync: false
+      # Must stay identical across deploys, otherwise SVP vault cookies and the
+      # stored account passwords can no longer be decrypted.
+      - key: SVP_CREDENTIAL_KEY
+        sync: false
+      - key: BULKSMSBD_API_KEY
+        sync: false
+      - key: BULKSMSBD_SENDER_ID
+        sync: false
