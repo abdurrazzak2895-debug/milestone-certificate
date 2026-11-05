@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { readBoundedJson, releaseResponseBody } from "@/lib/bounded-json";
 
 const API = "https://svp-international-api.pacc.sa/api/v1/visitor_space";
 const HEADERS = {
@@ -58,6 +59,8 @@ async function fetchRetry(url: string, tries = 3): Promise<Response> {
       const r = await fetch(url, { headers: HEADERS, signal: ac.signal });
       if (r.status >= 500 && i < tries - 1) {
         last = new Error(`status ${r.status}`);
+        // An unconsumed body pins a pooled connection while we back off.
+        await releaseResponseBody(r);
         continue;
       }
       return r;
@@ -81,7 +84,8 @@ export async function querySvp(passport: string, occupationKey: string): Promise
   });
   try {
     const r = await fetchRetry(`${API}/labors?${qs}`);
-    const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    // Bounded read: a huge or malformed gateway body becomes an empty result, not memory pressure.
+    const j = ((await readBoundedJson(r)) ?? {}) as Record<string, unknown>;
     if (r.status === 404 || j.error)
       return { status: "not_found", message: "SVP-তে কোনো রেজাল্ট পাওয়া যায়নি" };
     if (!r.ok) return { status: "error", message: "SVP সার্ভারে সমস্যা, পরে চেষ্টা করুন" };
@@ -190,7 +194,11 @@ export const checkSubmissionSvp = createServerFn({ method: "POST" })
     if (res.status === "error") return res;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const upd = svpUpdate(res, sub.exam_at, sub.svp_result);
-    await supabaseAdmin.from("job_submissions").update(upd).eq("id", sub.id);
+    const { error: updErr } = await supabaseAdmin
+      .from("job_submissions")
+      .update(upd)
+      .eq("id", sub.id);
+    if (updErr) return { status: "error", message: "রেজাল্ট সংরক্ষণ করা যায়নি" };
     if ("svp_old_result" in upd && upd.svp_old_result)
       return {
         status: "not_found",

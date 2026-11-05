@@ -290,11 +290,16 @@ export const updateAccount = createServerFn({ method: "POST" })
             : "মোবাইল পরিবর্তন করা যায়নি",
         };
     } else {
-      await supabaseAdmin.auth.admin.updateUserById(data.id, {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.id, {
         user_metadata: { full_name: data.name },
       });
+      if (error) return { ok: false as const, message: "নাম পরিবর্তন করা যায়নি" };
     }
-    await supabaseAdmin.from("profiles").upsert({ id: data.id, full_name: data.name, email });
+    // A silent failure here left the profile name stale while the account row changed.
+    const { error: pErr } = await supabaseAdmin
+      .from("profiles")
+      .upsert({ id: data.id, full_name: data.name, email });
+    if (pErr) return { ok: false as const, message: "প্রোফাইল সংরক্ষণ করা যায়নি" };
     const { error: aErr } = await supabaseAdmin
       .from("agent_accounts")
       .update({

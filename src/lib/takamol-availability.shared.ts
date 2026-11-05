@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_JSON_BODY_BYTES, readBoundedJson, releaseResponseBody } from "@/lib/bounded-json";
 
 const API_BASE = "https://choice-pc-sv.xyz/api/external/takamol-availability/v1";
 
@@ -186,77 +187,20 @@ export async function fetchTakamolWithRetry(
 }
 
 /** Hard bound on a Takamol JSON body, in bytes. */
-export const TAKAMOL_MAX_BODY_BYTES = 2 * 1024 * 1024;
+export const TAKAMOL_MAX_BODY_BYTES = MAX_JSON_BODY_BYTES;
 
-/**
- * Release a response body that will not be read. An unconsumed body pins a
- * pooled connection until it is garbage collected, so every response whose body
- * is never read (retried attempts, non-ok statuses) is cancelled here.
- */
+/** Release a Takamol response body that will not be read. */
 export async function releaseTakamolBody(response: Response): Promise<void> {
-  if (!response.body || response.bodyUsed) return;
-  try {
-    await response.body.cancel();
-  } catch {
-    // Already consumed, locked, or closed: nothing left to release.
-  }
+  await releaseResponseBody(response);
 }
 
 /**
- * Read a Takamol JSON response with a hard size bound. The body is streamed, so
- * an oversized payload is cancelled as soon as it crosses the limit instead of
- * being buffered fully in memory first. Empty, oversized, or malformed payloads
- * collapse to null so the caller maps them to a gateway error.
+ * Read a Takamol JSON response with a hard size bound (shared streaming reader).
+ * Oversized or malformed payloads collapse to null so the caller maps them to an error.
  */
 export async function readTakamolJson(
   response: Response,
   maxBytes: number = TAKAMOL_MAX_BODY_BYTES,
 ): Promise<unknown> {
-  if (!response.body) return null;
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  let oversized = false;
-
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        oversized = true;
-        break;
-      }
-      chunks.push(value);
-    }
-  } catch {
-    return null;
-  } finally {
-    try {
-      // Stop the transfer as soon as the payload is known to be too large.
-      if (oversized) await reader.cancel();
-      reader.releaseLock();
-    } catch {
-      // The stream is already closed, cancelled, or released.
-    }
-  }
-
-  if (oversized) return null;
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  const text = new TextDecoder().decode(bytes);
-  if (!text.trim()) return null;
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return null;
-  }
+  return readBoundedJson(response, maxBytes);
 }

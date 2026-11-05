@@ -265,7 +265,9 @@ export const verifyAppointment = createServerFn({ method: "POST" })
         .from("exams")
         .update({ exam_date: data.examDate, exam_time: `${data.examTime}:00` })
         .eq("id", w.exam_id);
-    await sb
+    // The reviewed status must actually persist; reporting ok after a failed write left
+    // the extraction stuck on needs_review while the admin saw a success message.
+    const { error: xErr } = await sb
       .from("appointment_extractions")
       .update({
         status: corrected ? "corrected" : "verified",
@@ -276,5 +278,6 @@ export const verifyAppointment = createServerFn({ method: "POST" })
         reviewed_at: new Date().toISOString(),
       })
       .eq("id", e.id);
+    if (xErr) return { error: "যাচাইয়ের ফলাফল সংরক্ষণ করা যায়নি" };
     return { ok: true };
   });
